@@ -9,11 +9,15 @@ Die App zeigt nur den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Auswert
 
 ## Stack
 
-- **Backend:** FastAPI, SQLite mit FTS5, föderierte Suche über eigene DB, BLS, Open Food Facts und USDA
+- **Backend:** FastAPI, PostgreSQL mit pg_trgm, Suche über eigene DB, BLS 4.0 und Open Food Facts
 - **Frontend:** Next.js, shadcn/ui, Tailwind als PWA, Barcode-Erkennung mit ZXing
 - **Erfassung per LLM:** Nährwert-Etiketten werden per Vision-Modell ausgelesen und im Code plausibilisiert
 - **Betrieb:** Docker Compose, Web auf Port 2477, API auf 2478
 
 ## Status
 
-Phase 0: Spezifikation. Der Design-Prototyp liegt unter [`docs/design/prototype.html`](docs/design/prototype.html).
+Phase 1: Spezifikation steht in [`docs/SPEC.md`](docs/SPEC.md), Entscheidungen in [`docs/adr/`](docs/adr/). Der Design-Prototyp liegt unter [`docs/design/prototype.html`](docs/design/prototype.html).
+
+## Lizenz
+
+Code unter [MIT](LICENSE). Nährwertdaten: Bundeslebensmittelschlüssel (BLS) 4.0, Max Rubner-Institut, CC BY 4.0; Produktdaten zur Laufzeit von Open Food Facts (ODbL).

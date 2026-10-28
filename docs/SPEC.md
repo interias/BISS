@@ -1,0 +1,166 @@
+# BISS – Spezifikation
+
+Stand: 28.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+
+## 1. Ziel und Leitprinzipien
+
+BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wächst mit der Nutzung, realistisch sind es 50–100 verschiedene Lebensmittel im Jahr.
+
+1. **Wenige Taps:** Wiederkehrendes Essen kostet einen Tap, ein neues Produkt höchstens zwei Bestätigungen.
+2. **Nur erfassen:** Die App zeigt ausschließlich den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Es gibt keine Diagramme und keine Historie-Auswertungen.
+3. **Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
+4. **Logik im Backend:** Der Web-Client zeigt nur an. Eine spätere Flutter-App nutzt dieselbe API ([ADR-0003](adr/0003-logic-in-backend.md)).
+
+## 2. Funktionsumfang
+
+| Epic | Inhalt | Ergebnis |
+|---|---|---|
+| **E1 Erfassen per Suche** | Compose-Stack, Schema, BLS-Import, Suche, Mengen-Sheet, Tagebuch, Tagesbilanz, Zuletzt-Chips mit Rückgängig, Einträge ändern/entfernen | Lauffähiger Prototyp mit generischen Lebensmitteln |
+| **E2 Eigene Lebensmittel** | Lebensmittel-Editor (Neu und Bearbeiten), Portionen mit Herkunft, Atwater-Check, Produktfoto, Overlay, Ranking nach Nutzung, goldenes Testset | Eigene DB wächst, Suche ist verlässlich |
+| **E3 Barcode** | Live-Scan mit ZXing, GTIN-14, Open Food Facts live mit Cache, Quellenhinweis | Markenprodukte per Scan |
+| **E4 Etikett-Foto** | Auslösen in der Kamera, Extraktion per LLM, Validierung, Fallback-Modell, Editor vorbelegt | Neues Produkt mit zwei Bestätigungen |
+| **E5 Anbindung und Betrieb** | MCP-Server, Tagesziele per API, nächtliches Backup | Auswertung extern, Daten gesichert |
+
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Teller-Erkennung, Mahlzeiten-Kombinationen, Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Statistiken jeder Art.
+
+## 3. Abläufe
+
+Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens aus dem Prototyp werden auf die shadcn-Variablen abgebildet, hell und dunkel.
+
+- **Hauptscreen:**
+  - Header mit Logo, „BISS“ und Datum.
+  - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g).
+  - Tagebuch nach Mahlzeiten.
+  - Dock mit Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
+- **Zuletzt-Chip:** Ein Tap trägt die Standardportion zur vorgeschlagenen Mahlzeit ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
+- **Mengen-Sheet:**
+  - Bild, Quelle, Name und Marke.
+  - Mahlzeit-Chip: vorbelegt, ein Tap wechselt die Mahlzeit.
+  - Gramm mit ±: Schritt 5 g bis 100 g, darüber 10 g.
+  - Portions-Chips sowie kcal/E/K/F live.
+  - „Eintragen · X kcal“, im Bearbeitungsmodus „Speichern“ und „Entfernen“.
+- **Live-Werte:** Das Sheet berechnet kcal/E/K/F lokal mit der Formel `Wert je 100 g × Gramm / 100`. Das ist reine Anzeige. Beim Speichern rechnet das Backend verbindlich ([ADR-0003](adr/0003-logic-in-backend.md)).
+- **Lebensmittel-Editor:**
+  - Produktfoto (Kamera oder Galerie), Name und Marke.
+  - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
+  - Atwater-Hinweis live.
+  - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
+- **Kamera:**
+  - Ein erkannter Barcode öffnet ohne Auslösen das Mengen-Sheet.
+  - Ohne Treffer zeigt die Kamera „Etikett fotografieren“.
+  - Ein Foto geht an die Extraktion, danach öffnet der Editor und dann das Mengen-Sheet.
+
+## 4. Domänenmodell
+
+PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 g bzw. je 100 ml.
+
+| Tabelle | Wesentliche Felder |
+|---|---|
+| `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
+| `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
+| `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
+| `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern) |
+| `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
+| `off_cache` | `gtin`, `payload`, `fetched_at` – Kurzzeit-Cache angezeigter Treffer, 30 Tage |
+
+Regeln:
+
+- **Tag und Mahlzeit:** Zeitzone `Europe/Berlin`. Ein Eintrag bis 04:00 Uhr zählt zum Vortag. Ohne Angabe schlägt das Backend die Mahlzeit nach Uhrzeit vor: < 10:30 Frühstück, < 14:30 Mittag, < 17:30 Snack, sonst Abend.
+- **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
+- **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
+- **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
+- **Flüssigkeiten:** `basis = ml`. Gramm werden über `density` umgerechnet, eingetragen wird immer in Gramm.
+
+## 5. API
+
+REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die Vorlage für spätere Clients.
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| GET | `/days/{date}` | Tagesbilanz, Ziele, Einträge nach Mahlzeit, `suggested_meal` |
+| POST | `/entries` | Eintrag anlegen. Ohne `grams` gilt die Standardportion, ohne `meal` der Vorschlag |
+| PATCH / DELETE | `/entries/{id}` | Menge oder Mahlzeit ändern, entfernen (auch für „Rückgängig“) |
+| GET | `/recent` | Zuletzt-Chips: Lebensmittel nach Nutzung und Aktualität, mit Standardportion |
+| GET | `/foods/search?q=` | föderierte Suche (Abschnitt 6) |
+| GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
+| GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
+| PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
+| POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
+| GET / PUT | `/goals/default`, `/goals/{date}` | Standardziele und Tagesziele (E5) |
+
+**MCP-Server** (E5, [ADR-0007](adr/0007-mcp.md)): Er liegt unter `/mcp` im API-Container und nutzt dieselben Services. Lesend sind `search_food`, `get_food`, `list_entries` und `daily_summary`, schreibend nur `log_meal`.
+
+## 6. Suche
+
+**Quellen:**
+- Das MVP durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
+- Alle Quellen liegen in Postgres, darum ist die Suche eine einzige Abfrage. Föderiert wird erst, wenn eine Live-Quelle für Text hinzukommt.
+
+**Normalisierung**, in Python und als generierte Spalte:
+- Kleinschreibung und `unaccent`.
+- ä→ae, ö→oe, ü→ue, ß→ss.
+- Bindestriche und Satzzeichen werden zu Leerzeichen, Mengenangaben wie `500 g` oder `1,5 l` fallen weg.
+
+**Kandidaten:** `pg_trgm` über `name_norm` und Marke, mit `word_similarity` für Teilwörter und Tippfehler.
+
+**Marke:**
+- Ein Wort der Suche, das als Marke bekannt ist, filtert auf diese Marke.
+- Ohne Treffer mit Filter fließt die Marke nur in die Gewichtung ein.
+
+**Deduplizierung:**
+- Markenprodukte gleicher GTIN werden zusammengeführt.
+- Generische Lebensmittel gelten als Dublette bei Namensähnlichkeit ≥ 0,9 und kcal ± 10 %.
+- Pro Gruppe gilt die Priorität eigene DB > bereits verwendet > BLS > OFF.
+
+**Ranking:** `Score = Textähnlichkeit + Quellenpriorität + Nutzung + Vollständigkeit + Markentreffer`. Die Gewichte stehen in einer Konfiguration und werden über das goldene Testset eingestellt.
+- **Nutzung** ist der stärkste Faktor: Anzahl der Einträge und Aktualität mit Halbwertszeit 30 Tage.
+- **Vollständigkeit:** Die Kernnährwerte sind vorhanden.
+
+**Barcode** (E3):
+- EAN-8, EAN-13 und UPC-A werden auf GTIN-14 normalisiert (führende Nullen).
+- Kette: eigene DB, dann OFF-Cache, dann OFF live (Timeout 2 s), dann „Etikett fotografieren“.
+
+## 7. Etikett-Extraktion (E4)
+
+[ADR-0004](adr/0004-llm-extraction.md)
+
+**Ein- und Ausgabe:**
+- Eingabe ist das Foto plus die GTIN aus dem Scan. Die GTIN liest nie das Modell.
+- Die Ausgabe ist strukturiert nach festem JSON-Schema: `name, brand, package_size, per_100 {basis, state, energy_kj, energy_kcal, fat, saturated_fat, carbs, sugar, fiber, protein, salt}, servings [{label, amount, unit, source}], confidence, notes`.
+
+**Prompt:** Er fängt drei typische Fehler ab: die Spalte je 100 g gegenüber je Portion, zubereitet gegenüber unzubereitet sowie g gegenüber ml.
+
+**Validierung im Code:**
+- Atwater: `4·KH + 4·Eiweiß + 9·Fett + 2·Ballaststoffe` weicht höchstens 10 % von kcal ab.
+- `kJ ≈ kcal · 4,184` (± 5 %), `Zucker ≤ KH`, `gesättigte Fettsäuren ≤ Fett`.
+
+**Modelle:**
+- Ein schnelles Modell als Standard und ein stärkeres als Fallback, beide konfigurierbar.
+- Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem stärkeren Modell. Bleibt der Verstoß, zeigt der Editor die Warnung.
+- Das Etikett-Foto wird nach der Extraktion verworfen.
+
+## 8. Tests
+
+Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compose up`.
+
+- **Backend:** pytest gegen einen echten Postgres-Container mit eigener Test-Datenbank.
+- **Goldenes Suchtestset** (ab E1 wachsend, Ziel ca. 30 Paare in E2): Tippfehler, Umlaut-Varianten, Markenfilter, GTIN mit und ohne führende Null, „banane“ → genau ein Treffer auf Platz 1.
+  - Treffer auf Platz 1 ≥ 90 %, in den Top 5 ≥ 98 %.
+  - Dublettenrate in den Top 10 = 0.
+  - p95 lokal < 300 ms.
+  - Die Suite schlägt fehl, wenn eine Schwelle reißt.
+- **Adapter-Tests** mit aufgezeichneten OFF-Antworten (`respx`), inklusive Timeout und Ausfall.
+- **Extraktion:**
+  - Validierungsregeln als Unit-Tests.
+  - Fixture-Fotos echter Etiketten mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft.
+- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt).
+
+## 9. Betrieb
+
+[ADR-0006](adr/0006-stack-and-tooling.md)
+
+- **Plattform:** Docker Compose in Docker Desktop, immer aktuell gehalten. Web auf Port 2477, API auf 2478, Postgres nur intern.
+- **Volumes:** `db-data` und `images`.
+- **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt später über Tailscale. Bis dahin läuft der Kamera-Test über `localhost`.
+- **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F).
+- **Backup** (E5): nächtlich `pg_dump` plus ein Tarball der Bilder auf ein gemountetes Verzeichnis. Die letzten 14 Sicherungen bleiben erhalten.
