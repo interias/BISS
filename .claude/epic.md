@@ -22,6 +22,7 @@ lint_commands:
   api: docker compose run --rm api uv run ruff check .
   web: docker compose run --rm web pnpm lint
 writers: [api/app/importers, api/alembic]
+env_files: [.env]
 window: 1
 exclusive_paths: [api/uv.lock, api/pyproject.toml, web/pnpm-lock.yaml, web/package.json, api/alembic/versions, compose.yaml]
 commit_style: plain
