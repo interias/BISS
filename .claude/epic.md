@@ -3,11 +3,11 @@ forge: github
 api: https://api.github.com/repos/interias/BISS
 token_env: GH_TOKEN
 push_remote: origin
-issue_form: spec
+issue_form: tickets
 ready_label: ready-for-agent
 skip_labels: [needs-triage, needs-info, wontfix]
 epic_label: epic
-dependency_source: [header]
+dependency_source: [header, body]
 base_branch: main
 main_branch: main
 glossary: CONTEXT.md
@@ -31,7 +31,7 @@ plan_artifact: publish
 
 # Projektregeln BISS
 
-- Ein Epic ist ein Issue mit sieben Abschnitten (Modus `spec`). Reihenfolge steht in der Kopfzeile `> **Reihenfolge:** nach #<nr>`.
+- Modus `tickets`: Das Epic hat sieben Abschnitte als Kontext; die Kopfzeile `> **Reihenfolge:** nach #<nr> · Kinder: #a, #b` nennt Vorgänger-Epic und Kinder. Harte Kanten zwischen Kindern stehen im Kind unter `## Blocked by`. `ready-for-agent` tragen Epics und Kinder.
 - Fachbegriffe aus `CONTEXT.md`; Code, Kommentare und Commits auf Englisch.
 - Keine Funktion, die nicht in `docs/SPEC.md` steht, vor allem keine Statistiken in der App.
 - Neue Abhängigkeiten außerhalb von ADR-0006 nur nach Rückfrage am Vorab-Tor.
