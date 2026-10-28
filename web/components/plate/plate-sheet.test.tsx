@@ -36,6 +36,31 @@ test("shows the dish, each ingredient with erkannt or vermutet and the sum as th
   expect(screen.queryByText("Nicht zugeordnete Zutaten werden nicht eingetragen.")).not.toBeInTheDocument();
 });
 
+test("an ml ingredient previews through its density, as the backend computes it", () => {
+  const plate = fakePlate();
+  // 206 g of a drink with 64 kcal per 100 ml and 1.03 g/ml: 200 ml, 128 kcal (not 131.84).
+  plate.items = [
+    {
+      ...plate.items[0],
+      name: "Testmilch",
+      grams: 206,
+      basis: "ml",
+      density: 1.03,
+      per_100: { kcal: 64, protein: 3.3, carbs: 4.8, fat: 3.5 },
+      macros: { kcal: 128, protein: 6.6, carbs: 9.6, fat: 7 },
+    },
+  ];
+  renderSheet(plate, []);
+  expect(screen.getByRole("button", { name: "Eintragen · 128 kcal" })).toBeInTheDocument();
+});
+
+test("the sheet opens without focus on the name, so no keyboard comes up on the phone", () => {
+  renderSheet();
+  const name = screen.getByRole("textbox", { name: "Gericht" });
+  expect(document.activeElement).not.toBe(name);
+  expect(screen.getByRole("dialog")).toHaveFocus();
+});
+
 test("plus and minus change an amount by 10 g, never below 5 g, and the sum follows", () => {
   renderSheet();
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht mehr" }));

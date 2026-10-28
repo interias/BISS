@@ -123,6 +123,8 @@ def plate(found: Plate, model: str, attempts: int) -> schemas.PlateExtraction:
                 confidence=item.confidence,
                 certainty=item.certainty,
                 food=None if item.food is None else food_ref(item.food),
+                basis=None if item.food is None else item.food.basis,
+                density=None if item.food is None else item.food.density,
                 per_100=None if item.food is None else schemas.Macros.model_validate(item.food),
                 macros=None if item.macros is None else schemas.Macros.model_validate(item.macros),
             )

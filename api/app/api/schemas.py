@@ -385,6 +385,8 @@ class PlateItem(BaseModel):
         description="recognized from confidence 0.7 on, guessed below (ADR-0009)"
     )
     food: FoodRef | None = Field(description="the matched food")
+    basis: Basis | None = Field(description="of the matched food: per_100 per 100 g or 100 ml")
+    density: float | None = Field(description="g/ml of the matched food, to turn grams into ml")
     per_100: Macros | None = Field(description="values of the matched food per 100 g or 100 ml")
     macros: Macros | None = Field(description="values for grams, as an entry would store them")
 

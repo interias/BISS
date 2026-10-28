@@ -144,6 +144,8 @@ export const fakePlate = (broccoliMatched = true): PlateExtraction => {
     confidence,
     certainty: confidence >= 0.7 ? "recognized" : "guessed",
     food: ref(food),
+    basis: food.basis,
+    density: 1,
     per_100: food.per_100,
     macros: scale(food.per_100, grams),
   });
@@ -161,6 +163,8 @@ export const fakePlate = (broccoliMatched = true): PlateExtraction => {
             confidence: 0.6,
             certainty: "guessed",
             food: null,
+            basis: null,
+            density: null,
             per_100: null,
             macros: null,
           },

@@ -26,6 +26,7 @@ type Row = {
   food: FoodRef | null;
   per100: Macros | null;
   basis: Basis;
+  density: number;
 };
 
 /** Row keys stay unique across sheets, so a removed row never hands its key on. */
@@ -37,7 +38,7 @@ const ZERO: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 function sum(rows: Row[]) {
   return rows.reduce((total, row) => {
     if (!row.per100) return total;
-    const m = previewMacros(row.per100, row.grams, row.basis);
+    const m = previewMacros(row.per100, row.grams, row.basis, row.density);
     return {
       kcal: total.kcal + m.kcal,
       protein: total.protein + m.protein,
@@ -77,7 +78,8 @@ export function PlateSheet({
       tag: item.certainty,
       food: item.food,
       per100: item.per_100,
-      basis: "g",
+      basis: item.basis ?? "g",
+      density: item.density ?? 1,
     })),
   );
   // The row whose food is being searched for.
@@ -108,6 +110,8 @@ export function PlateSheet({
         food: { id: food.id, name: food.name, brand: food.brand, source: food.source },
         per100: food.per_100,
         basis: food.basis,
+        // Recent foods and search hits carry no density; 1 is right for every food in g.
+        density: 1,
       },
     ]);
 
@@ -118,6 +122,7 @@ export function PlateSheet({
       food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source },
       per100: hit.per_100,
       basis: hit.basis,
+      density: 1,
     });
     setMatching(null);
   };

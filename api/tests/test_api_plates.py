@@ -83,6 +83,8 @@ def test_plate_with_matched_and_unmatched_items_and_totals(
             "brand": None,
             "source": "bls",
         },
+        "basis": "g",
+        "density": 1.0,
         "per_100": {"kcal": 140, "protein": 29.4, "carbs": 0, "fat": 2.4},
         "macros": {"kcal": 168.0, "protein": 35.3, "carbs": 0.0, "fat": 2.9},
     }
@@ -94,10 +96,31 @@ def test_plate_with_matched_and_unmatched_items_and_totals(
         "confidence": 0.6,
         "certainty": "guessed",
         "food": None,
+        "basis": None,
+        "density": None,
         "per_100": None,
         "macros": None,
     }
     assert body["totals"] == {"kcal": 336.0, "protein": 38.9, "carbs": 36.9, "fat": 3.2}
+
+
+def test_liquid_carries_basis_and_density_and_its_macros_go_through_the_density(
+    client: TestClient, session: Session
+) -> None:
+    """per_100 of an ml food is per 100 ml; the app previews with basis and density (SPEC 7a)."""
+    milk = PlateDraft(
+        dish="Milch",
+        ingredients=[PlateIngredient(name="Testmilch", grams=206, confidence=0.9)],
+        notes="",
+    )
+    app.dependency_overrides[get_plate_extractor] = lambda: FakePlateExtractor({"fast-model": milk})
+    food = add_food(
+        session, "Testmilch", kcal=64, protein=3.3, carbs=4.8, fat=3.5, basis="ml", density=1.03
+    )
+    [item] = extract(client).json()["items"]
+    assert (item["food_id"], item["basis"], item["density"]) == (food.id, "ml", 1.03)
+    # 206 g / 1.03 g/ml = 200 ml, not 206 ml.
+    assert item["macros"] == {"kcal": 128.0, "protein": 6.6, "carbs": 9.6, "fat": 7.0}
 
 
 def test_extraction_logs_nothing_and_does_not_store_the_photo(

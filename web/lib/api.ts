@@ -158,6 +158,9 @@ export type PlateItem = {
   confidence: number;
   certainty: "recognized" | "guessed";
   food: FoodRef | null;
+  /** Of the matched food: per_100 is per 100 g or 100 ml, density turns grams into ml. */
+  basis: Basis | null;
+  density: number | null;
   per_100: Macros | null;
   macros: Macros | null;
 };

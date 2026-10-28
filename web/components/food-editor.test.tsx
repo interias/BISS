@@ -3,6 +3,7 @@ import { Dialog } from "radix-ui";
 import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { FoodDetail, FoodWrite } from "@/lib/api";
+import { Sheet } from "@/components/sheet";
 import { bananaDetail, biscuitLabel } from "@/test/fixtures";
 import { EditorForm } from "./food-editor";
 
@@ -369,4 +370,15 @@ test("a GTIN another food already has keeps the editor open with a clear message
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Diese GTIN gehört schon zu einem anderen Lebensmittel.");
   expect(onSaved).not.toHaveBeenCalled();
+});
+
+test("the editor opens in its sheet without focus on the name, so no keyboard comes up", () => {
+  fakeBackend();
+  render(
+    <Sheet onClose={noop}>
+      <EditorForm food={bananaDetail} onSaved={noop} onCancel={noop} />
+    </Sheet>,
+  );
+  expect(field("Name")).not.toHaveFocus();
+  expect(screen.getByRole("dialog")).toHaveFocus();
 });
