@@ -23,7 +23,8 @@ lint_commands:
   web: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm lint
 writers: [api/app/importers, api/alembic]
 env_files: [.env]
-window: 1
+test_isolation_env: BISS_PACKAGE
+window: 2
 exclusive_paths: [api/uv.lock, api/pyproject.toml, web/pnpm-lock.yaml, web/package.json, api/alembic/versions, compose.yaml]
 commit_style: plain
 commit_language: en
@@ -37,5 +38,6 @@ plan_artifact: publish
 - Keine Funktion, die nicht in `docs/SPEC.md` steht, vor allem keine Statistiken in der App.
 - Neue Abhängigkeiten außerhalb von ADR-0006 nur nach Rückfrage am Vorab-Tor.
 - Jedes Paket endet mit grünen Tests und lauffähigem `docker compose up`.
-- `window: 1`, weil alle Pakete denselben Compose-Stack und Postgres nutzen.
+- Testisolation: `Up` setzt in der kopierten `.env` `BISS_PACKAGE=<nr>` und `COMPOSE_PROJECT_NAME=biss-<nr>`. Das Testbett eines Pakets ist sein eigenes Compose-Projekt `biss-<nr>` mit eigenem `db`-Container und eigenen Volumes; die Testbefehle laufen im Paket-Worktree, Compose liest den Projektnamen aus der `.env` (zusätzlich `-p biss-<nr>` erlaubt), immer mit `compose.test.yaml`, also ohne veröffentlichte Ports.
+- `window: 2`, weil jedes Paket ein eigenes Compose-Projekt hat (Entscheidung des Menschen in #2). Den vollen Stack auf 2477/2478 und die Abnahme fährt nur der Orchestrator im Slot, nacheinander.
 - GitHub-Token: `GH_TOKEN` aus `gh auth token`.
