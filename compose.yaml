@@ -72,6 +72,32 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  backup:
+    # Nightly backup (docs/backup.md): the image of db, so pg_dump matches the server, with
+    # busybox crond. Gets only the database connection, never a token or key.
+    image: postgres:18-alpine
+    command: ["sh", "/backup/crond.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-biss}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-biss}
+      PGDATABASE: ${POSTGRES_DB:-biss}
+      # 03:00 local time (SPEC 4), tzdata is part of the image.
+      TZ: Europe/Berlin
+    volumes:
+      - ./ops/backup:/backup:ro
+      - images:/images:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "crond"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   db-data:
   images:

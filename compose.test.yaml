@@ -14,6 +14,15 @@ services:
         condition: service_started
   web:
     ports: !reset []
+  # Script test of the backup: run --rm backup sh /backup/test.sh (backups go to a
+  # temporary directory). It needs real rows, so the api starts first with schema and seed,
+  # and it places a probe file in the images volume, so that volume is writable here.
+  backup:
+    volumes:
+      - images:/images
+    depends_on:
+      api:
+        condition: service_healthy
   # Invented OFF answers for the e2e tests (web/e2e/off-stub); Node from the Playwright
   # image that web builds on, so no further image is needed.
   off-stub:

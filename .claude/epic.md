@@ -18,6 +18,7 @@ test_commands:
   api: docker compose -f compose.yaml -f compose.test.yaml run --rm api uv run pytest
   web: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm test
   e2e: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm e2e
+  backup: docker compose -f compose.yaml -f compose.test.yaml run --rm backup sh /backup/test.sh
 lint_commands:
   api: docker compose -f compose.yaml -f compose.test.yaml run --rm api uv run ruff check .
   web: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm lint

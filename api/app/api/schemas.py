@@ -301,3 +301,16 @@ class Day(BaseModel):
     targets: Macros
     meals: list[MealEntries] = Field(description="breakfast, lunch, snack, dinner")
     suggested_meal: Meal = Field(description="the meal for an entry made now")
+
+
+class GoalIn(BaseModel):
+    kcal: float = Field(gt=0)
+    protein: Amount
+    carbs: Amount
+    fat: Amount
+
+
+class Goal(Macros):
+    kind: Literal["day", "default"] = Field(
+        description="day: a goal set for this day; default: the default goal applies"
+    )
