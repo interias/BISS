@@ -1,0 +1,13 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "ml"
+energy_kj: "262"
+energy_kcal: "63"
+fat: "0"
+saturated_fat: "0"
+carbs: "6.0"
+sugar: "0"
+protein: "0.5"
+salt: "0"
+source: "https://commons.wikimedia.org/wiki/File:Bitburger_Winterbock_Bottle_Back.jpg"
+author: "Sorennelson"
+license: "CC BY-SA 4.0"

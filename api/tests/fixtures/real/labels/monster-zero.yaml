@@ -1,0 +1,10 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "ml"
+energy_kj: "10"
+energy_kcal: "2"
+carbs: "0.90"
+sugar: "0"
+salt: "0.20"
+source: "https://commons.wikimedia.org/wiki/File:Valeurs_nutritionnelles_Monster_Z%C3%A9ro_Sucre.jpg"
+author: "Mathious Ier"
+license: "CC0"

@@ -62,9 +62,12 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
 - **Kamera:**
+  - Drei Auslöser: Barcode (automatisch), Etikett und Teller (E7).
   - Ein erkannter Barcode öffnet ohne Auslösen das Mengen-Sheet.
-  - Ohne Treffer zeigt die Kamera „Etikett fotografieren“.
-  - Ein Foto geht an die Extraktion, danach öffnet der Editor und dann das Mengen-Sheet.
+  - Ohne Treffer zeigt die Kamera „Etikett fotografieren“. Das Foto geht mit der GTIN an die Extraktion.
+  - Der Auslöser „Etikett“ braucht keinen Barcode. Das Foto geht ohne GTIN an die Extraktion.
+  - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
+  - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet.
 
 ## 4. Domänenmodell
 
@@ -143,6 +146,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 **Ein- und Ausgabe:**
 - Eingabe ist das Foto plus die GTIN aus dem Scan. Die GTIN liest nie das Modell.
+- Die GTIN ist optional. Ohne GTIN entsteht ein Lebensmittel ohne GTIN.
 - Die Ausgabe ist strukturiert nach festem JSON-Schema: `name, brand, package_size, per_100 {basis, state, energy_kj, energy_kcal, fat, saturated_fat, carbs, sugar, fiber, protein, salt}, servings [{label, amount, unit, source}], confidence, notes`.
 
 **Prompt:** Er fängt drei typische Fehler ab: die Spalte je 100 g gegenüber je Portion, zubereitet gegenüber unzubereitet sowie g gegenüber ml.
@@ -169,7 +173,8 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 - **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall.
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
-  - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)); Fotos echter Etiketten können hinzukommen.
+  - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)).
+  - Echte Etiketten (Marker `llm` und `realdata`): je Satz ≥ 90 % der Felder in Toleranz. Energie ± 5 %, die übrigen Werte ± 0,5 g oder ± 5 %, das Größere gilt; die Basis g/ml muss stimmen.
 - **Echte Fototestsätze** (Marker `realdata`, [ADR-0008](adr/0008-real-photo-fixtures.md)): Barcode-Fotos mit Ground Truth, frei lizenziert im Repo und lokal unter `BISS_REAL_FIXTURES`; je Satz ≥ 75 % richtige Ziffern und keine Fehllesung; ein EAN-8 oder UPC-A gilt erst nach Bestätigung durch einen zweiten Versuch.
 - **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt).
 

@@ -1,0 +1,13 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "g"
+energy_kj: "1877"
+energy_kcal: "455"
+protein: "11.0"
+carbs: "1.0"
+sugar: "0.5"
+fat: "45.0"
+saturated_fat: "19.0"
+fiber: "1.0"
+source: "https://commons.wikimedia.org/wiki/File:Braunschweiger_Mettwurst_W_25_MSZ111114.jpg"
+author: "Monstourz"
+license: "CC BY-SA 3.0"

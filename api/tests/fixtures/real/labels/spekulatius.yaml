@@ -1,0 +1,13 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "g"
+energy_kj: "2036"
+energy_kcal: "485"
+protein: "6.6"
+carbs: "67.6"
+sugar: "31.3"
+fat: "20.4"
+saturated_fat: "13.5"
+fiber: "2.5"
+source: "https://commons.wikimedia.org/wiki/File:Butterspekulatius_-_Flickr_-_tm-md_(2).jpg"
+author: "Torsten Maue"
+license: "CC BY-SA 2.0"

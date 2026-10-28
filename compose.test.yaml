@@ -9,6 +9,10 @@ services:
       OFF_BASE_URL: http://off-stub:8080
       # The label photo goes to the fake extractor (FAKE_DRAFT), never to a model.
       LABEL_EXTRACTOR: fake
+      # The local real photo set (ADR-0008) for tests/test_labels_realdata.py, as for web.
+      BISS_REAL_FIXTURES: /fixtures/local
+    volumes:
+      - ${BISS_REAL_FIXTURES:-./testdata/real}:/fixtures/local:ro
     depends_on:
       off-stub:
         condition: service_started
