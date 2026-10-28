@@ -3,6 +3,8 @@
 # expected: a BLS code, or "fixture:<key>" for a food of `foods`.
 # kind: generic | typo | umlaut | plural | brand | usage | priority
 # `foods` and `entries` are added next to the BLS seed; entries are dated days before now.
+# `barcodes`: a scanned code -> the food of `foods` with that GTIN, with and without leading
+# zeros (EAN-8, UPC-A, EAN-13, GTIN-14). The GTINs are invented, with valid check digits.
 # Not in the set: "Reis", "Nudeln", "Quark". The BLS seed has no generic entry for them, so the
 # raw food is not at place 1 by name alone; usage ranking lifts it after the first entry (epic #2).
 foods:
@@ -14,10 +16,10 @@ foods:
   - {key: zucchini_own, name: "Zucchini, roh", kcal: 22}
   - {key: frikassee_own, name: Hühnerfrikassee, kcal: 130}
   - {key: frikassee_bofrost, name: Hühnerfrikassee, brand: Bofrost, source: "off", kcal: 140}
-  - {key: frikassee_iglo, name: Hühnerfrikassee, brand: Iglo, source: "off", kcal: 118}
-  - {key: haferdrink_alpro, name: Haferdrink Original, brand: Alpro, source: "off", kcal: 45}
+  - {key: frikassee_iglo, name: Hühnerfrikassee, brand: Iglo, source: "off", kcal: 118, gtin: "00000020000028"}
+  - {key: haferdrink_alpro, name: Haferdrink Original, brand: Alpro, source: "off", kcal: 45, gtin: "00200000000028"}
   - {key: haferdrink_oatly, name: Haferdrink Barista, brand: Oatly, source: "off", kcal: 41}
-  - {key: haferflocken_koelln, name: Haferflocken zart, brand: Kölln, source: "off", kcal: 372}
+  - {key: haferflocken_koelln, name: Haferflocken zart, brand: Kölln, source: "off", kcal: 372, gtin: "02000000000022"}
   - {key: ei_unused, name: Ei roh, kcal: 143}
   - {key: ei_own, name: Ei hartgekocht, kcal: 137}
   - {key: kaese_unused, name: Käse Edam, kcal: 316}
@@ -125,3 +127,11 @@ pairs:
   - query: Brot
     expected: fixture:brot_own  # eaten 8 times; the unused "Brot Roggen" wins on a tie in text
     kind: usage
+barcodes:
+  - {code: "2000000000022", expected: "fixture:haferflocken_koelln", kind: ean13}
+  - {code: "02000000000022", expected: "fixture:haferflocken_koelln", kind: gtin14}
+  - {code: "200000000028", expected: "fixture:haferdrink_alpro", kind: upc_a}
+  - {code: "0200000000028", expected: "fixture:haferdrink_alpro", kind: upc_a_as_ean13}
+  - {code: "00200000000028", expected: "fixture:haferdrink_alpro", kind: gtin14}
+  - {code: "20000028", expected: "fixture:frikassee_iglo", kind: ean8}
+  - {code: "00000020000028", expected: "fixture:frikassee_iglo", kind: gtin14}

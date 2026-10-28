@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.meal import Meal
 
@@ -76,6 +76,38 @@ class FoodDetail(BaseModel):
     per_100: Nutrients
     servings: list[Serving]
     standard_serving: StandardServing
+
+
+class BarcodeServing(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    grams: float
+    origin: Origin
+    is_default: bool
+
+
+class BarcodeFood(BaseModel):
+    """A scanned product: a stored food (id set) or a draft from Open Food Facts (id null)."""
+
+    id: int | None = Field(
+        description="null: a draft, stored as food on its first entry (POST /entries with gtin)"
+    )
+    gtin: str = Field(description="GTIN-14")
+    name: str
+    brand: str | None
+    source: Source
+    basis: Basis
+    density: float
+    image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
+    per_100: Nutrients
+    servings: list[BarcodeServing]
+    standard_serving: StandardServing
+
+
+class BarcodeNotFound(BaseModel):
+    detail: str
+    gtin: str = Field(description="the normalised GTIN-14; the client offers the label photo")
 
 
 class NutrientsIn(BaseModel):
@@ -178,12 +210,24 @@ class Entry(BaseModel):
 
 
 class EntryCreate(BaseModel):
-    food_id: int
+    """Exactly one of food_id and gtin."""
+
+    food_id: int | None = None
+    gtin: str | None = Field(
+        default=None,
+        description="a scanned code; a cached Open Food Facts product is stored as food first",
+    )
     grams: float | None = Field(
         default=None, gt=0, description="default: the food's standard serving, else 100 g"
     )
     meal: Meal | None = Field(default=None, description="default: suggested by eaten_at")
     eaten_at: AwareDatetime | None = Field(default=None, description="default: now")
+
+    @model_validator(mode="after")
+    def _one_food(self) -> "EntryCreate":
+        if (self.food_id is None) == (self.gtin is None):
+            raise ValueError("give exactly one of food_id and gtin")
+        return self
 
 
 class EntryUpdate(BaseModel):

@@ -1,7 +1,8 @@
 """Golden search set against the real BLS seed plus fixtures (SPEC 8).
 
 The fixtures of search.yaml are own and branded foods and entries dated relative to now,
-for the brand filter, duplicate priority and usage ranking.
+for the brand filter, duplicate priority and usage ranking. Its barcodes are scanned codes
+of the branded fixtures, with and without leading zeros, for the barcode chain.
 
 Fails if a threshold is missed: place 1 >= 90 %, top 5 >= 98 %, duplicates in the top 10
 = 0, p95 of the search time < 300 ms.
@@ -14,17 +15,21 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+import respx
 import yaml
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from app.barcode.chain import lookup
 from app.importers.bls import import_bls
 from app.models import Entry, Food
 from app.search.search import search_foods
 from app.search.weights import DUPLICATE_KCAL_TOLERANCE, DUPLICATE_NAME_SIMILARITY
+from app.sources.off import OpenFoodFacts
 
 GOLDEN = yaml.safe_load((Path(__file__).parent / "search.yaml").read_text(encoding="utf-8"))
 PAIRS = GOLDEN["pairs"]
+BARCODES = GOLDEN["barcodes"]
 RUNS = 5
 
 
@@ -134,3 +139,13 @@ def test_banane_is_a_single_hit_on_place_1(bls_session: Session) -> None:
     assert names[0] == "Banane roh"
     assert names.count("Banane roh") == 1
     assert duplicates_in(bls_session, [hit.id for hit in hits]) == 0
+
+
+@pytest.mark.parametrize("case", BARCODES, ids=[f"{c['kind']} {c['code']}" for c in BARCODES])
+def test_golden_barcode(bls_session: Session, case: dict) -> None:
+    """Every form of a code finds the own food; Open Food Facts is never asked."""
+    with respx.mock():  # a request would fail: no route is mocked
+        found = lookup(
+            bls_session, case["code"], OpenFoodFacts("https://off.test"), datetime.now(UTC)
+        )
+    assert found.source_id == case["expected"]
