@@ -62,9 +62,14 @@ const json = (body: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
-/** A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries. */
+/**
+ * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
+ * banana for GET and PATCH /foods/7 and a search that finds only "banane"; POST /foods
+ * creates food 55 with the given name; /foods/validate always finds the values plausible.
+ */
 export function fakeApi() {
   let entries: Entry[] = [];
+  const foods: Record<number, FoodDetail> = { 7: bananaDetail };
   const calls: { method: string; url: string; body?: unknown }[] = [];
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
@@ -72,6 +77,20 @@ export function fakeApi() {
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana]);
+    if (url.startsWith("/api/v1/foods/search")) return json(url.includes("banane") ? [banana] : []);
+    if (url === "/api/v1/foods/validate") {
+      return json({ atwater: { computed_kcal: 93.4, deviation_pct: 0.4, ok: true } });
+    }
+    if (url === "/api/v1/foods" && method === "POST") {
+      foods[55] = { ...bananaDetail, id: 55, name: body.name, brand: body.brand, source: "own" };
+      return json(foods[55], 201);
+    }
+    const food = url.match(/^\/api\/v1\/foods\/(\d+)$/);
+    if (food && method === "GET" && foods[Number(food[1])]) return json(foods[Number(food[1])]);
+    if (food && method === "PATCH") {
+      foods[7] = { ...foods[7], name: body.name };
+      return json(foods[7]);
+    }
     if (url === "/api/v1/entries" && method === "POST") {
       const entry = { ...bananaEntry, id: 100 + calls.length };
       entries = [...entries, entry];

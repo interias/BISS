@@ -45,6 +45,18 @@ export type FoodDetail = Omit<FoodSummary, "per_100"> & {
   servings: Serving[];
 };
 
+export type Per100 = FoodDetail["per_100"];
+
+/** What the editor sends; servings with an id are changed, the others are new. */
+export type FoodWrite = {
+  name: string;
+  brand: string | null;
+  per_100: Per100;
+  servings: { id?: number; label: string; grams: number; is_default: boolean }[];
+};
+
+export type Atwater = { computed_kcal: number; deviation_pct: number | null; ok: boolean };
+
 export type Entry = {
   id: number;
   food: { id: number; name: string; brand: string | null; source: Source };
@@ -70,7 +82,8 @@ const BASE = "/api/v1";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(BASE + path, {
     ...init,
-    headers: init?.body ? { "Content-Type": "application/json" } : undefined,
+    // A FormData body sets its own multipart header with the boundary.
+    headers: typeof init?.body === "string" ? { "Content-Type": "application/json" } : undefined,
   });
   if (!response.ok) throw new Error(`${init?.method ?? "GET"} ${path}: ${response.status}`);
   return (response.status === 204 ? undefined : await response.json()) as T;
@@ -89,3 +102,24 @@ export const createEntry = (body: { food_id: number; grams?: number; meal?: Meal
 export const updateEntry = (id: number, body: { grams?: number; meal?: Meal }) =>
   request<Entry>(`/entries/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 export const deleteEntry = (id: number) => request<void>(`/entries/${id}`, { method: "DELETE" });
+
+/** Image URL of a food's `image_path` (the file name only). */
+export const imageUrl = (imagePath: string) => `${BASE}/images/${imagePath}`;
+
+/** Atwater check of values per 100 g; the backend decides what is plausible (ADR-0003). */
+export const validateFood = (body: Pick<Per100, "kcal" | "protein" | "carbs" | "fat" | "fiber">) =>
+  request<{ atwater: Atwater }>("/foods/validate", { method: "POST", body: JSON.stringify(body) });
+
+export const createFood = (body: FoodWrite) =>
+  request<FoodDetail>("/foods", { method: "POST", body: JSON.stringify(body) });
+
+/** The servings are the complete new list; the backend changes the origin of edited ones. */
+export const updateFood = (id: number, body: FoodWrite) =>
+  request<FoodDetail>(`/foods/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+/** The backend converts the photo to WebP (512 px) and answers with the new `image_path`. */
+export function uploadFoodImage(id: number, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request<FoodDetail>(`/foods/${id}/image`, { method: "PUT", body: form });
+}

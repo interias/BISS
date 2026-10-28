@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 def _float(name: str, default: float) -> float:
@@ -16,6 +17,8 @@ class Settings:
     goal_protein: float
     goal_carbs: float
     goal_fat: float
+    # Product images; the volume images is mounted here in the api container.
+    images_dir: Path
 
 
 def get_settings() -> Settings:
@@ -27,4 +30,5 @@ def get_settings() -> Settings:
         goal_protein=_float("GOAL_PROTEIN", 160),
         goal_carbs=_float("GOAL_CARBS", 260),
         goal_fat=_float("GOAL_FAT", 75),
+        images_dir=Path(os.environ.get("IMAGES_DIR", "/images")),
     )

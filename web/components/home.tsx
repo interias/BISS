@@ -10,6 +10,7 @@ import {
   updateEntry,
   type Day,
   type Entry,
+  type FoodDetail,
   type FoodSummary,
   type Meal,
 } from "@/lib/api";
@@ -18,15 +19,21 @@ import { AmountSheet } from "@/components/amount-sheet";
 import { DaySummary } from "@/components/day-summary";
 import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
+import { FoodEditor } from "@/components/food-editor";
 import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
 
 const load = () => Promise.all([getToday(), getRecent()]);
 
+/** The amount sheet with the grams and meal it comes back with from the editor. */
+type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number; meal: Meal } };
+
 type SheetState =
   | { kind: "search" }
-  | { kind: "amount"; foodId: number; entry?: Entry };
+  | ({ kind: "amount" } & AmountState)
+  // `back` is the amount sheet "Bearbeiten" came from; a new food has none.
+  | { kind: "editor"; foodId?: number; back?: AmountState };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
@@ -84,6 +91,12 @@ export function Home() {
       }
     }).catch(console.error);
 
+  const edited = (back?: AmountState) => (food: FoodDetail) => {
+    reload().catch(console.error); // names and values in the diary may have changed
+    if (back) show("Lebensmittel gespeichert");
+    setSheet({ kind: "amount", ...(back ?? { foodId: food.id }) });
+  };
+
   const remove = (entry: Entry) => () =>
     write(async () => {
       await deleteEntry(entry.id);
@@ -119,17 +132,37 @@ export function Home() {
 
       {sheet && day && (
         <Sheet onClose={() => setSheet(null)}>
-          {sheet.kind === "search" ? (
-            <SearchSheet onPick={(food) => setSheet({ kind: "amount", foodId: food.id })} />
-          ) : (
+          {sheet.kind === "search" && (
+            <SearchSheet
+              onPick={(food) => setSheet({ kind: "amount", foodId: food.id })}
+              onCreate={() => setSheet({ kind: "editor" })}
+            />
+          )}
+          {sheet.kind === "amount" && (
             <AmountSheet
               key={sheet.entry?.id ?? `food-${sheet.foodId}`}
               foodId={sheet.foodId}
               entry={sheet.entry}
+              initial={sheet.initial}
               suggestedMeal={day.suggested_meal}
               busy={busy}
               onSubmit={submit(sheet.foodId, sheet.entry)}
               onRemove={sheet.entry && remove(sheet.entry)}
+              onEdit={(grams, meal) =>
+                setSheet({
+                  kind: "editor",
+                  foodId: sheet.foodId,
+                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams, meal } },
+                })
+              }
+            />
+          )}
+          {sheet.kind === "editor" && (
+            <FoodEditor
+              key={sheet.foodId ?? "new"}
+              foodId={sheet.foodId}
+              onSaved={edited(sheet.back)}
+              onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />
           )}
         </Sheet>

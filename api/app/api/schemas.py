@@ -1,7 +1,7 @@
 """Request and response models; they make up the OpenAPI schema for later clients (SPEC 5)."""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
@@ -10,6 +10,7 @@ from app.domain.meal import Meal
 Source = Literal["own", "bls", "off"]
 Basis = Literal["g", "ml"]
 Origin = Literal["package", "estimated", "own"]
+Amount = Annotated[float, Field(ge=0)]
 
 
 class Macros(BaseModel):
@@ -71,10 +72,90 @@ class FoodDetail(BaseModel):
     source_id: str | None
     basis: Basis
     density: float
-    image_path: str | None
+    image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
     per_100: Nutrients
     servings: list[Serving]
     standard_serving: StandardServing
+
+
+class NutrientsIn(BaseModel):
+    """Values per 100 g or 100 ml as the editor sends them."""
+
+    kcal: Amount
+    protein: Amount
+    carbs: Amount
+    fat: Amount
+    fiber: Amount | None = None
+    sugar: Amount | None = None
+    sat_fat: Amount | None = None
+    salt: Amount | None = None
+
+
+class NutrientsPatch(BaseModel):
+    """Only the values sent change; the optional ones may be set to null."""
+
+    kcal: Amount = None
+    protein: Amount = None
+    carbs: Amount = None
+    fat: Amount = None
+    fiber: Amount | None = None
+    sugar: Amount | None = None
+    sat_fat: Amount | None = None
+    salt: Amount | None = None
+
+
+class ServingIn(BaseModel):
+    id: int | None = Field(default=None, description="an existing serving; without id it is new")
+    label: str = Field(min_length=1)
+    grams: float = Field(gt=0)
+    is_default: bool = Field(
+        default=False, description="at most one; without any the first is the standard serving"
+    )
+
+
+class FoodCreate(BaseModel):
+    name: str = Field(min_length=1)
+    brand: str | None = None
+    basis: Basis = "g"
+    density: float = Field(default=1.0, gt=0)
+    per_100: NutrientsIn
+    servings: list[ServingIn] = Field(default=[], description="all with origin own")
+
+
+class FoodUpdate(BaseModel):
+    """Only the fields sent change. servings, when sent, is the complete new list."""
+
+    name: str = Field(default=None, min_length=1)
+    brand: str | None = None
+    basis: Basis = None
+    density: float = Field(default=None, gt=0)
+    per_100: NutrientsPatch | None = None
+    servings: list[ServingIn] | None = Field(
+        default=None,
+        description="servings left out are removed; a changed package or estimated one becomes own",
+    )
+
+
+class AtwaterIn(BaseModel):
+    kcal: Amount
+    protein: Amount
+    carbs: Amount
+    fat: Amount
+    fiber: Amount | None = Field(default=None, description="missing counts as 0")
+
+
+class AtwaterResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    computed_kcal: float = Field(description="4·carbs + 4·protein + 9·fat + 2·fiber")
+    deviation_pct: float | None = Field(
+        description="|computed - kcal| / kcal in %; null when kcal is 0 and computed is not"
+    )
+    ok: bool = Field(description="deviation at most 10 %")
+
+
+class Validation(BaseModel):
+    atwater: AtwaterResult
 
 
 class FoodRef(BaseModel):
