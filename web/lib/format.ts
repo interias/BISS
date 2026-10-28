@@ -1,4 +1,4 @@
-import type { Basis, Meal, Source } from "@/lib/api";
+import type { Basis, Meal, Serving, Source } from "@/lib/api";
 
 export const MEALS: Meal[] = ["breakfast", "lunch", "snack", "dinner"];
 
@@ -13,6 +13,12 @@ export const SOURCE_LABELS: Record<Source, string> = {
   own: "Eigene DB",
   bls: "BLS",
   off: "Open Food Facts",
+};
+
+export const ORIGIN_LABELS: Record<Serving["origin"], string> = {
+  package: "Packung",
+  estimated: "geschätzt",
+  own: "eigene",
 };
 
 /** German number format without decimals unless asked, e.g. 2.400. */

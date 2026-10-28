@@ -9,7 +9,13 @@ import { SheetTitle } from "@/components/sheet";
 const DEBOUNCE_MS = 150;
 
 /** Search sheet: input, hits with picture, name, brand and kcal per 100 g, the empty hint. */
-export function SearchSheet({ onPick }: { onPick: (food: FoodSummary) => void }) {
+export function SearchSheet({
+  onPick,
+  onCreate,
+}: {
+  onPick: (food: FoodSummary) => void;
+  onCreate: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<{ query: string; hits: FoodSummary[] } | null>(null);
   const q = query.trim();
@@ -46,6 +52,13 @@ export function SearchSheet({ onPick }: { onPick: (food: FoodSummary) => void })
         {hits?.length === 0 && (
           <div className="py-2 text-[13px] text-muted-foreground">
             Nicht gefunden. Packung fotografieren und BISS legt den Eintrag an.
+            <button
+              type="button"
+              onClick={onCreate}
+              className="mt-2.5 h-[42px] w-full rounded-xl border-[1.5px] border-dashed font-bold text-primary"
+            >
+              Neu anlegen
+            </button>
           </div>
         )}
         {hits?.map((food) => (

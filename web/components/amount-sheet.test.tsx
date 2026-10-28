@@ -87,3 +87,27 @@ test("an entry opens in edit mode with Speichern and Entfernen", () => {
   fireEvent.click(screen.getByRole("button", { name: "Entfernen" }));
   expect(onRemove).toHaveBeenCalledOnce();
 });
+
+test("Bearbeiten hands over the current grams and meal", () => {
+  const onEdit = vi.fn();
+  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} onEdit={onEdit} />);
+  fireEvent.click(screen.getByRole("button", { name: "mehr" }));
+  fireEvent.click(screen.getByRole("button", { name: /Mahlzeit/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+  expect(onEdit).toHaveBeenCalledWith(130, "dinner");
+});
+
+test("without onEdit there is no Bearbeiten, and initial grams and meal win over the entry", () => {
+  inDialog(
+    <AmountForm
+      food={bananaDetail}
+      entry={bananaEntry}
+      initial={{ grams: 75, meal: "lunch" }}
+      initialMeal="snack"
+      onSubmit={() => {}}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+  expect(amount()).toHaveTextContent("75g");
+  expect(screen.getByRole("button", { name: "Mahlzeit: Mittag" })).toBeInTheDocument();
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFood, type Entry, type FoodDetail, type Meal } from "@/lib/api";
+import { getFood, imageUrl, type Entry, type FoodDetail, type Meal } from "@/lib/api";
 import { previewMacros, stepDown, stepUp } from "@/lib/amount";
 import { brandLine, fmt, MEAL_LABELS, MEALS, SOURCE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -12,15 +12,21 @@ type Actions = {
   busy?: boolean;
   onSubmit: (grams: number, meal: Meal) => void;
   onRemove?: () => void;
+  /** Opens the editor; gets the current grams and meal so the sheet can come back as it was. */
+  onEdit?: (grams: number, meal: Meal) => void;
 };
+
+/** Grams and meal to start with, e.g. when the sheet comes back from the editor. */
+type Initial = { grams: number; meal: Meal };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
 export function AmountSheet({
   foodId,
   entry,
   suggestedMeal,
+  initial,
   ...actions
-}: Actions & { foodId: number; entry?: Entry; suggestedMeal: Meal }) {
+}: Actions & { foodId: number; entry?: Entry; suggestedMeal: Meal; initial?: Initial }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     let live = true;
@@ -31,7 +37,7 @@ export function AmountSheet({
   }, [foodId]);
 
   if (!food) return <SheetTitle className="sr-only">Menge wählen</SheetTitle>;
-  return <AmountForm food={food} entry={entry} initialMeal={suggestedMeal} {...actions} />;
+  return <AmountForm food={food} entry={entry} initialMeal={suggestedMeal} initial={initial} {...actions} />;
 }
 
 const DOTS = [
@@ -48,19 +54,23 @@ export function AmountForm({
   food,
   entry,
   initialMeal,
+  initial,
   busy,
   onSubmit,
   onRemove,
-}: Actions & { food: FoodDetail; entry?: Entry; initialMeal: Meal }) {
-  const [grams, setGrams] = useState(entry?.grams ?? food.standard_serving.grams);
-  const [meal, setMeal] = useState<Meal>(entry?.meal ?? initialMeal);
+  onEdit,
+}: Actions & { food: FoodDetail; entry?: Entry; initialMeal: Meal; initial?: Initial }) {
+  const [grams, setGrams] = useState(
+    initial?.grams ?? entry?.grams ?? food.standard_serving.grams,
+  );
+  const [meal, setMeal] = useState<Meal>(initial?.meal ?? entry?.meal ?? initialMeal);
   const preview = previewMacros(food.per_100, grams, food.basis, food.density);
   const nextMeal = () => setMeal(MEALS[(MEALS.indexOf(meal) + 1) % MEALS.length]);
 
   return (
     <>
       <div className="mb-3.5 grid grid-cols-[auto_1fr_auto] items-center gap-3.5">
-        <FoodPic size={64} />
+        <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} />
         <div className="min-w-0">
           <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
             {SOURCE_LABELS[food.source]}
@@ -72,15 +82,29 @@ export function AmountForm({
             {brandLine(food.brand, food.source)}
           </p>
         </div>
-        <button
-          type="button"
-          title="Mahlzeit wechseln"
-          aria-label={`Mahlzeit: ${MEAL_LABELS[meal]}`}
-          onClick={nextMeal}
-          className="rounded-[10px] border bg-surface-2 px-[11px] py-[7px] text-[12.5px] font-bold"
-        >
-          {MEAL_LABELS[meal]}
-        </button>
+        <div className="grid justify-items-end gap-1.5">
+          <button
+            type="button"
+            title="Mahlzeit wechseln"
+            aria-label={`Mahlzeit: ${MEAL_LABELS[meal]}`}
+            onClick={nextMeal}
+            className="rounded-[10px] border bg-surface-2 px-[11px] py-[7px] text-[12.5px] font-bold"
+          >
+            {MEAL_LABELS[meal]}
+          </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(grams, meal)}
+              className="inline-flex items-center gap-1 text-[12.5px] font-bold text-primary"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                <path d="M4 20h4L19 9l-4-4L4 16z" />
+              </svg>
+              Bearbeiten
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-1 mb-3.5 flex items-center justify-center gap-[18px]">
