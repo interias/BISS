@@ -162,6 +162,6 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 
 - **Plattform:** Docker Compose in Docker Desktop, immer aktuell gehalten. Web auf Port 2477, API auf 2478, Postgres nur intern.
 - **Volumes:** `db-data` und `images`.
-- **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt später über Tailscale. Bis dahin läuft der Kamera-Test über `localhost`.
+- **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt später über Tailscale. Bis dahin läuft der Kamera-Test über `localhost`. Der Test mit echter Kamera und echter Packung aus E3 wird nachgeholt, sobald HTTPS über Tailscale steht.
 - **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F).
 - **Backup** (E5): nächtlich `pg_dump` plus ein Tarball der Bilder auf ein gemountetes Verzeichnis. Die letzten 14 Sicherungen bleiben erhalten.

@@ -1,5 +1,14 @@
 import { vi } from "vitest";
-import type { BarcodeFood, Day, Entry, FoodDetail, FoodSummary, LabelExtraction, Macros } from "@/lib/api";
+import type {
+  BarcodeFood,
+  Day,
+  Entry,
+  FoodDetail,
+  FoodSummary,
+  LabelExtraction,
+  Macros,
+  SearchHit,
+} from "@/lib/api";
 
 const ZERO: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
@@ -37,6 +46,18 @@ export const puddingDraft: BarcodeFood = {
   per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4, fiber: null, sugar: null, sat_fat: null, salt: null },
   servings: [{ label: "1 Becher (200 g)", grams: 200, origin: "package", is_default: true }],
   standard_serving: { label: "1 Becher (200 g)", grams: 200, origin: "package" },
+};
+
+/** The pudding as a search hit from the Open Food Facts cache: no food yet, only its GTIN. */
+export const puddingHit: SearchHit = {
+  id: null,
+  gtin: puddingDraft.gtin,
+  name: puddingDraft.name,
+  brand: puddingDraft.brand,
+  source: "off",
+  basis: "g",
+  per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4 },
+  standard_serving: puddingDraft.standard_serving,
 };
 
 /** The fake extractor's draft (api/app/labels/extractor.py, FAKE_DRAFT) for a scanned GTIN. */
@@ -109,9 +130,11 @@ const json = (body: unknown, status = 200) =>
 
 /**
  * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
- * banana for GET and PATCH /foods/7 and a search that finds only "banane"; POST /foods
+ * banana for GET and PATCH /foods/7 and a search that finds only "banane" and the cached
+ * pudding ("pudding"); POST /foods
  * creates food 55 with the given name; /foods/validate always finds the values plausible.
- * The barcode chain knows only the pudding draft; any other code is a miss. The label
+ * The barcode chain knows only the pudding draft, by any form of its code; any other code is
+ * a miss. The label
  * extraction answers the fake extractor's draft with the GTIN sent.
  */
 export function fakeApi() {
@@ -124,9 +147,11 @@ export function fakeApi() {
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana]);
-    if (url.startsWith("/api/v1/foods/search")) return json(url.includes("banane") ? [banana] : []);
+    if (url.startsWith("/api/v1/foods/search")) {
+      return json(url.includes("banane") ? [banana] : url.includes("pudding") ? [puddingHit] : []);
+    }
     const barcode = url.match(/^\/api\/v1\/foods\/barcode\/(\d+)$/);
-    if (barcode && barcode[1] === PUDDING_CODE) return json(puddingDraft);
+    if (barcode && barcode[1].padStart(14, "0") === puddingDraft.gtin) return json(puddingDraft);
     const own = barcode && Object.values(foods).find((f) => f.gtin === barcode[1].padStart(14, "0"));
     if (own) return json(own);
     if (barcode) return json({ detail: "no product", gtin: barcode[1].padStart(14, "0") }, 404);

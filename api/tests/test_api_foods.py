@@ -129,6 +129,7 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
         "basis": "g",
         "per_100": {"kcal": 79, "protein": 10, "carbs": 10, "fat": 1},
         "standard_serving": {"label": "1 Banane", "grams": 120, "origin": "estimated"},
+        "gtin": None,
     }
     assert results[1]["standard_serving"] == FALLBACK
 

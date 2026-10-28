@@ -14,9 +14,11 @@ def food_ref(food: Food) -> schemas.FoodRef:
     return schemas.FoodRef.model_validate(food)
 
 
-def food_summary(food, serving: StandardServing) -> schemas.FoodSummary:
+def food_summary(
+    food, serving: StandardServing, model=schemas.FoodSummary, **fields
+) -> schemas.FoodSummary:
     """From a Food or a search hit, both carry the values per 100."""
-    return schemas.FoodSummary(
+    return model(
         id=food.id,
         name=food.name,
         brand=food.brand,
@@ -24,16 +26,19 @@ def food_summary(food, serving: StandardServing) -> schemas.FoodSummary:
         basis=food.basis,
         per_100=schemas.Macros.model_validate(food),
         standard_serving=schemas.StandardServing.model_validate(serving),
+        **fields,
     )
 
 
-def search_hit(hit: Hit) -> schemas.FoodSummary:
+def search_hit(hit: Hit) -> schemas.SearchHit:
     """A search hit carries its standard serving; without one the derived 100 g applies."""
     return food_summary(
         hit,
         StandardServing(hit.serving_label, hit.serving_grams, hit.serving_origin)
         if hit.serving_label is not None
         else FALLBACK_SERVING,
+        schemas.SearchHit,
+        gtin=hit.gtin,
     )
 
 
