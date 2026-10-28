@@ -1,0 +1,117 @@
+"""MCP server (ADR-0007): Streamable HTTP at /mcp in the api process.
+
+The tools call the same services as the REST API and answer with its response models;
+the server has no logic of its own. Only log_meal writes.
+"""
+
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractContextManager, asynccontextmanager
+from datetime import UTC, date, datetime
+from typing import Annotated
+
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
+from pydantic import Field
+from sqlalchemy.orm import Session
+from starlette.types import Receive, Scope, Send
+
+from app import VERSION
+from app.api import convert, schemas
+from app.db import get_session
+from app.domain.day import day_of
+from app.domain.meal import Meal
+from app.search.search import search_foods
+from app.services import entries, foods
+from app.services.days import day_summary
+
+PATH = "/mcp"
+
+Sessions = Callable[[], AbstractContextManager[Session]]
+READ_ONLY = ToolAnnotations(read_only_hint=True)
+
+
+def build_server(sessions: Sessions = get_session) -> MCPServer:
+    """The server with its five tools; tests pass their rolled-back session."""
+    server = MCPServer(name="biss", title="BISS", version=VERSION)
+
+    @server.tool(annotations=READ_ONLY)
+    def search_food(
+        query: Annotated[str, Field(min_length=1, max_length=200)],
+        limit: Annotated[int, Field(ge=1, le=50)] = 20,
+    ) -> list[schemas.FoodSummary]:
+        """Search own foods, BLS and cached products; best match first, duplicates merged.
+
+        Values per 100 g (or 100 ml with basis ml), with the standard serving.
+        """
+        with sessions() as session:
+            return [convert.search_hit(hit) for hit in search_foods(session, query, limit=limit)]
+
+    @server.tool(annotations=READ_ONLY)
+    def get_food(food_id: int) -> schemas.FoodDetail:
+        """A food with its values per 100 g (or 100 ml), its servings and its source."""
+        with sessions() as session:
+            try:
+                return convert.food_detail(session, foods.get_food(session, food_id))
+            except foods.NotFound as error:
+                raise ToolError(str(error)) from error
+
+    @server.tool(annotations=READ_ONLY)
+    def list_entries(first: date, last: date) -> list[schemas.Entry]:
+        """Entries of the days first to last, both included, by time.
+
+        A day runs from 04:00 to 04:00 in Europe/Berlin.
+        """
+        with sessions() as session:
+            return [
+                convert.entry(e, food) for e, food in entries.entries_between(session, first, last)
+            ]
+
+    @server.tool(annotations=READ_ONLY)
+    def daily_summary(day: date | None = None) -> schemas.Day:
+        """Day summary: totals against the goals, entries by meal. Without day: today."""
+        now = datetime.now(UTC)
+        with sessions() as session:
+            return convert.day(day_summary(session, day or day_of(now), now=now))
+
+    @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False))
+    def log_meal(
+        food_id: int,
+        grams: Annotated[float | None, Field(gt=0)] = None,
+        meal: Meal | None = None,
+    ) -> schemas.Entry:
+        """Log a food now. Without grams the standard serving applies, without meal the
+        meal suggested by the time of day."""
+        with sessions() as session:
+            try:
+                entry = entries.create_entry(session, food_id, grams=grams, meal=meal)
+            except entries.NotFound as error:
+                raise ToolError(str(error)) from error
+            return convert.entry(entry, foods.get_food(session, entry.food_id))
+
+    return server
+
+
+class StreamableHttp:
+    """ASGI app of the route /mcp.
+
+    A session manager runs only once, so every start of the api (each TestClient
+    as well) builds a new one in lifespan.
+    """
+
+    def __init__(self, server: MCPServer) -> None:
+        self.server = server
+        self._app = None
+
+    @asynccontextmanager
+    async def lifespan(self) -> AsyncIterator[None]:
+        # Stateless: the tools keep nothing between requests. No DNS rebinding check
+        # on the Host header: like the REST API it serves the local network (ADR-0005).
+        self._app = self.server.streamable_http_app(
+            streamable_http_path=PATH, stateless_http=True, host="0.0.0.0"
+        )
+        async with self._app.router.lifespan_context(self._app):
+            yield
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self._app(scope, receive, send)

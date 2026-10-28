@@ -36,15 +36,7 @@ def search(
     limit: int = Query(default=20, ge=1, le=50),
 ) -> list[schemas.FoodSummary]:
     """Search own foods, BLS and cached products; best match first, duplicates merged."""
-    return [
-        convert.food_summary(
-            hit,
-            StandardServing(hit.serving_label, hit.serving_grams, hit.serving_origin)
-            if hit.serving_label is not None
-            else FALLBACK_SERVING,
-        )
-        for hit in search_foods(session, q, limit=limit)
-    ]
+    return [convert.search_hit(hit) for hit in search_foods(session, q, limit=limit)]
 
 
 @router.get(
@@ -95,13 +87,13 @@ def create_food(body: schemas.FoodCreate, session: SessionDep) -> schemas.FoodDe
         raise HTTPException(status_code=422, detail=str(error)) from error
     except GtinTaken as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
-    return _detail(session, food)
+    return convert.food_detail(session, food)
 
 
 @router.get("/{food_id}", responses=NOT_FOUND)
 def get_food(food_id: int, session: SessionDep) -> schemas.FoodDetail:
     """A food with its values per 100 g (or 100 ml), its servings and its source."""
-    return _detail(session, _food(session, food_id))
+    return convert.food_detail(session, _food(session, food_id))
 
 
 @router.patch("/{food_id}", responses=NOT_FOUND)
@@ -117,7 +109,7 @@ def update_food(food_id: int, body: schemas.FoodUpdate, session: SessionDep) -> 
         raise HTTPException(status_code=404, detail=str(error)) from error
     except InvalidFood as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return _detail(session, food)
+    return convert.food_detail(session, food)
 
 
 @router.put("/{food_id}/image", responses=NOT_FOUND)
@@ -139,7 +131,7 @@ def put_image(
         raise
     if previous and previous != name:
         images.delete(previous)
-    return _detail(session, food)
+    return convert.food_detail(session, food)
 
 
 def _food(session: Session, food_id: int) -> Food:
@@ -207,21 +199,4 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
             if serving is None
             else StandardServing(serving.label, serving.grams, "package")
         ),
-    )
-
-
-def _detail(session: Session, food: Food) -> schemas.FoodDetail:
-    return schemas.FoodDetail(
-        id=food.id,
-        name=food.name,
-        brand=food.brand,
-        gtin=food.gtin,
-        source=food.source,
-        source_id=food.source_id,
-        basis=food.basis,
-        density=food.density,
-        image_path=food.image_path,
-        per_100=schemas.Nutrients.model_validate(food),
-        servings=[schemas.Serving.model_validate(s) for s in foods.servings_of(session, food.id)],
-        standard_serving=schemas.StandardServing.model_validate(standard_serving(session, food.id)),
     )
