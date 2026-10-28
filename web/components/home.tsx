@@ -13,6 +13,7 @@ import {
   type Entry,
   type FoodDetail,
   type FoodSummary,
+  type LabelExtraction,
   type Meal,
 } from "@/lib/api";
 import { headerDate, shortName } from "@/lib/format";
@@ -37,8 +38,8 @@ type SheetState =
   // A scanned draft from Open Food Facts; its first entry stores it as food.
   | { kind: "draft"; food: BarcodeFood }
   // `back` is the amount sheet "Bearbeiten" came from; a new food has none. `gtin` is a
-  // scanned barcode without a hit.
-  | { kind: "editor"; foodId?: number; gtin?: string; back?: AmountState };
+  // scanned barcode without a hit, `label` the draft read from its label photo.
+  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; back?: AmountState };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
@@ -150,9 +151,9 @@ export function Home() {
       {camera && (
         <Camera
           onFound={scanned}
-          onLabel={(gtin) => {
+          onLabel={(gtin, label) => {
             setCamera(false);
-            setSheet({ kind: "editor", gtin });
+            setSheet({ kind: "editor", gtin, label });
           }}
           onClose={() => setCamera(false)}
         />
@@ -198,6 +199,7 @@ export function Home() {
               key={sheet.foodId ?? "new"}
               foodId={sheet.foodId}
               gtin={sheet.gtin}
+              label={sheet.label}
               onSaved={edited(sheet.back)}
               onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />

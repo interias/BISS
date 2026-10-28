@@ -147,13 +147,34 @@ class ServingIn(BaseModel):
     )
 
 
+class ServingAsRead(BaseModel):
+    label: str = Field(min_length=1)
+    grams: float = Field(gt=0)
+
+
+class NewServingIn(ServingIn):
+    """A serving of a new food; it may keep the origin it was read with from a label."""
+
+    origin: Origin = Field(default="own", description="package or estimated as on the label")
+    as_read: ServingAsRead | None = Field(
+        default=None,
+        description="label and grams as read; when they differ the serving becomes own",
+    )
+
+
 class FoodCreate(BaseModel):
     name: str = Field(min_length=1)
     brand: str | None = None
     basis: Basis = "g"
     density: float = Field(default=1.0, gt=0)
+    gtin: str | None = Field(
+        default=None,
+        description="a scanned code, stored as GTIN-14; 409 when another food has it",
+    )
     per_100: NutrientsIn
-    servings: list[ServingIn] = Field(default=[], description="all with origin own")
+    servings: list[NewServingIn] = Field(
+        default=[], description="origin own unless sent; a PATCH cannot set it"
+    )
 
 
 class FoodUpdate(BaseModel):

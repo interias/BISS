@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.barcode.gtin import normalize_gtin
 from app.domain.servings import TooManyDefaults, default_index, origin_after_edit
 from app.models import Food, Serving
 
@@ -38,6 +39,10 @@ class InvalidFood(ValueError):
     pass
 
 
+class GtinTaken(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class StandardServing:
     label: str
@@ -57,6 +62,10 @@ class ServingInput:
     grams: float
     is_default: bool = False
     id: int | None = None
+    # Only when a food is created: the origin read from a label and the label and grams
+    # it was read with; a serving that differs from them is own (origin_after_edit).
+    origin: str = "own"
+    as_read: tuple[str, float] | None = None
 
 
 def standard_servings(session: Session, food_ids: Iterable[int]) -> dict[int, StandardServing]:
@@ -84,9 +93,18 @@ def servings_of(session: Session, food_id: int) -> Sequence[Serving]:
     ).all()
 
 
-def create_food(session: Session, fields: dict[str, Any], servings: list[ServingInput]) -> Food:
-    """Create an own food; all its servings are own."""
-    food = Food(**_editable(fields), source="own")
+def create_food(
+    session: Session, fields: dict[str, Any], servings: list[ServingInput], gtin: str | None = None
+) -> Food:
+    """Create an own food; its servings are own unless read from a label. A gtin is
+    stored as GTIN-14.
+
+    Raises InvalidGtin, GtinTaken when another food has the GTIN, and InvalidFood.
+    """
+    code = None if gtin is None else normalize_gtin(gtin)
+    if code is not None and session.scalar(select(Food.id).where(Food.gtin == code)) is not None:
+        raise GtinTaken(f"GTIN {code} belongs to another food")
+    food = Food(**_editable(fields), gtin=code, source="own")
     session.add(food)
     session.flush()
     _replace_servings(session, food, servings)
@@ -149,7 +167,10 @@ def _replace_servings(session: Session, food: Food, servings: list[ServingInput]
     rows = []
     for given in servings:
         if given.id is None:
-            row = Serving(food_id=food.id, label=given.label, grams=given.grams, origin="own")
+            origin = given.origin
+            if given.as_read is not None:
+                origin = origin_after_edit(origin, *given.as_read, given.label, given.grams)
+            row = Serving(food_id=food.id, label=given.label, grams=given.grams, origin=origin)
             session.add(row)
         else:
             row = existing[given.id]

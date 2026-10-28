@@ -9,6 +9,7 @@ vi.mock("@/components/camera/scanner", () => ({
   cameraAvailable: () => false,
   scanLive: async () => () => {},
   decodeImage: async () => photo.code,
+  captureFrame: async () => new Blob(),
 }));
 
 afterEach(() => vi.unstubAllGlobals());
@@ -123,14 +124,45 @@ test("a scanned draft opens the amount sheet with the source note and is logged 
   });
 });
 
-test("Etikett fotografieren opens the empty editor with the GTIN filled in", async () => {
-  fakeApi();
-  render(<Home />);
+async function photographLabel() {
   await scanPhoto("2000000013022");
-  fireEvent.click(await screen.findByRole("button", { name: "Etikett fotografieren" }));
+  await screen.findByRole("button", { name: "Etikett fotografieren" });
+  const label = new File(["jpeg"], "etikett.jpg", { type: "image/jpeg" });
+  fireEvent.change(screen.getByTestId("label-photo"), { target: { files: [label] } });
+}
+
+test("the label photo opens the filled editor; Speichern & eintragen and Eintragen log it", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await photographLabel();
+
+  expect(await screen.findByText("Neu · aus Etikett gelesen")).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("GTIN")).toHaveValue("02000000013022");
+  expect(screen.getByLabelText("Name")).toHaveValue("Haferkeks Dinkel");
+
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+  expect(await screen.findByRole("heading", { name: "Haferkeks Dinkel" })).toBeInTheDocument();
+  expect(calls.find((c) => c.method === "POST" && c.url === "/api/v1/foods")?.body).toMatchObject({
+    gtin: "02000000013022",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /^Eintragen · / }));
+  await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url === "/api/v1/entries")).toBe(true));
+  expect(calls.find((c) => c.method === "POST" && c.url === "/api/v1/entries")?.body).toMatchObject({ food_id: 55 });
+});
+
+test("by hand after a failed extraction opens the empty editor with the GTIN", async () => {
+  fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (url, init) =>
+    url === "/api/v1/labels/extract" ? new Response("{}", { status: 502 }) : fake(url, init),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<Home />);
+  await photographLabel();
+  fireEvent.click(await screen.findByRole("button", { name: "Von Hand eingeben" }));
 
   expect(await screen.findByText("Neues Lebensmittel")).toBeInTheDocument();
   expect(screen.getByLabelText("GTIN")).toHaveValue("02000000013022");
   expect(screen.getByLabelText("Name")).toHaveValue("");
-  expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
 });

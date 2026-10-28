@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { scanBarcode, type BarcodeFood } from "@/lib/api";
+import { ApiError, extractLabel, scanBarcode, type BarcodeFood, type LabelExtraction } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { cameraAvailable, decodeImage, scanLive } from "@/components/camera/scanner";
+import { cameraAvailable, captureFrame, decodeImage, scanLive } from "@/components/camera/scanner";
 
 /** How long the green frame shows before the amount sheet opens (prototype). */
 export const HIT_DELAY_MS = 450;
@@ -20,7 +20,10 @@ type Status =
   | { kind: "hit" }
   | { kind: "miss"; gtin: string }
   | { kind: "unreadable" }
-  | { kind: "no-code" };
+  | { kind: "no-code" }
+  // The label photo of a miss at the extraction; a failure offers a new photo or the hand.
+  | { kind: "reading"; gtin: string }
+  | { kind: "label-failed"; gtin: string; photo: boolean };
 
 const HINTS: Record<Mode, string> = {
   starting: "Kamera startet …",
@@ -28,13 +31,23 @@ const HINTS: Record<Mode, string> = {
   upload: "Keine Kamera verfügbar. Wähle ein Foto des Barcodes.",
 };
 
-const STATUS_HINTS: Record<Exclude<Status["kind"], "idle">, string> = {
+const STATUS_HINTS: Record<Exclude<Status["kind"], "idle" | "label-failed">, string> = {
   looking: "Suche Produkt …",
   hit: "Gefunden",
   miss: "Kein Treffer für diesen Barcode.",
   unreadable: "Barcode nicht lesbar. Bitte noch einmal.",
   "no-code": "Kein Barcode im Bild erkannt.",
+  reading: "Lese Nährwerttabelle …",
 };
+
+/** 422: the photo is no readable image; otherwise (502) the model read no usable table. */
+const labelFailedHint = (photo: boolean) =>
+  photo
+    ? "Foto nicht lesbar (JPEG, PNG oder WebP bis 10 MB)."
+    : "Nährwerttabelle nicht erkannt. Neues Foto oder von Hand eingeben.";
+
+const statusHint = (status: Exclude<Status, { kind: "idle" }>) =>
+  status.kind === "label-failed" ? labelFailedHint(status.photo) : STATUS_HINTS[status.kind];
 
 const CORNERS = [
   "top-0 left-0 rounded-tl-xl border-r-0 border-b-0",
@@ -46,7 +59,8 @@ const CORNERS = [
 /**
  * Camera overlay from the prototype: finder frame with scan line over the live picture.
  * A recognised barcode goes to the backend without a shutter (SPEC 3); a hit turns the
- * frame green and hands the food on, a miss offers "Etikett fotografieren".
+ * frame green and hands the food on, a miss offers "Etikett fotografieren". That shutter
+ * sends the live picture (without camera a chosen photo) with the GTIN to the extraction.
  */
 export function Camera({
   onFound,
@@ -54,8 +68,8 @@ export function Camera({
   onClose,
 }: {
   onFound: (food: BarcodeFood) => void;
-  /** No hit: the label photo; until E4 the empty editor with this GTIN-14. */
-  onLabel: (gtin: string) => void;
+  /** No hit: the draft read from the label, or only the GTIN-14 to go on by hand. */
+  onLabel: (gtin: string, label?: LabelExtraction) => void;
   onClose: () => void;
 }) {
   // The overlay only mounts after a tap, so the browser check runs on the client.
@@ -63,15 +77,16 @@ export function Camera({
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const video = useRef<HTMLVideoElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  const labelFile = useRef<HTMLInputElement>(null);
   // The camera sees the same barcode in many frames: each code is looked up once, after a
   // failed lookup once more.
   const last = useRef<string | null>(null);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const retry = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const handlers = useRef({ onFound });
+  const handlers = useRef({ onFound, onLabel });
   useEffect(() => {
-    handlers.current = { onFound };
+    handlers.current = { onFound, onLabel };
   });
 
   const lookUp = useRef(async (code: string) => {
@@ -141,7 +156,37 @@ export function Camera({
     await lookUp.current(code);
   };
 
+  /** The label photo goes to the extraction; no barcode lookup runs meanwhile. */
+  const readLabel = async (gtin: string, photo: () => Promise<Blob>) => {
+    if (busy.current) return;
+    busy.current = true;
+    setStatus({ kind: "reading", gtin });
+    try {
+      const label = await extractLabel(await photo(), gtin);
+      handlers.current.onLabel(gtin, label);
+      return; // the overlay closes
+    } catch (failure) {
+      console.error(failure);
+      setStatus({ kind: "label-failed", gtin, photo: failure instanceof ApiError && failure.status === 422 });
+    }
+    busy.current = false;
+  };
+
+  const shoot = (gtin: string) => {
+    if (mode === "upload") return labelFile.current?.click();
+    const live = video.current;
+    if (live) readLabel(gtin, () => captureFrame(live)).catch(console.error);
+  };
+
+  const pickLabel = (gtin: string, event: ChangeEvent<HTMLInputElement>) => {
+    const image = event.target.files?.[0];
+    event.target.value = ""; // the same photo can be chosen again
+    if (image) readLabel(gtin, async () => image).catch(console.error);
+  };
+
   const hit = status.kind === "hit";
+  const reading = status.kind === "reading";
+  const labelGtin = status.kind === "miss" || status.kind === "label-failed" ? status.gtin : null;
 
   return (
     <section
@@ -201,19 +246,40 @@ export function Camera({
             </div>
           </>
         )}
+        {reading && (
+          <div aria-hidden="true" className="absolute inset-0 grid place-items-center bg-cam/70">
+            <div className="size-9 animate-spin rounded-full border-[3px] border-white/20 border-t-primary motion-reduce:animate-none" />
+          </div>
+        )}
       </div>
 
       <p role="status" className="my-3 text-center text-[13px] text-cam-muted">
-        {status.kind === "idle" ? HINTS[mode] : STATUS_HINTS[status.kind]}
+        {status.kind === "idle" ? HINTS[mode] : statusHint(status)}
       </p>
-      {status.kind === "miss" && (
-        <button
-          type="button"
-          onClick={() => onLabel(status.gtin)}
-          className="mx-auto h-[54px] rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground"
-        >
-          Etikett fotografieren
-        </button>
+      {labelGtin && (
+        <div className="mx-auto flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => shoot(labelGtin)}
+            className="h-[54px] rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground"
+          >
+            Etikett fotografieren
+          </button>
+          {status.kind === "label-failed" && (
+            <button type="button" onClick={() => onLabel(labelGtin)} className="h-10 px-4 text-sm font-semibold text-cam-muted">
+              Von Hand eingeben
+            </button>
+          )}
+          <input
+            ref={labelFile}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            data-testid="label-photo"
+            onChange={(e) => pickLabel(labelGtin, e)}
+          />
+        </div>
       )}
     </section>
   );

@@ -15,6 +15,7 @@ from app.search.search import search_foods
 from app.services import foods
 from app.services.foods import (
     FALLBACK_SERVING,
+    GtinTaken,
     InvalidFood,
     NotFound,
     ServingInput,
@@ -77,14 +78,23 @@ def validate(body: schemas.AtwaterIn) -> schemas.Validation:
     return schemas.Validation(atwater=schemas.AtwaterResult.model_validate(result))
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, responses={422: {}})
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses={409: {"description": "another food has the GTIN"}, 422: {}},
+)
 def create_food(body: schemas.FoodCreate, session: SessionDep) -> schemas.FoodDetail:
-    """Create an own food with its servings; without a marked one the first is standard."""
-    fields = body.model_dump(exclude={"per_100", "servings"}) | body.per_100.model_dump()
+    """Create an own food with its servings; without a marked one the first is standard.
+
+    A gtin makes the food the hit of its barcode (SPEC 6, own DB first).
+    """
+    fields = body.model_dump(exclude={"gtin", "per_100", "servings"}) | body.per_100.model_dump()
     try:
-        food = foods.create_food(session, fields, _servings(body.servings))
-    except InvalidFood as error:
+        food = foods.create_food(session, fields, _new_servings(body.servings), body.gtin)
+    except (InvalidFood, InvalidGtin) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    except GtinTaken as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     return _detail(session, food)
 
 
@@ -140,7 +150,22 @@ def _food(session: Session, food_id: int) -> Food:
 
 
 def _servings(servings: list[schemas.ServingIn]) -> list[ServingInput]:
+    """Servings of a PATCH: the backend alone changes their origin (ADR-0003)."""
     return [ServingInput(s.label, s.grams, s.is_default, s.id) for s in servings]
+
+
+def _new_servings(servings: list[schemas.NewServingIn]) -> list[ServingInput]:
+    return [
+        ServingInput(
+            s.label,
+            s.grams,
+            s.is_default,
+            s.id,
+            s.origin,
+            None if s.as_read is None else (s.as_read.label, s.as_read.grams),
+        )
+        for s in servings
+    ]
 
 
 def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeFood:
