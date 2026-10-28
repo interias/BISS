@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "screens": "SCREENS=1 playwright test --project=screens"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

@@ -1,6 +1,7 @@
-"""FastAPI dependencies. Tests override get_db with their rolled-back session."""
+"""FastAPI dependencies. Tests override get_db with their rolled-back session and get_now."""
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends
@@ -15,3 +16,11 @@ def get_db() -> Iterator[Session]:
 
 
 SessionDep = Annotated[Session, Depends(get_db)]
+
+
+def get_now() -> datetime:
+    """The current moment; tests override it to fix the clock."""
+    return datetime.now(UTC)
+
+
+NowDep = Annotated[datetime, Depends(get_now)]

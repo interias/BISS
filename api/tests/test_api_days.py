@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_now
 from app.domain.goals import default_targets
+from app.main import app
 from app.models import Goal
 from tests.factories import add_food
 
@@ -59,3 +61,29 @@ def test_day_targets_use_the_goal_of_the_day(client: TestClient, session: Sessio
 
 def test_invalid_date_is_rejected(client: TestClient) -> None:
     assert client.get("/api/v1/days/2026-13-01").status_code == 422
+
+
+def fix_clock(moment: str) -> None:
+    app.dependency_overrides[get_now] = lambda: datetime.fromisoformat(moment)
+
+
+def test_today_is_the_current_day(client: TestClient) -> None:
+    fix_clock("2026-10-28T12:00:00+01:00")
+    day = client.get("/api/v1/days/today").json()
+    assert day["date"] == "2026-10-28"
+    assert day["suggested_meal"] == "lunch"
+
+
+def test_today_before_four_is_the_previous_day(client: TestClient, session: Session) -> None:
+    food = add_food(session, "Reis gekocht", kcal=130, protein=2.7, carbs=28, fat=0.3)
+    log(client, food.id, 100, "dinner", "2026-10-28T23:10:00+01:00")
+    fix_clock("2026-10-29T03:30:00+01:00")
+    day = client.get("/api/v1/days/today").json()
+    assert day["date"] == "2026-10-28"
+    assert day["totals"]["kcal"] == 130
+    fix_clock("2026-10-29T04:00:00+01:00")
+    assert client.get("/api/v1/days/today").json()["date"] == "2026-10-29"
+
+
+def test_other_words_than_today_are_rejected(client: TestClient) -> None:
+    assert client.get("/api/v1/days/yesterday").status_code == 422
