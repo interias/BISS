@@ -1,8 +1,13 @@
 # Golden search set (SPEC 8): query -> expected BLS code at place 1.
 # Chosen before tuning: what a person typing the query means, usually the raw food.
-# expected: a BLS code, or "fixture:<key>" for a food of `foods`.
-# kind: generic | typo | umlaut | plural | brand | usage | priority
+# expected: a BLS code, "fixture:<key>" for a food of `foods` or "cache:<key>" for a product
+# of `cache`.
+# kind: generic | typo | umlaut | plural | brand | usage | priority | off
 # `foods` and `entries` are added next to the BLS seed; entries are dated days before now.
+# `cache`: products in the Open Food Facts cache, fetched days_ago before now (searchable for
+# 30 days, SPEC 6). `product` replaces fields of an invented API answer (tests/factories.py,
+# off_answer); the products are invented, no data from Open Food Facts (ADR-0002). One has the
+# GTIN of haferdrink_alpro and must not appear next to it; one is too old to be found.
 # `barcodes`: a scanned code -> the food of `foods` with that GTIN, with and without leading
 # zeros (EAN-8, UPC-A, EAN-13, GTIN-14). The GTINs are invented, with valid check digits.
 # Not in the set: "Reis", "Nudeln", "Quark". The BLS seed has no generic entry for them, so the
@@ -26,6 +31,32 @@ foods:
   - {key: kaese_own, name: Käse Gouda jung, kcal: 356}
   - {key: brot_unused, name: Brot Roggen, kcal: 210}
   - {key: brot_own, name: Brot Dinkel, kcal: 240}
+cache:
+  - key: muesli_krokant
+    code: "2000000021096"
+    days_ago: 3
+    product: {product_name_de: Testmüsli Krokant, brands: "Kornwerk, Kornwerk Bio",
+              nutriments: {energy-kcal_100g: 445, proteins_100g: 9, carbohydrates_100g: 62, fat_100g: 17}}
+  - key: haferdrink_bergquell
+    code: "2000000021102"
+    days_ago: 12
+    product: {product_name_de: Haferdrink Calcium, brands: Bergquell,
+              nutriments: {energy-kcal_100g: 46, proteins_100g: 0.8, carbohydrates_100g: 7, fat_100g: 1.5}}
+  - key: joghurt_testhof
+    code: "2000000021119"
+    days_ago: 1
+    product: {product_name_de: Joghurt natur, brands: Testhof,
+              nutriments: {energy-kcal_100g: 61, proteins_100g: 4, carbohydrates_100g: 5, fat_100g: 3}}
+  - key: kefir_almwiese_expired
+    code: "2000000021126"
+    days_ago: 45
+    product: {product_name_de: Kefir Kirsche, brands: Almwiese,
+              nutriments: {energy-kcal_100g: 70, proteins_100g: 3, carbohydrates_100g: 9, fat_100g: 2}}
+  - key: haferdrink_alpro_cached
+    code: "200000000028"  # the GTIN of haferdrink_alpro
+    days_ago: 2
+    product: {product_name_de: Haferdrink Original, brands: Alpro,
+              nutriments: {energy-kcal_100g: 44, proteins_100g: 1, carbohydrates_100g: 6.6, fat_100g: 1.5}}
 entries:
   - {food: ei_own, days_ago: [1, 3, 4, 6, 8, 10, 13]}
   - {food: kaese_own, days_ago: [1, 2, 4, 7, 9, 12]}
@@ -116,7 +147,7 @@ pairs:
     expected: B101000
     kind: generic
   - query: Joghurt
-    expected: M141300
+    expected: M141300  # the cached "Joghurt natur" of Testhof ranks behind: OFF comes last
     kind: generic
   - query: Ei
     expected: fixture:ei_own  # eaten 7 times; the unused, shorter "Ei roh" wins on text alone
@@ -127,6 +158,21 @@ pairs:
   - query: Brot
     expected: fixture:brot_own  # eaten 8 times; the unused "Brot Roggen" wins on a tie in text
     kind: usage
+  - query: Testmüsli Krokant
+    expected: cache:muesli_krokant  # only in the cache
+    kind: off
+  - query: testmusli
+    expected: cache:muesli_krokant
+    kind: off
+  - query: Bergquell Haferdrink
+    expected: cache:haferdrink_bergquell  # the cached brand is a known brand and filters
+    kind: off
+  - query: Almwiese Kefir
+    expected: fixture:kefir_recent  # the cached Almwiese kefir is 45 days old, not found
+    kind: off
+  - query: Haferdrink Original
+    expected: fixture:haferdrink_alpro  # the food, not the cache row of its GTIN
+    kind: off
 barcodes:
   - {code: "2000000000022", expected: "fixture:haferflocken_koelln", kind: ean13}
   - {code: "02000000000022", expected: "fixture:haferflocken_koelln", kind: gtin14}

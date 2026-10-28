@@ -7,6 +7,7 @@ import {
   deleteEntry,
   getRecent,
   getToday,
+  scanBarcode,
   updateEntry,
   type BarcodeFood,
   type Day,
@@ -15,6 +16,7 @@ import {
   type FoodSummary,
   type LabelExtraction,
   type Meal,
+  type SearchHit,
 } from "@/lib/api";
 import { headerDate, shortName } from "@/lib/format";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
@@ -111,6 +113,12 @@ export function Home() {
     setSheet(food.id === null ? { kind: "draft", food } : { kind: "amount", foodId: food.id });
   };
 
+  /** A cached product has no food yet: the barcode chain answers its draft, as after a scan. */
+  const picked = (hit: SearchHit) => {
+    if (hit.id !== null) setSheet({ kind: "amount", foodId: hit.id });
+    else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), console.error);
+  };
+
   const remove = (entry: Entry) => () =>
     write(async () => {
       await deleteEntry(entry.id);
@@ -163,7 +171,7 @@ export function Home() {
         <Sheet onClose={() => setSheet(null)}>
           {sheet.kind === "search" && (
             <SearchSheet
-              onPick={(food) => setSheet({ kind: "amount", foodId: food.id })}
+              onPick={picked}
               onCreate={() => setSheet({ kind: "editor" })}
             />
           )}

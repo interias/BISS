@@ -65,6 +65,16 @@ class FoodSummary(BaseModel):
     standard_serving: StandardServing
 
 
+class SearchHit(FoodSummary):
+    """A search hit: a food (id set) or a product of the Open Food Facts cache (id null)."""
+
+    id: int | None = Field(
+        description="null: a cached product, stored as food on its first entry "
+        "(POST /entries or log_meal with gtin)"
+    )
+    gtin: str | None = Field(description="GTIN-14; always set for a cached product")
+
+
 class FoodDetail(BaseModel):
     id: int
     name: str

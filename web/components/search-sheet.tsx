@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { searchFoods, type FoodSummary } from "@/lib/api";
+import { searchFoods, type SearchHit } from "@/lib/api";
 import { brandLine, fmt, per100Unit } from "@/lib/format";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -13,11 +13,11 @@ export function SearchSheet({
   onPick,
   onCreate,
 }: {
-  onPick: (food: FoodSummary) => void;
+  onPick: (food: SearchHit) => void;
   onCreate: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<{ query: string; hits: FoodSummary[] } | null>(null);
+  const [result, setResult] = useState<{ query: string; hits: SearchHit[] } | null>(null);
   const q = query.trim();
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function SearchSheet({
         )}
         {hits?.map((food) => (
           <button
-            key={food.id}
+            key={food.id ?? food.gtin}
             type="button"
             onClick={() => onPick(food)}
             className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px border-b border-dashed py-[9px] text-left last:border-b-0"
