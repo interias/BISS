@@ -1,16 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>BISS</title>
   <defs>
-    <!-- Disc with a bite out of the top right: one bite arc plus four front-teeth scallops -->
-    <mask id="bite" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+    <!-- Cookie with a chunk broken off the top right -->
+    <mask id="cookie" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
       <circle cx="256" cy="262" r="156" fill="#fff"/>
-      <circle cx="386.1" cy="131.9" r="58"/>
-      <circle cx="398.2" cy="188.6" r="31"/>
-      <circle cx="360.7" cy="184.0" r="31"/>
-      <circle cx="334.0" cy="157.3" r="31"/>
-      <circle cx="329.4" cy="119.8" r="31"/>
+      <path d="M232 92 L262 128 L254 156 L292 168 L300 198 L336 204 L348 236 L392 240 L430 256 L560 256 L560 -40 L232 -40 Z" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
     </mask>
   </defs>
   <rect width="512" height="512" rx="116" fill="#B3245F"/>
-  <rect width="512" height="512" fill="#FFFFFF" mask="url(#bite)"/>
+  <rect width="512" height="512" fill="#FFFFFF" mask="url(#cookie)"/>
+  <g fill="#B3245F">
+    <circle cx="196" cy="230" r="15"/>
+    <circle cx="176" cy="318" r="13"/>
+    <circle cx="262" cy="334" r="15"/>
+    <circle cx="330" cy="300" r="12"/>
+    <circle cx="244" cy="262" r="10"/>
+  </g>
 </svg>
