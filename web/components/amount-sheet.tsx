@@ -46,7 +46,7 @@ export function AmountSheet({
   return <AmountForm food={food} entry={entry} initialMeal={suggestedMeal} initial={initial} {...actions} />;
 }
 
-const DOTS = [
+export const DOTS = [
   { key: "protein", label: "Eiweiß", color: "var(--biss-prot)" },
   { key: "carbs", label: "KH", color: "var(--biss-carb)" },
   { key: "fat", label: "Fett", color: "var(--biss-fat)" },
@@ -91,10 +91,12 @@ export function AmountForm({
         <div className="grid justify-items-end gap-1.5">
           <button
             type="button"
-            title="Mahlzeit wechseln"
+            title={entry?.group_id ? "Die Mahlzeit gilt für das ganze Gericht" : "Mahlzeit wechseln"}
             aria-label={`Mahlzeit: ${MEAL_LABELS[meal]}`}
+            // An entry of a Gericht keeps the meal of its group: it only changes for all of them.
+            disabled={!!entry?.group_id}
             onClick={nextMeal}
-            className="rounded-[10px] border bg-surface-2 px-[11px] py-[7px] text-[12.5px] font-bold"
+            className="rounded-[10px] border bg-surface-2 px-[11px] py-[7px] text-[12.5px] font-bold disabled:cursor-default"
           >
             {MEAL_LABELS[meal]}
           </button>
