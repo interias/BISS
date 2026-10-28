@@ -45,5 +45,5 @@ def delete_entry(entry_id: int, session: SessionDep) -> Response:
 
 @router.get("/recent")
 def recent(session: SessionDep) -> list[schemas.FoodSummary]:
-    """Recent chips: at most 8 foods by their latest entry, with the standard serving."""
+    """Recent chips: the 8 most used foods (entries, recency), with the standard serving."""
     return [convert.food_summary(food, serving) for food, serving in entries.recent_foods(session)]

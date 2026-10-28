@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -88,6 +90,22 @@ def test_recent_lists_at_most_8_foods_by_latest_entry(client: TestClient, sessio
     assert recent[0]["standard_serving"] == FALLBACK
     assert recent[1]["standard_serving"] == {"label": "1 Becher", "grams": 200, "origin": "package"}
     assert recent[0]["per_100"] == {"kcal": 100, "protein": 10, "carbs": 10, "fat": 1}
+
+
+def test_recent_ranks_by_usage_not_only_by_the_latest_entry(
+    client: TestClient, session: Session
+) -> None:
+    often, once, old = (add_food(session, name) for name in ["Oft", "Einmal", "Alt"])
+    now = datetime.now(UTC)
+    for days_ago in (1, 3, 5, 8):
+        log(client, often.id, (now - timedelta(days=days_ago)).isoformat())
+    log(client, once.id, (now - timedelta(hours=1)).isoformat())
+    for days_ago in range(200, 210):  # ten entries, but half a year ago
+        log(client, old.id, (now - timedelta(days=days_ago)).isoformat())
+
+    recent = client.get("/api/v1/recent").json()
+
+    assert [r["name"] for r in recent] == ["Oft", "Einmal", "Alt"]
 
 
 def test_recent_is_empty_without_entries(client: TestClient) -> None:

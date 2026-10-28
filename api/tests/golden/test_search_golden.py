@@ -1,4 +1,7 @@
-"""Golden search set against the real BLS seed (SPEC 8).
+"""Golden search set against the real BLS seed plus fixtures (SPEC 8).
+
+The fixtures of search.yaml are own and branded foods and entries dated relative to now,
+for the brand filter, duplicate priority and usage ranking.
 
 Fails if a threshold is missed: place 1 >= 90 %, top 5 >= 98 %, duplicates in the top 10
 = 0, p95 of the search time < 300 ms.
@@ -7,6 +10,7 @@ Fails if a threshold is missed: place 1 >= 90 %, top 5 >= 98 %, duplicates in th
 import statistics
 import time
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -15,21 +19,54 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from app.importers.bls import import_bls
-from app.models import Food
-from app.search.ranking import DUPLICATE_KCAL_TOLERANCE, DUPLICATE_NAME_SIMILARITY
+from app.models import Entry, Food
 from app.search.search import search_foods
+from app.search.weights import DUPLICATE_KCAL_TOLERANCE, DUPLICATE_NAME_SIMILARITY
 
-PAIRS = yaml.safe_load((Path(__file__).parent / "search.yaml").read_text(encoding="utf-8"))
+GOLDEN = yaml.safe_load((Path(__file__).parent / "search.yaml").read_text(encoding="utf-8"))
+PAIRS = GOLDEN["pairs"]
 RUNS = 5
+
+
+def add_fixtures(session: Session) -> None:
+    """Add the fixture foods (source_id "fixture:<key>") and their entries."""
+    now = datetime.now(UTC)
+    ids = {}
+    for fixture in GOLDEN["foods"]:
+        values = {"protein": 5, "carbs": 10, "fat": 5, "source": "own"}
+        values |= {k: v for k, v in fixture.items() if k != "key"}
+        values["source_id"] = f"fixture:{fixture['key']}"
+        food = Food(**values)
+        session.add(food)
+        session.flush()
+        ids[fixture["key"]] = food.id
+    for use in GOLDEN["entries"]:
+        for days_ago in use["days_ago"]:
+            eaten_at = now - timedelta(days=days_ago)
+            session.add(
+                Entry(
+                    food_id=ids[use["food"]],
+                    grams=100,
+                    meal="lunch",
+                    eaten_at=eaten_at,
+                    day=eaten_at.date(),
+                    kcal=1,
+                    protein=0,
+                    carbs=0,
+                    fat=0,
+                )
+            )
+    session.flush()
 
 
 @pytest.fixture(scope="module")
 def bls_session(engine: Engine) -> Iterator[Session]:
-    """The full BLS seed, rolled back after the module."""
+    """The full BLS seed and the fixtures, rolled back after the module."""
     with engine.connect() as connection:
         transaction = connection.begin()
         session = Session(bind=connection, join_transaction_mode="create_savepoint")
         assert import_bls(session) > 7000
+        add_fixtures(session)
         yield session
         session.close()
         transaction.rollback()
