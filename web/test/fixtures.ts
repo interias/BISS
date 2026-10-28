@@ -159,7 +159,8 @@ export function fakeApi() {
       return json({ atwater: { computed_kcal: 93.4, deviation_pct: 0.4, ok: true } });
     }
     if (url === "/api/v1/labels/extract" && method === "POST") {
-      return json(biscuitLabel(String((body as FormData).get("gtin"))));
+      const gtin = (body as FormData).get("gtin"); // absent after the shutter "Etikett"
+      return json(biscuitLabel(gtin === null ? null : String(gtin)));
     }
     if (url === "/api/v1/foods" && method === "POST") {
       const gtin = body.gtin ? String(body.gtin).padStart(14, "0") : null;

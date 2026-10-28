@@ -1,0 +1,10 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "ml"
+energy_kj: "80"
+energy_kcal: "19"
+protein: "0.9"
+carbs: "3.2"
+fat: "0.3"
+source: "https://commons.wikimedia.org/wiki/File:Naehrwertangabe.jpg"
+author: "Erik78"
+license: "CC BY-SA 3.0"

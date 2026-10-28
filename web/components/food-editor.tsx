@@ -52,7 +52,7 @@ type Actions = {
 };
 
 type New = {
-  /** The scanned code of a barcode without a hit; the new food is stored with it. */
+  /** The scanned code of a barcode without a hit; the new food is stored with it, else without. */
   gtin?: string;
   /** The draft read from the label photo; it fills the new food. */
   label?: LabelExtraction;
@@ -286,13 +286,20 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
             </label>
             <input id="food-brand" value={brand} onChange={(e) => setBrand(e.target.value)} className={inputClass} />
           </div>
-          {gtin && (
-            // Read only: the scanned code, stored with the new food.
+          {(gtin || draft) && (
+            // Read only: the scanned code, stored with the new food. A label without a
+            // barcode before leaves it empty, the food is stored without GTIN (SPEC 7).
             <div className="mb-2.5 grid min-w-0 gap-1">
               <label htmlFor="food-gtin" className="text-xs font-bold text-muted-foreground">
                 GTIN
               </label>
-              <input id="food-gtin" value={gtin} readOnly className={cn(inputClass, "tabular-nums text-muted-foreground")} />
+              <input
+                id="food-gtin"
+                value={gtin ?? ""}
+                placeholder="ohne Barcode"
+                readOnly
+                className={cn(inputClass, "tabular-nums text-muted-foreground")}
+              />
             </div>
           )}
         </div>

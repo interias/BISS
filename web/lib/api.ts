@@ -214,12 +214,12 @@ export function uploadFoodImage(id: number, file: File) {
 }
 
 /**
- * Label photo plus the scanned GTIN → draft with validation (SPEC 7). The backend only
- * reads the photo and does not store it; the GTIN never comes from the photo.
+ * Label photo plus the scanned GTIN, if any → draft with validation (SPEC 7). The backend
+ * only reads the photo and does not store it; the GTIN never comes from the photo.
  */
-export function extractLabel(photo: Blob, gtin: string) {
+export function extractLabel(photo: Blob, gtin?: string) {
   const form = new FormData();
   form.append("file", photo, photo instanceof File ? photo.name : "label.jpg");
-  form.append("gtin", gtin);
+  if (gtin) form.append("gtin", gtin);
   return request<LabelExtraction>("/labels/extract", { method: "POST", body: form });
 }

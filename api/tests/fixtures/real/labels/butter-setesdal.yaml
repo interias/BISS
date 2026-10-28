@@ -1,0 +1,11 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "g"
+energy_kj: "3050"
+energy_kcal: "730"
+protein: "0.5"
+carbs: "0.5"
+fat: "81"
+salt: "4"
+source: "https://commons.wikimedia.org/wiki/File:Setesdalssm%C3%B8r.jpg"
+author: "Rexpo"
+license: "CC BY-SA 3.0"

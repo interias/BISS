@@ -29,7 +29,10 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["llm: needs a real LLM token"]
+markers = [
+    "llm: needs a real LLM token",
+    "realdata: needs a real photo set (ADR-0008), skipped without one",
+]
 # A real model call only on request (-m llm), never in the normal run.
 addopts = "-m 'not llm'"
 

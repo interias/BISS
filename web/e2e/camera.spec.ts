@@ -198,3 +198,58 @@ test("tap budget: a real photo of a known barcode is logged with Kamera + 1", as
   await expect(page.locator(`[data-entry-id="${created.id}"]`)).toBeVisible();
   expect(await taps(), "Kamera + Eintragen").toBe(2);
 });
+
+test("tap budget: a label without a barcode is logged with Kamera + Etikett + 2 confirmations", async ({ page }) => {
+  // As without HTTPS: no mediaDevices, so the shutter "Etikett" opens the photo choice.
+  await page.addInitScript(() => Object.defineProperty(navigator, "mediaDevices", { value: undefined }));
+  const taps = await countTaps(page);
+  // Any label photo will do for the fake extractor, which always reads FAKE_DRAFT.
+  const labels = photoSet(realSets()[0].root, "labels");
+  expect(labels.photos.length, labels.dir).toBeGreaterThan(0);
+  const photo = labels.photos[0];
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Kamera/ }).click();
+  const camera = page.getByRole("region", { name: "Kamera" });
+
+  // No barcode before: the shutter alone. The file goes straight into the input it opens;
+  // the file choice replaces the missing camera and does not count (SPEC 1).
+  await camera.getByRole("button", { name: "Etikett", exact: true }).click();
+  const [extracted] = await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/v1/labels/extract"),
+    camera.getByTestId("label-photo").setInputFiles({
+      name: photo.file,
+      mimeType: MIME[photo.file.split(".").pop()!.toLowerCase()],
+      buffer: readFileSync(photo.path),
+    }),
+  ]);
+  expect(extracted.status()).toBe(200);
+  // The backend answers the GTIN of the request: none went along (SPEC 7).
+  expect(((await extracted.json()) as { draft: { gtin: string | null } }).draft.gtin).toBeNull();
+
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByText("Neu · aus Etikett gelesen")).toBeVisible();
+  await expect(camera).toHaveCount(0);
+  await expect(sheet.getByLabel("GTIN")).toHaveValue("");
+  await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("Haferkeks Dinkel");
+
+  // First confirmation. The name repeats in every run, as there is no GTIN to tell the foods
+  // apart; the test follows its own food and entry by id, so a second run passes as well.
+  const [saved] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/foods"),
+    sheet.getByRole("button", { name: "Speichern & eintragen" }).click(),
+  ]);
+  expect(saved.status()).toBe(201);
+  const food: { id: number; gtin: string | null; image_path: string | null } = await saved.json();
+  expect(food.gtin).toBeNull();
+  expect(food.image_path).toBeNull(); // the label photo is no product photo
+  await expect(sheet.getByRole("heading", { name: "Haferkeks Dinkel" })).toBeVisible();
+
+  // Second confirmation: the entry of this food.
+  const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  );
+  entries.track(created.id);
+  expect((created as unknown as { food: { id: number } }).food.id).toBe(food.id);
+  await expect(page.locator(`[data-entry-id="${created.id}"]`)).toContainText("Haferkeks Dinkel");
+  expect(await taps(), "Kamera + Etikett + Speichern & eintragen + Eintragen").toBe(4);
+});

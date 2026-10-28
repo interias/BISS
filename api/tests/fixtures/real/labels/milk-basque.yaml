@@ -1,0 +1,13 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "ml"
+energy_kj: "190"
+energy_kcal: "45"
+fat: "1.55"
+saturated_fat: "1.00"
+carbs: "4.70"
+sugar: "4.70"
+protein: "3.10"
+salt: "0.12"
+source: "https://commons.wikimedia.org/wiki/File:Nutrizio-balioak.jpg"
+author: "Koldo Biguri"
+license: "CC BY-SA 4.0"
