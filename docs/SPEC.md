@@ -152,7 +152,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 - **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall.
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
-  - Fixture-Fotos echter Etiketten mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft.
+  - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)); Fotos echter Etiketten können hinzukommen.
 - **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt).
 
 ## 9. Betrieb

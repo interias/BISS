@@ -54,15 +54,63 @@ export type BarcodeFood = Omit<FoodDetail, "id" | "gtin" | "source_id" | "servin
   servings: Omit<Serving, "id">[];
 };
 
-/** What the editor sends; servings with an id are changed, the others are new. */
+/**
+ * What the editor sends; servings with an id are changed, the others are new. `basis`,
+ * `gtin` (the scanned code, 409 when another food has it) and the `origin` of a serving read
+ * from a label with its `as_read` values only when it creates a food; the backend makes a
+ * serving that differs from them own (ADR-0003).
+ */
 export type FoodWrite = {
   name: string;
   brand: string | null;
+  basis?: Basis;
+  gtin?: string;
   per_100: Per100;
-  servings: { id?: number; label: string; grams: number; is_default: boolean }[];
+  servings: {
+    id?: number;
+    label: string;
+    grams: number;
+    is_default: boolean;
+    origin?: Serving["origin"];
+    as_read?: { label: string; grams: number };
+  }[];
 };
 
 export type Atwater = { computed_kcal: number; deviation_pct: number | null; ok: boolean };
+
+/** The draft read from a label (SPEC 7); its field names differ from the food's. */
+export type LabelDraft = {
+  name: string;
+  brand: string | null;
+  package_size: { amount: number; unit: Basis } | null;
+  per_100: {
+    basis: Basis;
+    state: "as_sold" | "prepared";
+    energy_kj: number;
+    energy_kcal: number;
+    fat: number;
+    saturated_fat: number | null;
+    carbs: number;
+    sugar: number | null;
+    fiber: number | null;
+    protein: number;
+    salt: number | null;
+  };
+  servings: { label: string; amount: number; unit: Basis; source: "package" | "estimated" }[];
+  confidence: number;
+  notes: string;
+  /** From the request, never read from the photo. */
+  gtin: string | null;
+};
+
+export type LabelViolation = { rule: "atwater" | "energy" | "sugar" | "saturated_fat"; detail: string };
+
+export type LabelExtraction = {
+  draft: LabelDraft;
+  validation: { ok: boolean; atwater: Atwater; violations: LabelViolation[] };
+  model: string;
+  attempts: number;
+};
 
 export type Entry = {
   id: number;
@@ -86,13 +134,23 @@ export type Day = {
 
 const BASE = "/api/v1";
 
+/** A response that is not ok; `status` tells e.g. a taken GTIN (409) from a bad photo (422). */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(BASE + path, {
     ...init,
     // A FormData body sets its own multipart header with the boundary.
     headers: typeof init?.body === "string" ? { "Content-Type": "application/json" } : undefined,
   });
-  if (!response.ok) throw new Error(`${init?.method ?? "GET"} ${path}: ${response.status}`);
+  if (!response.ok) throw new ApiError(`${init?.method ?? "GET"} ${path}: ${response.status}`, response.status);
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
@@ -146,4 +204,15 @@ export function uploadFoodImage(id: number, file: File) {
   const form = new FormData();
   form.append("file", file);
   return request<FoodDetail>(`/foods/${id}/image`, { method: "PUT", body: form });
+}
+
+/**
+ * Label photo plus the scanned GTIN → draft with validation (SPEC 7). The backend only
+ * reads the photo and does not store it; the GTIN never comes from the photo.
+ */
+export function extractLabel(photo: Blob, gtin: string) {
+  const form = new FormData();
+  form.append("file", photo, photo instanceof File ? photo.name : "label.jpg");
+  form.append("gtin", gtin);
+  return request<LabelExtraction>("/labels/extract", { method: "POST", body: form });
 }

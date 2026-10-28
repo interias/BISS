@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.meal import Meal
+from app.labels.draft import LabelDraft
+from app.labels.validation import Rule
 
 Source = Literal["own", "bls", "off"]
 Basis = Literal["g", "ml"]
@@ -145,13 +147,34 @@ class ServingIn(BaseModel):
     )
 
 
+class ServingAsRead(BaseModel):
+    label: str = Field(min_length=1)
+    grams: float = Field(gt=0)
+
+
+class NewServingIn(ServingIn):
+    """A serving of a new food; it may keep the origin it was read with from a label."""
+
+    origin: Origin = Field(default="own", description="package or estimated as on the label")
+    as_read: ServingAsRead | None = Field(
+        default=None,
+        description="label and grams as read; when they differ the serving becomes own",
+    )
+
+
 class FoodCreate(BaseModel):
     name: str = Field(min_length=1)
     brand: str | None = None
     basis: Basis = "g"
     density: float = Field(default=1.0, gt=0)
+    gtin: str | None = Field(
+        default=None,
+        description="a scanned code, stored as GTIN-14; 409 when another food has it",
+    )
     per_100: NutrientsIn
-    servings: list[ServingIn] = Field(default=[], description="all with origin own")
+    servings: list[NewServingIn] = Field(
+        default=[], description="origin own unless sent; a PATCH cannot set it"
+    )
 
 
 class FoodUpdate(BaseModel):
@@ -188,6 +211,37 @@ class AtwaterResult(BaseModel):
 
 class Validation(BaseModel):
     atwater: AtwaterResult
+
+
+class LabelFoodDraft(LabelDraft):
+    """The draft read from the label; the editor fills its fields with it (SPEC 7)."""
+
+    gtin: str | None = Field(
+        description="GTIN-14 from the request, never read from the photo; null without one"
+    )
+
+
+class LabelViolation(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rule: Rule
+    detail: str
+
+
+class LabelValidation(BaseModel):
+    ok: bool = Field(description="no rule violated")
+    atwater: AtwaterResult
+    violations: list[LabelViolation] = Field(
+        description="atwater within 10 %, energy kJ ≈ kcal · 4.184 within 5 %, "
+        "sugar ≤ carbs, saturated_fat ≤ fat"
+    )
+
+
+class LabelExtraction(BaseModel):
+    draft: LabelFoodDraft
+    validation: LabelValidation = Field(description="of the returned draft; the editor warns")
+    model: str = Field(description="the model whose draft is returned")
+    attempts: int = Field(description="1, or 2 after a violation in the fast model's draft")
 
 
 class FoodRef(BaseModel):

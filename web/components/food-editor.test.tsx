@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { Dialog } from "radix-ui";
 import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import type { FoodDetail } from "@/lib/api";
-import { bananaDetail } from "@/test/fixtures";
+import type { FoodDetail, FoodWrite } from "@/lib/api";
+import { bananaDetail, biscuitLabel } from "@/test/fixtures";
 import { EditorForm } from "./food-editor";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -223,4 +223,136 @@ test("a failed photo upload keeps the sheet open and a retry updates instead of 
   await waitFor(() => expect(calls.filter((c) => c.method === "PUT")).toHaveLength(2));
   expect(calls.filter((c) => c.method === "POST" && c.url === "/api/v1/foods")).toHaveLength(1);
   expect(calls.some((c) => c.method === "PATCH" && c.url === "/api/v1/foods/99")).toBe(true);
+});
+
+const GTIN = "02000000013022";
+
+test("a label draft fills the new food and says that the label photo is not stored", () => {
+  fakeBackend();
+  const label = biscuitLabel(GTIN);
+  label.draft.servings.push(
+    { label: "1 Teller zubereitet", amount: 125, unit: "ml", source: "package" },
+    { label: "1 Handvoll", amount: 30, unit: "g", source: "estimated" },
+  );
+  inDialog(<EditorForm gtin={GTIN} label={label} onSaved={noop} onCancel={noop} />);
+
+  expect(screen.getByText("Neu · aus Etikett gelesen")).toBeInTheDocument();
+  expect(screen.getByText(/wird nur zum Auslesen genutzt und nicht gespeichert/)).toBeInTheDocument();
+  expect(field("Name")).toHaveValue("Haferkeks Dinkel");
+  expect(field("Marke")).toHaveValue("Testmühle");
+  expect(field("GTIN")).toHaveValue(GTIN);
+  expect(field("Energie (kcal)")).toHaveValue("460");
+  expect(field("Gesättigte Fettsäuren (g)")).toHaveValue("7,5");
+  expect(field("Salz (g)")).toHaveValue("0,6");
+  // The servings in grams with their origin; ml at a food per 100 g is no amount in grams.
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  expect(rowOf(0).getByLabelText("Bezeichnung")).toHaveValue("1 Keks (12,5 g)");
+  expect(rowOf(0).getByLabelText("Gramm")).toHaveValue("12,5");
+  expect(rowOf(0).getByTestId("origin")).toHaveTextContent("Packung");
+  expect(rowOf(1).getByLabelText("Bezeichnung")).toHaveValue("1 Handvoll");
+  expect(rowOf(1).getByTestId("origin")).toHaveTextContent("geschätzt");
+  expect(screen.getByTestId("label-skipped")).toHaveTextContent(
+    "1 Portion aus dem Etikett nicht übernommen (ml bei Basis g).",
+  );
+  // A changed label serving shows own at once, like a saved one.
+  fireEvent.change(rowOf(1).getByLabelText("Gramm"), { target: { value: "35" } });
+  expect(rowOf(1).getByTestId("origin")).toHaveTextContent("eigene");
+  expect(screen.queryByTestId("label-warning")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Verwerfen" })).toBeInTheDocument();
+  // The label photo is no product photo.
+  expect(screen.getByRole("button", { name: "Produktfoto aufnehmen oder wählen" }).querySelector("img")).toBeNull();
+});
+
+test("violations of the backend's label check show as a warning", () => {
+  fakeBackend();
+  const label = biscuitLabel(GTIN);
+  label.validation = {
+    ok: false,
+    atwater: { computed_kcal: 380, deviation_pct: 17.4, ok: false },
+    violations: [
+      { rule: "atwater", detail: "computed 380 kcal differs by 17.4 % from 460 kcal" },
+      { rule: "sugar", detail: "sugar 70 g above carbs 64 g" },
+    ],
+  };
+  label.attempts = 2;
+  inDialog(<EditorForm gtin={GTIN} label={label} onSaved={noop} onCancel={noop} />);
+
+  const warning = screen.getByTestId("label-warning");
+  expect(warning).toHaveTextContent("Die gelesenen Werte sind unplausibel. Bitte mit dem Etikett vergleichen.");
+  expect(within(warning).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "Die kcal passen nicht zu den Makros.",
+    "Zucker liegt über den Kohlenhydraten.",
+  ]);
+});
+
+test("Speichern & eintragen creates the food with the GTIN, basis and servings of the label", async () => {
+  const calls = fakeBackend({ ...bananaDetail, id: 99, gtin: GTIN });
+  const onSaved = vi.fn();
+  inDialog(<EditorForm gtin={GTIN} label={biscuitLabel(GTIN)} onSaved={onSaved} onCancel={noop} />);
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  const post = calls.find((c) => c.method === "POST" && c.url === "/api/v1/foods");
+  expect(post?.body).toEqual({
+    name: "Haferkeks Dinkel",
+    brand: "Testmühle",
+    basis: "g",
+    gtin: GTIN,
+    per_100: { kcal: 460, protein: 8, carbs: 64, fat: 18, fiber: 5, sugar: 22, sat_fat: 7.5, salt: 0.6 },
+    servings: [
+      {
+        label: "1 Keks (12,5 g)",
+        grams: 12.5,
+        is_default: true,
+        origin: "package",
+        as_read: { label: "1 Keks (12,5 g)", grams: 12.5 },
+      },
+    ],
+  });
+  // No upload: the label photo never becomes the product photo.
+  expect(calls.some((c) => c.method === "PUT")).toBe(false);
+});
+
+test("a changed or added label serving goes with what was read; the backend decides its origin", async () => {
+  const calls = fakeBackend({ ...bananaDetail, id: 99, gtin: GTIN });
+  const onSaved = vi.fn();
+  const label = biscuitLabel(GTIN);
+  label.draft.servings.push({ label: "1 Handvoll", amount: 30, unit: "g", source: "estimated" });
+  inDialog(<EditorForm gtin={GTIN} label={label} onSaved={onSaved} onCancel={noop} />);
+  fireEvent.change(rowOf(1).getByLabelText("Bezeichnung"), { target: { value: "2 Handvoll" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ Portion hinzufügen" }));
+  fireEvent.change(rowOf(2).getByLabelText("Bezeichnung"), { target: { value: "1 Riegel" } });
+  expect(rowOf(1).getByTestId("origin")).toHaveTextContent("eigene");
+  expect(rowOf(2).getByTestId("origin")).toHaveTextContent("eigene");
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  const post = calls.find((c) => c.method === "POST" && c.url === "/api/v1/foods");
+  expect((post?.body as FoodWrite).servings.slice(1)).toEqual([
+    {
+      label: "2 Handvoll",
+      grams: 30,
+      is_default: false,
+      origin: "estimated",
+      as_read: { label: "1 Handvoll", grams: 30 },
+    },
+    { label: "1 Riegel", grams: 100, is_default: false },
+  ]);
+});
+
+test("a GTIN another food already has keeps the editor open with a clear message", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url === "/api/v1/foods/validate" ? json(plausible) : json({ detail: "GTIN taken" }, 409),
+    ),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const onSaved = vi.fn();
+  inDialog(<EditorForm gtin={GTIN} onSaved={onSaved} onCancel={noop} />);
+  type("Name", "Keks");
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Diese GTIN gehört schon zu einem anderen Lebensmittel.");
+  expect(onSaved).not.toHaveBeenCalled();
 });
