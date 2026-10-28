@@ -1,0 +1,4 @@
+code,name,kcal,protein,carbs,fat,fiber,sugar,sat_fat,salt
+T000001,Testapfel roh,52,0.3,12.4,0.2,2.3,10.1,0.04,0.002
+T000002,"Testbrot, hell",250,8.5,48,1.2,TR,3,<LOD,1.1
+T000003,Testöl,899,0,0,99.9,-,0,-,0
