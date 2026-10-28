@@ -4,6 +4,10 @@ on:
   pull_request:
 
 # The same compose commands as locally: tests run in the containers against Postgres.
+# compose.test.yaml publishes no ports and points the barcode chain at the OFF stub.
+env:
+  COMPOSE_FILE: compose.yaml:compose.test.yaml
+
 jobs:
   api:
     runs-on: ubuntu-latest
