@@ -1,0 +1,572 @@
+<title>BISS Prototyp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: ein einziger Screen. Oben Tagesbilanz, Mitte Tagebuch, unten Dock mit Zuletzt-Chips, Suche und einem Kamera-Knopf, der alles erkennt. Produktbilder sitzen in einem Rahmen mit Bissspur. */
+:root{
+  --bg:#EDF0EA; --surface:#FFFFFF; --surface-2:#F4F6F1; --tile:#EEF1EA; --ink:#17201A; --muted:#5C665E; --line:#D8DDD3;
+  --accent:#B3245F; --accent-ink:#FFFFFF; --accent-soft:#F6DCE7;
+  --prot:#2F64D6; --carb:#C98E00; --fat:#23926A; --ok:#23926A; --warn:#B86E00;
+  --frame:#C9CFC4; --shadow:rgba(23,32,26,.14);
+  --cam:#0B0E0C; --cam-ink:#F2F4F0; --cam-muted:#9AA59C;
+  --font-display:'Bricolage Grotesque', 'Figtree', system-ui, sans-serif;
+  --font-body:'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1210; --surface:#171C19; --surface-2:#1E2420; --tile:#242B26; --ink:#E8ECE5; --muted:#9AA59C; --line:#2B332E;
+  --accent:#E2588F; --accent-ink:#1C0712; --accent-soft:#3A1726;
+  --prot:#7AA2FF; --carb:#F0C04A; --fat:#52C99A; --ok:#52C99A; --warn:#F0A63A;
+  --frame:#2B332E; --shadow:rgba(0,0,0,.5); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0E1210; --surface:#171C19; --surface-2:#1E2420; --tile:#242B26; --ink:#E8ECE5; --muted:#9AA59C; --line:#2B332E;
+  --accent:#E2588F; --accent-ink:#1C0712; --accent-soft:#3A1726;
+  --prot:#7AA2FF; --carb:#F0C04A; --fat:#52C99A; --ok:#52C99A; --warn:#F0A63A;
+  --frame:#2B332E; --shadow:rgba(0,0,0,.5); color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:16px;box-sizing:border-box;display:flex;justify-content:center}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.app{position:relative;width:100%;max-width:420px;height:100%;max-height:880px;background:var(--surface);
+  border:1px solid var(--frame);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 20px 50px -20px var(--shadow)}
+
+/* Bildrahmen mit Bissspur oben rechts */
+.pic{--s:44px;width:var(--s);height:var(--s);flex:none;position:relative;overflow:hidden;display:block;
+  border-radius:calc(var(--s) * .3);background:var(--tile);box-shadow:inset 0 0 0 1px var(--line);
+  -webkit-mask:radial-gradient(circle at calc(100% - var(--s) * .04) calc(var(--s) * .04), transparent calc(var(--s) * .19), #000 calc(var(--s) * .19 + .6px));
+          mask:radial-gradient(circle at calc(100% - var(--s) * .04) calc(var(--s) * .04), transparent calc(var(--s) * .19), #000 calc(var(--s) * .19 + .6px))}
+.pic svg{width:100%;height:100%;display:block;padding:14%}
+.pic img{width:100%;height:100%;display:block;object-fit:cover}
+.pic.round{border-radius:50%;-webkit-mask:none;mask:none}
+.pic.round svg{padding:10%}
+.pic.empty{background:var(--surface-2);box-shadow:inset 0 0 0 1.5px var(--line);display:grid;place-items:center;color:var(--muted)}
+
+/* Header */
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand b{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:.06em}
+.date{color:var(--muted);font-size:13px;font-weight:600}
+
+.scroll{flex:1;overflow-y:auto;padding:4px 20px 12px}
+
+/* Tagesbilanz */
+.summary{display:grid;grid-template-columns:132px 1fr;gap:18px;align-items:center;padding:10px 0 18px;border-bottom:1px solid var(--line)}
+.ring{position:relative;width:132px;height:132px}
+.ring svg{display:block}
+#ringArc{transition:stroke-dasharray .8s cubic-bezier(.3,.7,.2,1)}
+.ring .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .big{font-family:var(--font-display);font-weight:800;font-size:30px;line-height:1}
+.ring .small{color:var(--muted);font-size:12px;margin-top:4px}
+.macros{display:grid;gap:12px;min-width:0}
+.macro .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.macro .row span:first-child{font-weight:600}
+.macro .row span:last-child{color:var(--muted)}
+.bar{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;border-radius:4px}
+
+/* Tagebuch */
+.meal{padding-top:16px}
+.meal h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;display:flex;justify-content:space-between;font-weight:700}
+.entry{width:100%;display:grid;grid-template-columns:auto 1fr auto;gap:1px 12px;align-items:center;text-align:left;padding:9px 0;border-bottom:1px dashed var(--line)}
+.entry:last-child{border-bottom:0}
+.entry .pic{grid-row:1/3}
+.entry .n{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:end}
+.entry .k{font-weight:700;text-align:right;align-self:end}
+.entry .d{grid-column:2/-1;color:var(--muted);font-size:12.5px;align-self:start;min-width:0}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+
+/* Dock */
+.dock{border-top:1px solid var(--line);background:var(--surface);padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.recent{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}
+.recent::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;font-weight:600;white-space:nowrap}
+.chip small{color:var(--muted);font-weight:500}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.recent .chip{padding:5px 12px 5px 5px}
+.actionbar{display:flex;gap:12px;align-items:center}
+.search{flex:1;display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-weight:500;text-align:left}
+.shoot{width:64px;height:64px;border-radius:22px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;box-shadow:0 8px 18px -8px var(--accent)}
+.shoot:active{transform:scale(.96)}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;background:rgba(10,14,12,.45);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:90%;overflow-y:auto;z-index:21;background:var(--surface);border-radius:24px 24px 0 0;border-top:1px solid var(--line);padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 4px}
+.sheet h2{font-family:var(--font-display);font-weight:700;font-size:21px;margin:0;line-height:1.15;text-wrap:balance}
+.sub{color:var(--muted);margin:3px 0 0;font-size:13.5px}
+.head{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;margin-bottom:14px}
+.head > div{min-width:0}
+.headbtns{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.mealchip{padding:7px 11px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;font-weight:700;background:var(--surface-2)}
+.link{font-size:12.5px;font-weight:700;color:var(--accent);padding:4px 2px;display:inline-flex;gap:4px;align-items:center}
+.amount{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 14px}
+.step{width:48px;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-size:22px;font-weight:600}
+.amount output{font-family:var(--font-display);font-weight:800;font-size:44px;min-width:150px;text-align:center}
+.amount output small{font-size:20px;color:var(--muted);font-weight:700;margin-left:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:18px}
+.quad{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;margin-bottom:18px}
+.quad div{padding:10px 6px;text-align:center;border-left:1px solid var(--line)}
+.quad div:first-child{border-left:0}
+.quad b{display:block;font-size:17px}
+.quad span{font-size:11.5px;color:var(--muted);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.btnrow{display:flex;gap:10px}
+.primary{flex:1;height:54px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:16px}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.ghost{height:54px;padding:0 18px;border-radius:16px;border:1px solid var(--line);font-weight:600;color:var(--muted)}
+
+/* Editor */
+.edtop{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;margin-bottom:6px}
+.photoslot{display:grid;gap:6px;justify-items:center}
+.photoslot button{position:relative}
+.photoslot .cap{font-size:11.5px;font-weight:700;color:var(--muted)}
+.badge{position:absolute;left:6px;bottom:6px;width:26px;height:26px;border-radius:9px;background:var(--surface);color:var(--ink);display:grid;place-items:center;box-shadow:0 2px 6px var(--shadow)}
+.field{display:grid;gap:4px;margin-bottom:10px;min-width:0}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.field input{height:42px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);padding:0 12px;font:inherit;color:var(--ink);width:100%;min-width:0}
+.source{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);margin-bottom:12px;font-size:12.5px;color:var(--muted)}
+.source .lt{width:34px;height:34px;border-radius:8px;flex:none;border:1px solid var(--line);background:repeating-linear-gradient(0deg,var(--surface) 0 5px,var(--line) 5px 6px)}
+.source b{color:var(--ink)}
+.nutri{border:2px solid var(--ink);border-radius:12px;padding:10px 12px 4px;margin:4px 0 12px}
+.nutri .t{display:flex;justify-content:space-between;font-weight:800;font-size:13px;border-bottom:4px solid var(--ink);padding-bottom:6px;margin-bottom:4px}
+.nrow{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:3px 0}
+.nrow:last-child{border-bottom:0}
+.nrow label{font-size:13.5px}
+.nrow input{width:84px;height:32px;text-align:right;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-weight:700;color:var(--ink);padding:0 6px}
+.nrow input:hover,.nrow input:focus{border-color:var(--line);background:var(--surface-2)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:10px 12px;border-radius:12px;margin-bottom:16px;background:var(--surface-2);border:1px solid var(--line)}
+.check b{color:var(--ok)}
+.check.bad b{color:var(--warn)}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 6px}
+.sechead .eyebrow{margin:0}
+.srow{display:grid;grid-template-columns:28px 1fr 78px auto 28px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+.srow input{height:36px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);font:inherit;color:var(--ink);padding:0 9px;width:100%;min-width:0}
+.srow input.g{text-align:right;font-weight:700}
+.star{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:transparent}
+.star.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.tag{font-size:10.5px;font-weight:700;padding:3px 6px;border-radius:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.hard{color:var(--ok);border-color:var(--ok)}
+.tag.own{color:var(--accent);border-color:var(--accent)}
+.x{width:28px;height:28px;border-radius:9px;color:var(--muted)}
+.addrow{width:100%;margin:8px 0 16px;height:42px;border-radius:12px;border:1.5px dashed var(--line);color:var(--accent);font-weight:700}
+.legend{font-size:12px;color:var(--muted);margin:0 0 4px}
+
+/* Teller-Ergebnis */
+.photo{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.ing{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.ing .n{font-weight:600;min-width:0}
+.ing .n small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+.mini{display:flex;align-items:center;gap:6px}
+.mini button{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);font-weight:700}
+.mini span{min-width:50px;text-align:center;font-weight:700}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 12px}
+.serv{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
+
+/* Kamera */
+.cam{position:absolute;inset:0;z-index:30;background:var(--cam);color:var(--cam-ink);display:flex;flex-direction:column;padding:18px 18px calc(22px + env(safe-area-inset-bottom,0px))}
+.camtop{display:flex;justify-content:space-between;align-items:center}
+.camtop button{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--cam-ink);display:grid;place-items:center}
+.camtop span{font-size:13px;color:var(--cam-muted);font-weight:600}
+.finder{flex:1;display:grid;place-items:center;position:relative}
+.frame{position:relative;width:78%;aspect-ratio:1/1.05;max-width:100%}
+.frame i{position:absolute;width:34px;height:34px;border:3px solid var(--cam-ink)}
+.frame i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:12px 0 0 0}
+.frame i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 12px 0 0}
+.frame i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 12px}
+.frame i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 12px 0}
+.scan{position:absolute;left:8%;right:8%;height:2px;background:var(--accent);box-shadow:0 0 14px var(--accent);top:10%;animation:scan 2.2s ease-in-out infinite alternate}
+@keyframes scan{to{top:88%}}
+.frame.hit i{border-color:var(--fat)}
+.frame.hit .scan{background:var(--fat);box-shadow:0 0 14px var(--fat)}
+.busy{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;font-weight:600}
+.spin{width:36px;height:36px;border-radius:50%;border:3px solid rgba(255,255,255,.18);border-top-color:var(--accent);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(1turn)}}
+.hint{text-align:center;color:var(--cam-muted);font-size:13px;margin:0 0 12px}
+.demo{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+.demo button{padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.2);color:var(--cam-ink);font-size:12.5px;font-weight:600}
+.demo button.on{background:var(--cam-ink);color:var(--cam)}
+.demo .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cam-muted);align-self:center;font-weight:700}
+.shutter{width:76px;height:76px;border-radius:50%;margin:0 auto;border:4px solid var(--cam-ink);display:grid;place-items:center}
+.shutter::after{content:"";width:58px;height:58px;border-radius:50%;background:var(--cam-ink)}
+
+.toast{position:absolute;left:16px;right:16px;bottom:150px;z-index:40;background:var(--ink);color:var(--surface);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;box-shadow:0 10px 30px -10px var(--shadow)}
+.toast button{color:var(--accent-soft);font-weight:700}
+
+@media (prefers-reduced-motion: reduce){.scan,.sheet,.spin{animation:none}}
+@media (max-width:380px){.summary{grid-template-columns:112px 1fr;gap:14px}.ring{width:112px;height:112px}.ring svg{width:112px;height:112px}.ring .big{font-size:25px}
+  .srow{grid-template-columns:28px 1fr 64px 28px}.srow .tag{display:none}}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 1a12 12 0 1 0 11.6 8.9 3.4 3.4 0 0 1-4.3-3.4 3.4 3.4 0 0 1-3.6-4.9A12 12 0 0 0 13 1z" fill="var(--accent)"/></svg>
+      <b>BISS</b>
+    </div>
+    <span class="date">Heute · Mi 28. Okt</span>
+  </header>
+
+  <main class="scroll" id="scroll">
+    <section class="summary" aria-label="Tagesbilanz">
+      <div class="ring">
+        <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+          <circle cx="66" cy="66" r="56" fill="none" stroke="var(--surface-2)" stroke-width="12"/>
+          <circle cx="66" cy="66" r="56" fill="none" stroke="var(--line)" stroke-width="1"/>
+          <circle id="ringArc" cx="66" cy="66" r="56" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="butt" transform="rotate(-90 66 66)" stroke-dasharray="0 999"/>
+          <circle cx="66" cy="66" r="56" fill="none" stroke="var(--surface)" stroke-width="13" stroke-dasharray="1.4 7.3" transform="rotate(-90 66 66)"/>
+        </svg>
+        <div class="center"><span class="big num" id="kcal">0</span><span class="small num" id="kcalOf">von 2.400 kcal</span></div>
+      </div>
+      <div class="macros" id="macros"></div>
+    </section>
+    <section id="log"></section>
+  </main>
+
+  <div class="dock">
+    <div class="recent" id="recent" aria-label="Zuletzt gegessen"></div>
+    <div class="actionbar">
+      <button class="search" id="openSearch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Lebensmittel suchen</button>
+      <button class="shoot" id="openCam" aria-label="Kamera: Barcode, Etikett oder Teller"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.6"/></svg></button>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <section class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></section>
+
+  <section class="cam" id="cam" hidden aria-label="Kamera">
+    <div class="camtop">
+      <button id="closeCam" aria-label="Schließen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <span>Barcode · Etikett · Teller</span>
+      <span style="width:40px"></span>
+    </div>
+    <div class="finder">
+      <div class="frame" id="frame"><i></i><i></i><i></i><i></i><div class="scan"></div></div>
+      <div class="busy" id="busy" hidden><div class="spin"></div><span id="busyText">Lese Nährwerttabelle …</span></div>
+    </div>
+    <p class="hint">Barcodes werden sofort erkannt. Für Etikett oder Teller auslösen.</p>
+    <div class="demo">
+      <span class="lbl">Demo</span>
+      <button id="demoBarcode">Barcode zeigen</button>
+      <button id="demoLabel" class="on">Etikett</button>
+      <button id="demoPlate">Teller</button>
+    </div>
+    <button class="shutter" id="shutter" aria-label="Auslösen"></button>
+  </section>
+
+  <input type="file" id="fileIn" accept="image/*" capture="environment" hidden>
+  <div class="toast" id="toast" hidden><span id="toastText"></span><button id="undo">Rückgängig</button></div>
+</div>
+
+<script>
+const GOAL={kcal:2400,p:160,c:260,f:75};
+const MEALS=['Frühstück','Mittag','Snack','Abend'];
+const fmt=(n,d=0)=>Number(n).toLocaleString('de-DE',{maximumFractionDigits:d,minimumFractionDigits:d});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const S=(l,g,src)=>({l,g,src}); /* src: Packung | geschätzt | eigene */
+
+/* Platzhalter-Illustrationen, bis ein echtes Produktfoto hinterlegt ist */
+const ART={
+  hafer:'<svg viewBox="0 0 48 48"><path d="M5 24h38a19 15 0 0 1-38 0z" fill="#E9E2D6" stroke="#B8AD9B" stroke-width="1.2"/><ellipse cx="24" cy="24" rx="19" ry="5" fill="#D9B77F"/><g fill="#B98D4E"><ellipse cx="17" cy="23" rx="2.2" ry="1.2"/><ellipse cx="25" cy="25" rx="2.2" ry="1.2"/><ellipse cx="31" cy="22.5" rx="2.2" ry="1.2"/><ellipse cx="21" cy="21.5" rx="2" ry="1"/></g></svg>',
+  skyr:'<svg viewBox="0 0 48 48"><path d="M12 14h24l-3 26H15z" fill="#F7F7F2" stroke="#9FB3C8" stroke-width="1.2"/><path d="M13.4 22h21.2l-.7 7H14.1z" fill="#4F7CC0"/><ellipse cx="24" cy="14" rx="12.5" ry="3" fill="#DCE5EF" stroke="#9FB3C8" stroke-width="1.2"/></svg>',
+  banane:'<svg viewBox="0 0 48 48"><path d="M7 27c7 12 26 12 34-6 1-2.5-1.6-4-2.8-2C32 30 19 32 10 24.5c-1.8-1.5-4 .2-3 2.5z" fill="#F2C230" stroke="#C9951A" stroke-width="1.2"/><path d="M40.5 19.5l2-3" stroke="#6B5A2A" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  whey:'<svg viewBox="0 0 48 48"><rect x="12" y="13" width="24" height="29" rx="4" fill="#2E3034"/><rect x="11" y="9" width="26" height="6" rx="2" fill="#4A4D52"/><rect x="12" y="22" width="24" height="10" fill="#F1E6C8"/><circle cx="24" cy="27" r="3" fill="#C8A55A"/></svg>',
+  reis:'<svg viewBox="0 0 48 48"><path d="M5 24h38a19 15 0 0 1-38 0z" fill="#E7EDF1" stroke="#A9B6BF" stroke-width="1.2"/><path d="M7 24c3-7 31-7 34 0z" fill="#F7F5EE" stroke="#DCD7CB"/><g fill="#E2DCCD"><ellipse cx="18" cy="21" rx="1.6" ry=".8"/><ellipse cx="24" cy="19.5" rx="1.6" ry=".8"/><ellipse cx="30" cy="21" rx="1.6" ry=".8"/></g></svg>',
+  huhn:'<svg viewBox="0 0 48 48"><path d="M8 30c-2-10 11-18 24-14 10 3 9 16-1 18-9 2-21 3-23-4z" fill="#D9A066" stroke="#A9733B" stroke-width="1.2"/><path d="M16 23l8 8M22 20l9 9M29 19l6 6" stroke="#A9733B" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  pudding:'<svg viewBox="0 0 48 48"><path d="M12 15h24l-3 25H15z" fill="#F4EEE6" stroke="#B59A86" stroke-width="1.2"/><ellipse cx="24" cy="15" rx="12.5" ry="3.2" fill="#6B4330"/><path d="M13.3 25h21.4l-.5 5H13.8z" fill="#2F64D6"/></svg>',
+  ei:'<svg viewBox="0 0 48 48"><ellipse cx="24" cy="25" rx="15" ry="17" fill="#FBF8F1" stroke="#D8CDBD" stroke-width="1.2"/><circle cx="24" cy="27" r="7.5" fill="#F2B630"/></svg>',
+  pasta:'<svg viewBox="0 0 48 48"><ellipse cx="24" cy="28" rx="19" ry="12" fill="#F2F2EE" stroke="#BDBDB4" stroke-width="1.2"/><path d="M13 27c3-5 6 5 9 0s6 5 9 0 5 4 6 1M14 31c3-4 6 4 9 0s6 4 9 0" fill="none" stroke="#C9512D" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  pizza:'<svg viewBox="0 0 48 48"><path d="M24 6l17 31c-11 6-23 6-34 0z" fill="#F2C46B" stroke="#C4863A" stroke-width="1.4"/><path d="M7 37c11 6 23 6 34 0" stroke="#C4863A" stroke-width="4" stroke-linecap="round" fill="none"/><g fill="#C8412E"><circle cx="24" cy="18" r="2.6"/><circle cx="19" cy="29" r="2.6"/><circle cx="30" cy="30" r="2.6"/></g><g fill="#A9B0B8"><ellipse cx="26" cy="24" rx="2.6" ry="1.6"/><ellipse cx="21" cy="35" rx="2.6" ry="1.6"/></g><path d="M16 33l4-1M29 24l3 1" stroke="#7A3E6E" stroke-width="1.4"/></svg>',
+  plate:'<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="#F2F2EE" stroke="#BDBDB4" stroke-width="1.2"/><circle cx="24" cy="24" r="11" fill="none" stroke="#D8D8D0"/></svg>'
+};
+const CAM_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.6"/></svg>';
+function pic(food,size=44,round=false){
+  const inner=food&&food.img?`<img src="${food.img}" alt="">`:(ART[food&&food.art]||ART.plate);
+  return `<span class="pic${round?' round':''}" style="--s:${size}px">${inner}</span>`;
+}
+
+const FOODS={
+  hafer:{name:'Kernige Haferflocken',brand:'Kölln',src:'Eigene DB',art:'hafer',per:{kcal:368,p:13.5,c:58.7,f:6.7,fib:10},serv:[S('Portion',40,'Packung'),S('Schüssel',60,'eigene'),S('1 EL',10,'geschätzt')],def:60},
+  skyr:{name:'Skyr Natur',brand:'generisch',src:'Eigene DB',art:'skyr',per:{kcal:63,p:11,c:4,f:0.2,fib:0},serv:[S('Portion',250,'eigene'),S('1 Becher',450,'Packung')],def:250},
+  banane:{name:'Banane',brand:'generisch · BLS',src:'BLS',art:'banane',per:{kcal:93,p:1.1,c:20,f:0.2,fib:2},serv:[S('1 mittelgroße',120,'geschätzt'),S('1 kleine',90,'geschätzt')],def:120},
+  whey:{name:'Whey Vanille',brand:'Eigene DB',src:'Eigene DB',art:'whey',per:{kcal:380,p:76,c:7,f:5.5,fib:0},serv:[S('1 Scoop',30,'Packung')],def:30},
+  reis:{name:'Basmatireis, gekocht',brand:'generisch · BLS',src:'BLS',art:'reis',per:{kcal:130,p:2.7,c:28,f:0.3,fib:0.4},serv:[S('Teller',200,'eigene'),S('Beilage',150,'geschätzt')],def:200},
+  huhn:{name:'Hähnchenbrust, gebraten',brand:'generisch · BLS',src:'BLS',art:'huhn',per:{kcal:165,p:31,c:0,f:3.6,fib:0},serv:[S('1 Filet',180,'geschätzt'),S('Portion',150,'eigene')],def:180},
+  pudding:{name:'High Protein Pudding Schoko',brand:'Demo-Produkt',src:'Open Food Facts · EAN gescannt',art:'pudding',per:{kcal:74,p:10,c:5.2,f:1.4,fib:0.6},serv:[S('1 Becher',200,'Packung'),S('halber Becher',100,'eigene')],def:200},
+  ei:{name:'Ei, gekocht',brand:'generisch · BLS',src:'BLS',art:'ei',per:{kcal:155,p:13,c:1.1,f:11,fib:0},serv:[S('1 Ei (M)',58,'geschätzt'),S('2 Eier',116,'geschätzt')],def:58},
+};
+const RECENT=['skyr','hafer','banane','whey','ei'];
+
+let log=[
+  {id:1,foodId:'hafer',g:60,meal:'Frühstück',t:'07:12'},
+  {id:2,foodId:'skyr',g:250,meal:'Frühstück',t:'07:12'},
+  {id:3,foodId:'banane',g:120,meal:'Snack',t:'10:05'},
+  {id:4,foodId:'reis',g:200,meal:'Mittag',t:'12:40'},
+  {id:5,foodId:'huhn',g:180,meal:'Mittag',t:'12:40'},
+];
+let nextId=6, lastAdded=null;
+
+function macrosOf(e){
+  if(e.composite) return e.m;
+  const p=FOODS[e.foodId].per, k=e.g/100;
+  return {kcal:p.kcal*k,p:p.p*k,c:p.c*k,f:p.f*k};
+}
+function mealNow(){const d=new Date(),h=d.getHours()+d.getMinutes()/60;
+  return h<10.5?'Frühstück':h<14.5?'Mittag':h<17.5?'Snack':'Abend'}
+function timeNow(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+const short=n=>n.split(',')[0];
+
+/* ---------- Home ---------- */
+function render(){
+  const tot={kcal:0,p:0,c:0,f:0};
+  log.forEach(e=>{const m=macrosOf(e);for(const k in tot)tot[k]+=m[k]});
+  document.getElementById('kcal').textContent=fmt(tot.kcal);
+  document.getElementById('kcalOf').textContent='von '+fmt(GOAL.kcal)+' kcal';
+  const C=2*Math.PI*56, frac=Math.min(tot.kcal/GOAL.kcal,1);
+  document.getElementById('ringArc').setAttribute('stroke-dasharray',(C*frac)+' '+C);
+  const rows=[['Eiweiß','p','--prot'],['Kohlenhydrate','c','--carb'],['Fett','f','--fat']];
+  document.getElementById('macros').innerHTML=rows.map(([n,k,col])=>`
+    <div class="macro"><div class="row num"><span>${n}</span><span><b style="color:var(--ink)">${fmt(tot[k])}</b> / ${GOAL[k]} g</span></div>
+    <div class="bar"><i style="width:${Math.min(tot[k]/GOAL[k]*100,100)}%;background:var(${col})"></i></div></div>`).join('');
+  document.getElementById('log').innerHTML=MEALS.map(meal=>{
+    const es=log.filter(e=>e.meal===meal);
+    const sum=es.reduce((a,e)=>a+macrosOf(e).kcal,0);
+    return `<div class="meal"><h3><span>${meal}</span><span class="num">${es.length?fmt(sum)+' kcal':''}</span></h3>
+      ${es.length?es.map(e=>{const m=macrosOf(e);const food=e.composite?e:FOODS[e.foodId];
+        return `<button class="entry" data-id="${e.id}">${pic(food,44)}<span class="n">${esc(food.name)}</span><span class="k num">${fmt(m.kcal)}</span>
+        <span class="d num">${fmt(e.g)} g · ${e.t} · E ${fmt(m.p)} · K ${fmt(m.c)} · F ${fmt(m.f)}</span></button>`}).join('')
+      :'<div class="empty">Noch nichts eingetragen</div>'}</div>`}).join('');
+  document.querySelectorAll('#log .entry').forEach(b=>b.onclick=()=>{
+    const e=log.find(x=>x.id==b.dataset.id);
+    e.composite?openComposite(e):openAmount(e.foodId,{edit:e});
+  });
+  document.getElementById('recent').innerHTML=RECENT.map(id=>`<button class="chip" data-id="${id}">${pic(FOODS[id],26,true)} ${esc(short(FOODS[id].name))} <small class="num">${FOODS[id].def} g</small></button>`).join('');
+  document.querySelectorAll('#recent .chip').forEach(b=>b.onclick=()=>{
+    const f=FOODS[b.dataset.id];addEntry({foodId:b.dataset.id,g:f.def,meal:mealNow()});
+    toast(short(f.name)+' eingetragen');
+  });
+}
+function addEntry(e){e.id=nextId++;e.t=e.t||timeNow();log.push(e);lastAdded=e.id;render()}
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(t,undo=true){
+  const el=document.getElementById('toast');document.getElementById('toastText').textContent=t;
+  document.getElementById('undo').hidden=!undo;el.hidden=false;clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.hidden=true,3200);
+}
+document.getElementById('undo').onclick=()=>{log=log.filter(e=>e.id!==lastAdded);render();document.getElementById('toast').hidden=true};
+
+/* ---------- Sheet ---------- */
+const sheet=document.getElementById('sheet'), scrim=document.getElementById('scrim');
+function showSheet(html,keepScroll=false){const st=sheet.scrollTop;sheet.innerHTML='<div class="grab"></div>'+html;sheet.hidden=false;scrim.hidden=false;sheet.scrollTop=keepScroll?st:0}
+function closeSheet(){sheet.hidden=true;scrim.hidden=true}
+scrim.onclick=closeSheet;
+
+function quad(m){return `<div class="quad num">
+  <div><b>${fmt(m.kcal)}</b><span>kcal</span></div>
+  <div><b>${fmt(m.p)}</b><span><i class="dot" style="background:var(--prot)"></i>Eiweiß</span></div>
+  <div><b>${fmt(m.c)}</b><span><i class="dot" style="background:var(--carb)"></i>KH</span></div>
+  <div><b>${fmt(m.f)}</b><span><i class="dot" style="background:var(--fat)"></i>Fett</span></div></div>`}
+
+/* Menge wählen */
+function openAmount(foodId,{edit=null,g:g0=null,meal:m0=null}={}){
+  const f=FOODS[foodId];
+  let g=g0??(edit?edit.g:f.def), meal=m0??(edit?edit.meal:mealNow());
+  function draw(){
+    const m=macrosOf({foodId,g});
+    showSheet(`<div class="head">${pic(f,64)}<div><p class="eyebrow">${esc(f.src)}</p><h2>${esc(f.name)}</h2><p class="sub">${esc(f.brand)}</p></div>
+      <div class="headbtns"><button class="mealchip" id="mealBtn" title="Mahlzeit wechseln">${meal}</button>
+      <button class="link" id="editFood"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Bearbeiten</button></div></div>
+      <div class="amount"><button class="step" id="minus" aria-label="weniger">−</button><output class="num">${fmt(g)}<small>g</small></output><button class="step" id="plus" aria-label="mehr">+</button></div>
+      <div class="chips">${f.serv.map(s=>`<button class="chip ${s.g===g?'on':''}" data-g="${s.g}">${esc(s.l)} <small class="num">${s.g} g</small></button>`).join('')}</div>
+      ${quad(m)}
+      <div class="btnrow">${edit?'<button class="ghost" id="del">Entfernen</button>':''}<button class="primary num" id="ok">${edit?'Speichern':'Eintragen'} · ${fmt(m.kcal)} kcal</button></div>`);
+    sheet.querySelector('#minus').onclick=()=>{g=Math.max(5,g-(g>100?10:5));draw()};
+    sheet.querySelector('#plus').onclick=()=>{g+=g>=100?10:5;draw()};
+    sheet.querySelectorAll('.chips .chip').forEach(b=>b.onclick=()=>{g=+b.dataset.g;draw()});
+    sheet.querySelector('#mealBtn').onclick=()=>{meal=MEALS[(MEALS.indexOf(meal)+1)%4];draw()};
+    sheet.querySelector('#editFood').onclick=()=>openEditor({id:foodId,onDone:()=>openAmount(foodId,{edit,g,meal}),onCancel:()=>openAmount(foodId,{edit,g,meal})});
+    sheet.querySelector('#ok').onclick=()=>{
+      if(edit){edit.g=g;edit.meal=meal;render();closeSheet();toast('Gespeichert',false)}
+      else{addEntry({foodId,g,meal});closeSheet();toast(short(f.name)+' eingetragen')}
+    };
+    if(edit)sheet.querySelector('#del').onclick=()=>{log=log.filter(e=>e!==edit);render();closeSheet();toast('Entfernt',false)};
+  }
+  draw();
+}
+
+/* ---------- Lebensmittel-Editor: Neuanlage aus Etikett und Bearbeiten ---------- */
+const fileIn=document.getElementById('fileIn');
+function pickImage(cb){
+  fileIn.value='';
+  fileIn.onchange=()=>{const file=fileIn.files[0];if(!file)return;
+    const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+      const s=Math.min(1,480/Math.max(im.width,im.height)),cv=document.createElement('canvas');
+      cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+      cb(cv.toDataURL('image/jpeg',.82))};im.src=r.result};r.readAsDataURL(file)};
+  fileIn.click();
+}
+
+function openEditor({id=null,draft=null,fromLabel=false,onDone,onCancel}){
+  const src=id?FOODS[id]:draft;
+  const d=JSON.parse(JSON.stringify(src));
+  d.per.fib=d.per.fib||0;
+  const NUT=[['kcal','Energie (kcal)'],['p','Eiweiß (g)'],['c','Kohlenhydrate (g)'],['f','Fett (g)'],['fib','Ballaststoffe (g)']];
+  const fmtIn=v=>String(v).replace('.',',');
+
+  showSheet(`<p class="eyebrow">${id?'Lebensmittel bearbeiten':'Neu · aus Etikett gelesen'}</p>
+    <div class="edtop">
+      <div class="photoslot"><button id="photoBtn" aria-label="Produktfoto aufnehmen oder wählen"></button><span class="cap" id="photoCap"></span></div>
+      <div style="min-width:0"><div class="field"><label for="ln">Name</label><input id="ln" value="${esc(d.name)}"></div>
+      <div class="field"><label for="lb">Marke</label><input id="lb" value="${esc(d.brand)}"></div></div>
+    </div>
+    ${fromLabel?`<div class="source"><span class="lt" aria-hidden="true"></span><span><b>Etikett-Foto</b> wird nur zum Auslesen genutzt und nicht gespeichert. Das Produktfoto links ist separat.</span></div>`:''}
+    <div class="nutri"><div class="t"><span>Nährwerte</span><span>je 100 g</span></div>
+      ${NUT.map(([k,l])=>`<div class="nrow"><label for="n_${k}">${l}</label><input id="n_${k}" class="num" inputmode="decimal" value="${fmtIn(d.per[k])}"></div>`).join('')}
+    </div>
+    <div class="check" id="chk"></div>
+    <div class="sechead"><p class="eyebrow">Portionen</p><span class="legend">Stern = Standard für Zuletzt-Chips</span></div>
+    <div id="servList"></div>
+    <button class="addrow" id="addServ">+ Portion hinzufügen</button>
+    <div class="btnrow"><button class="ghost" id="no">${fromLabel?'Verwerfen':'Abbrechen'}</button><button class="primary" id="ok">${id?'Speichern':'Speichern & eintragen'}</button></div>`);
+
+  const $=s=>sheet.querySelector(s);
+  function drawPhoto(){
+    const b=$('#photoBtn');
+    if(d.img||(!fromLabel&&d.art)){b.innerHTML=pic(d,96)+`<span class="badge">${CAM_ICON.replace(/22/g,'15')}</span>`;$('#photoCap').textContent=d.img?'Produktfoto':'Foto hinzufügen'}
+    else{b.innerHTML=`<span class="pic empty" style="--s:96px">${CAM_ICON}</span>`;$('#photoCap').textContent='Produktfoto'}
+  }
+  $('#photoBtn').onclick=()=>pickImage(url=>{d.img=url;drawPhoto()});
+  drawPhoto();
+
+  const val=k=>parseFloat($('#n_'+k).value.replace(',','.'))||0;
+  function check(){
+    NUT.forEach(([k])=>d.per[k]=val(k));
+    const at=4*d.per.c+4*d.per.p+9*d.per.f+2*d.per.fib, kc=d.per.kcal;
+    const dev=kc?Math.abs(at-kc)/kc*100:100, ok=dev<=10, el=$('#chk');
+    el.className='check'+(ok?'':' bad');
+    el.innerHTML=`<b>${ok?'✓':'!'}</b><span class="num">Plausibel: aus Makros ${fmt(at)} kcal, angegeben ${fmt(kc)} kcal (${fmt(dev,1)} % Abweichung).${ok?'':' Bitte Werte prüfen.'}</span>`;
+  }
+  sheet.querySelectorAll('.nrow input').forEach(i=>i.oninput=check);check();
+  $('#ln').oninput=e=>{d.name=e.target.value;$('#ok').disabled=!d.name.trim()};
+  $('#lb').oninput=e=>d.brand=e.target.value;
+
+  function drawServ(focusLast=false){
+    const L=$('#servList');
+    L.innerHTML=d.serv.length?d.serv.map((s,i)=>`<div class="srow">
+      <button class="star ${s.g===d.def?'on':''}" data-def="${i}" aria-label="Als Standard setzen"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></button>
+      <input data-l="${i}" value="${esc(s.l)}" placeholder="z. B. 1 Scheibe" aria-label="Bezeichnung">
+      <input data-g="${i}" class="g num" inputmode="decimal" value="${s.g}" aria-label="Gramm">
+      <span class="tag ${s.src==='Packung'?'hard':s.src==='eigene'?'own':''}">${s.src}</span>
+      <button class="x" data-rm="${i}" aria-label="Portion entfernen">✕</button></div>`).join('')
+      :'<div class="empty">Keine Portionen. Ohne Portion wird in Gramm eingetragen.</div>';
+    L.querySelectorAll('[data-l]').forEach(i=>i.oninput=()=>{d.serv[+i.dataset.l].l=i.value});
+    L.querySelectorAll('[data-g]').forEach(i=>i.oninput=()=>{const s=d.serv[+i.dataset.g],was=s.g===d.def;
+      s.g=Math.max(1,Math.round(parseFloat(i.value.replace(',','.'))||0));if(was)d.def=s.g;
+      if(s.src==='Packung'||s.src==='geschätzt'){s.src='eigene';i.parentNode.querySelector('.tag').className='tag own';i.parentNode.querySelector('.tag').textContent='eigene'}});
+    L.querySelectorAll('[data-def]').forEach(b=>b.onclick=()=>{d.def=d.serv[+b.dataset.def].g;drawServ()});
+    L.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const s=d.serv.splice(+b.dataset.rm,1)[0];
+      if(s.g===d.def)d.def=d.serv[0]?d.serv[0].g:100;drawServ()});
+    if(focusLast){const ins=L.querySelectorAll('[data-l]');ins[ins.length-1].focus()}
+  }
+  $('#addServ').onclick=()=>{d.serv.push(S('',100,'eigene'));drawServ(true)};
+  drawServ();
+
+  $('#no').onclick=()=>onCancel?onCancel():closeSheet();
+  $('#ok').onclick=()=>{
+    check();d.serv=d.serv.filter(s=>s.l.trim());if(!d.serv.some(s=>s.g===d.def))d.def=d.serv[0]?d.serv[0].g:100;
+    if(id){Object.assign(FOODS[id],d);render();toast('Lebensmittel gespeichert',false);onDone&&onDone(id)}
+    else{const nid='f'+(nextId++);d.src='Eigene DB · neu angelegt';FOODS[nid]=d;RECENT.unshift(nid);render();onDone&&onDone(nid)}
+  };
+}
+
+function openComposite(e){
+  showSheet(`<div class="head">${pic(e,64)}<div><p class="eyebrow">Aus Foto · ${e.meal}</p><h2>${esc(e.name)}</h2><p class="sub num">${fmt(e.g)} g gesamt</p></div><span></span></div>
+    <div style="margin-bottom:14px">${e.parts.map(p=>`<div class="serv"><span>${esc(p.n)}</span><span class="num">${p.g} g</span></div>`).join('')}</div>
+    ${quad(e.m)}<div class="btnrow"><button class="ghost" id="del">Entfernen</button><button class="primary" id="ok">Fertig</button></div>`);
+  sheet.querySelector('#del').onclick=()=>{log=log.filter(x=>x!==e);render();closeSheet();toast('Entfernt',false)};
+  sheet.querySelector('#ok').onclick=closeSheet;
+}
+
+/* ---------- Suche ---------- */
+document.getElementById('openSearch').onclick=()=>{
+  showSheet(`<div class="field"><input id="q" placeholder="z. B. Skyr, Reis, Ei" autocomplete="off" aria-label="Suchen"></div><div id="res"></div>`);
+  const q=sheet.querySelector('#q'), res=sheet.querySelector('#res');
+  const draw=()=>{const s=q.value.trim().toLowerCase();
+    const ids=Object.keys(FOODS).filter(id=>(FOODS[id].name+' '+FOODS[id].brand).toLowerCase().includes(s));
+    res.innerHTML=ids.length?ids.map(id=>`<button class="entry" data-id="${id}">${pic(FOODS[id],40)}<span class="n">${esc(FOODS[id].name)}</span><span class="k num">${fmt(FOODS[id].per.kcal)}</span><span class="d">${esc(FOODS[id].brand)} · kcal je 100 g</span></button>`).join('')
+      :'<div class="empty">Nicht gefunden. Packung fotografieren und BISS legt den Eintrag an.</div>';
+    res.querySelectorAll('.entry').forEach(b=>b.onclick=()=>openAmount(b.dataset.id));};
+  q.oninput=draw;draw();setTimeout(()=>q.focus(),50);
+};
+
+/* ---------- Kamera (simuliert) ---------- */
+const cam=document.getElementById('cam'), frame=document.getElementById('frame'), busy=document.getElementById('busy');
+let subject='label', camTimer;
+function setSubject(s){subject=s;document.getElementById('demoLabel').classList.toggle('on',s==='label');document.getElementById('demoPlate').classList.toggle('on',s==='plate')}
+document.getElementById('openCam').onclick=()=>{closeSheet();cam.hidden=false;frame.classList.remove('hit');busy.hidden=true;frame.hidden=false};
+document.getElementById('closeCam').onclick=()=>{clearTimeout(camTimer);cam.hidden=true};
+document.getElementById('demoLabel').onclick=()=>setSubject('label');
+document.getElementById('demoPlate').onclick=()=>setSubject('plate');
+document.getElementById('demoBarcode').onclick=()=>{
+  frame.classList.add('hit');
+  camTimer=setTimeout(()=>{cam.hidden=true;openAmount('pudding')},450);
+};
+document.getElementById('shutter').onclick=()=>{
+  frame.hidden=true;busy.hidden=false;
+  document.getElementById('busyText').textContent=subject==='label'?'Lese Nährwerttabelle …':'Erkenne Zutaten …';
+  camTimer=setTimeout(()=>{cam.hidden=true;subject==='label'?openLabel():openPlate()},1600);
+};
+
+/* Etikett → Editor mit ausgelesenen Werten */
+function openLabel(){
+  openEditor({fromLabel:true,
+    draft:{name:'Rote Linsen Pasta',brand:'Eigenmarke',art:'pasta',img:null,
+      per:{kcal:345,p:25,c:50,f:2,fib:8},
+      serv:[S('Portion lt. Packung',125,'Packung'),S('Packung',500,'Packung'),S('Teller',100,'geschätzt')],def:125},
+    onDone:nid=>openAmount(nid)});
+}
+
+/* Teller → Zutatenliste */
+const ING={teig:['Pizzateig, gebacken',{kcal:260,p:8,c:50,f:3}],sauce:['Tomatensauce',{kcal:35,p:1.5,c:6,f:0.5}],
+  mozz:['Mozzarella',{kcal:250,p:18,c:1,f:19.5}],thun:['Thunfisch',{kcal:116,p:26,c:0,f:1}],zwi:['Rote Zwiebeln',{kcal:40,p:1.2,c:8,f:0.1}],
+  oliv:['Oliven, schwarz',{kcal:145,p:1,c:1,f:15}],kap:['Kapern',{kcal:23,p:2.4,c:4.9,f:0.9}],ruc:['Rucola',{kcal:25,p:2.6,c:3.7,f:0.7}]};
+function openPlate(){
+  let name='Thunfischpizza';
+  let parts=[{k:'teig',g:200,c:'erkannt'},{k:'sauce',g:70,c:'erkannt'},{k:'mozz',g:70,c:'erkannt'},{k:'thun',g:70,c:'erkannt'},{k:'zwi',g:25,c:'vermutet'}];
+  function sum(){const m={kcal:0,p:0,c:0,f:0};parts.forEach(x=>{const per=ING[x.k][1];for(const k in m)m[k]+=per[k]*x.g/100});return m}
+  function draw(keep){
+    const m=sum(), sugg=['oliv','kap','ruc'].filter(k=>!parts.some(x=>x.k===k));
+    showSheet(`<div class="photo">${pic({art:'pizza'},64)}<div style="min-width:0;flex:1"><p class="eyebrow">Erkannt · bitte prüfen</p>
+      <input id="pn" value="${esc(name)}" aria-label="Gericht" style="width:100%;font:700 20px var(--font-display);color:var(--ink);background:transparent;border:0;padding:0"></div></div>
+      <div>${parts.map((x,i)=>`<div class="ing"><span class="n">${ING[x.k][0]}<small>${x.c}</small></span>
+        <span class="mini"><button data-i="${i}" data-d="-10" aria-label="weniger">−</button><span class="num">${x.g} g</span><button data-i="${i}" data-d="10" aria-label="mehr">+</button></span>
+        <button class="x" data-rm="${i}" aria-label="entfernen">✕</button></div>`).join('')}</div>
+      <p class="note">Mengen sind geschätzt. Fehlt etwas?</p>
+      <div class="chips" style="justify-content:flex-start">${sugg.map(k=>`<button class="chip" data-add="${k}">+ ${ING[k][0]}</button>`).join('')}</div>
+      ${quad(m)}
+      <div class="btnrow"><button class="ghost" id="no">Verwerfen</button><button class="primary num" id="ok">Eintragen · ${fmt(m.kcal)} kcal</button></div>`,keep);
+    sheet.querySelector('#pn').oninput=e=>name=e.target.value;
+    sheet.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{const x=parts[b.dataset.i];x.g=Math.max(5,x.g+ +b.dataset.d);draw(true)});
+    sheet.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{parts.splice(+b.dataset.rm,1);draw(true)});
+    sheet.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{parts.push({k:b.dataset.add,g:20,c:'manuell'});draw(true)});
+    sheet.querySelector('#no').onclick=closeSheet;
+    sheet.querySelector('#ok').onclick=()=>{
+      addEntry({composite:true,art:'pizza',name,g:parts.reduce((a,x)=>a+x.g,0),m:sum(),meal:mealNow(),parts:parts.map(x=>({n:ING[x.k][0],g:x.g}))});
+      closeSheet();toast(name+' eingetragen');
+    };
+  }
+  draw();
+}
+
+render();
+</script>
