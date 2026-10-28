@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Dialog } from "radix-ui";
 import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
-import { bananaDetail, bananaEntry } from "@/test/fixtures";
+import { bananaDetail, bananaEntry, puddingDraft } from "@/test/fixtures";
 import { AmountForm } from "./amount-sheet";
 
 // SheetTitle needs a dialog around it.
@@ -110,4 +110,14 @@ test("without onEdit there is no Bearbeiten, and initial grams and meal win over
   expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
   expect(amount()).toHaveTextContent("75g");
   expect(screen.getByRole("button", { name: "Mahlzeit: Mittag" })).toBeInTheDocument();
+});
+
+test("data from Open Food Facts carry the source note (ADR-0002), other foods do not", () => {
+  const { unmount } = inDialog(<AmountForm food={puddingDraft} initialMeal="snack" onSubmit={() => {}} />);
+  expect(screen.getByText("Open Food Facts")).toBeInTheDocument();
+  expect(screen.getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /1 Becher/ })).toHaveAttribute("aria-pressed", "true");
+  unmount();
+  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} />);
+  expect(screen.queryByText(/ODbL/)).not.toBeInTheDocument();
 });

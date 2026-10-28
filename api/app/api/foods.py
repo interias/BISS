@@ -1,11 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app import images
 from app.api import convert, schemas
-from app.api.deps import SessionDep
+from app.api.deps import NowDep, OffDep, SessionDep
+from app.barcode import chain
+from app.barcode.gtin import InvalidGtin
 from app.domain.atwater import atwater
 from app.models import Food
 from app.search.search import search_foods
@@ -18,6 +21,7 @@ from app.services.foods import (
     StandardServing,
     standard_serving,
 )
+from app.sources.off import FoodDraft
 
 router = APIRouter(prefix="/foods", tags=["foods"])
 
@@ -40,6 +44,30 @@ def search(
         )
         for hit in search_foods(session, q, limit=limit)
     ]
+
+
+@router.get(
+    "/barcode/{code}",
+    responses={
+        404: {"model": schemas.BarcodeNotFound, "description": "no food and no product"},
+        422: {"description": "no EAN-8, UPC-A, EAN-13 or GTIN-14, or a wrong check digit"},
+    },
+)
+def barcode(code: str, session: SessionDep, off: OffDep, now: NowDep) -> schemas.BarcodeFood:
+    """Barcode chain: own food, then the Open Food Facts cache, then Open Food Facts live.
+
+    A product from Open Food Facts is a draft (id null) until it is logged with its gtin.
+    """
+    try:
+        found = chain.lookup(session, code, off, now)
+    except InvalidGtin as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except chain.NotFound as error:
+        return JSONResponse(
+            status_code=404,
+            content=schemas.BarcodeNotFound(detail=str(error), gtin=error.gtin).model_dump(),
+        )
+    return _barcode_food(session, found)
 
 
 @router.post("/validate")
@@ -113,6 +141,48 @@ def _food(session: Session, food_id: int) -> Food:
 
 def _servings(servings: list[schemas.ServingIn]) -> list[ServingInput]:
     return [ServingInput(s.label, s.grams, s.is_default, s.id) for s in servings]
+
+
+def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeFood:
+    if isinstance(found, Food):
+        return schemas.BarcodeFood(
+            id=found.id,
+            gtin=found.gtin,
+            name=found.name,
+            brand=found.brand,
+            source=found.source,
+            basis=found.basis,
+            density=found.density,
+            image_path=found.image_path,
+            per_100=schemas.Nutrients.model_validate(found),
+            servings=[
+                schemas.BarcodeServing.model_validate(s)
+                for s in foods.servings_of(session, found.id)
+            ],
+            standard_serving=schemas.StandardServing.model_validate(
+                standard_serving(session, found.id)
+            ),
+        )
+    serving = found.serving
+    return schemas.BarcodeFood(
+        id=None,
+        gtin=found.gtin,
+        name=found.name,
+        brand=found.brand,
+        source="off",
+        basis=found.basis,
+        density=1.0,
+        image_path=None,
+        per_100=schemas.Nutrients(**found.values),
+        servings=[]
+        if serving is None
+        else [schemas.BarcodeServing(**vars(serving), origin="package", is_default=True)],
+        standard_serving=schemas.StandardServing.model_validate(
+            FALLBACK_SERVING
+            if serving is None
+            else StandardServing(serving.label, serving.grams, "package")
+        ),
+    )
 
 
 def _detail(session: Session, food: Food) -> schemas.FoodDetail:

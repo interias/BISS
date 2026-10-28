@@ -1,0 +1,16 @@
+{
+  "2000000013015": {
+    "product_name": "Testpudding Schoko",
+    "brands": "Testmarke, Zweitmarke",
+    "product_quantity_unit": "g",
+    "serving_size": "1 Becher (200 g)",
+    "serving_quantity": 200,
+    "nutriments": {
+      "energy-kcal_100g": 74,
+      "proteins_100g": 10,
+      "carbohydrates_100g": 5.2,
+      "fat_100g": 1.4,
+      "sugars_100g": 3.1
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { Day, Entry, FoodDetail, FoodSummary, Macros } from "@/lib/api";
+import type { BarcodeFood, Day, Entry, FoodDetail, FoodSummary, Macros } from "@/lib/api";
 
 const ZERO: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
@@ -21,6 +21,22 @@ export const bananaDetail: FoodDetail = {
   image_path: null,
   per_100: { ...banana.per_100, fiber: 2, sugar: 17, sat_fat: 0.1, salt: 0 },
   servings: [{ id: 1, label: "1 Banane", grams: 120, origin: "estimated", is_default: true }],
+};
+
+/** An invented product (prefix 2, internal numbers) as a draft from Open Food Facts. */
+export const PUDDING_CODE = "2000000013015";
+export const puddingDraft: BarcodeFood = {
+  id: null,
+  gtin: "0" + PUDDING_CODE,
+  name: "Testpudding Schoko",
+  brand: "Testmarke",
+  source: "off",
+  basis: "g",
+  density: 1,
+  image_path: null,
+  per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4, fiber: null, sugar: null, sat_fat: null, salt: null },
+  servings: [{ label: "1 Becher (200 g)", grams: 200, origin: "package", is_default: true }],
+  standard_serving: { label: "1 Becher (200 g)", grams: 200, origin: "package" },
 };
 
 export const bananaEntry: Entry = {
@@ -66,6 +82,7 @@ const json = (body: unknown, status = 200) =>
  * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
  * banana for GET and PATCH /foods/7 and a search that finds only "banane"; POST /foods
  * creates food 55 with the given name; /foods/validate always finds the values plausible.
+ * The barcode chain knows only the pudding draft; any other code is a miss.
  */
 export function fakeApi() {
   let entries: Entry[] = [];
@@ -78,6 +95,9 @@ export function fakeApi() {
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana]);
     if (url.startsWith("/api/v1/foods/search")) return json(url.includes("banane") ? [banana] : []);
+    const barcode = url.match(/^\/api\/v1\/foods\/barcode\/(\d+)$/);
+    if (barcode && barcode[1] === PUDDING_CODE) return json(puddingDraft);
+    if (barcode) return json({ detail: "no product", gtin: barcode[1].padStart(14, "0") }, 404);
     if (url === "/api/v1/foods/validate") {
       return json({ atwater: { computed_kcal: 93.4, deviation_pct: 0.4, ok: true } });
     }

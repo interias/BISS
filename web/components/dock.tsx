@@ -2,15 +2,17 @@ import type { FoodSummary } from "@/lib/api";
 import { fmt, shortName } from "@/lib/format";
 import { FoodPic } from "@/components/food-pic";
 
-/** Dock: recent chips, search field and the camera button (no function before E3). */
+/** Dock: recent chips, search field and the camera button. */
 export function Dock({
   recent,
   onRecent,
   onSearch,
+  onCamera,
 }: {
   recent: FoodSummary[];
   onRecent: (food: FoodSummary) => void;
   onSearch: () => void;
+  onCamera: () => void;
 }) {
   return (
     <div className="border-t bg-card px-4 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))]">
@@ -49,6 +51,7 @@ export function Dock({
         <button
           type="button"
           aria-label="Kamera: Barcode, Etikett oder Teller"
+          onClick={onCamera}
           className="grid size-16 flex-none place-items-center rounded-[22px] bg-primary text-primary-foreground shadow-[0_8px_18px_-8px_var(--biss-accent)] active:scale-[.96]"
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">

@@ -8,7 +8,7 @@ from app.models import Base, Food
 def test_migration_creates_the_tables(engine: Engine) -> None:
     tables = set(inspect(engine).get_table_names())
     assert {"food", "food_source_data", "serving", "entry", "goal"} <= tables
-    assert "off_cache" not in tables
+    assert "off_cache" in tables
 
 
 def test_every_table_has_a_model(engine: Engine) -> None:
