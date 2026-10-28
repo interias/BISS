@@ -26,6 +26,11 @@ services:
       GOAL_PROTEIN: ${GOAL_PROTEIN:-160}
       GOAL_CARBS: ${GOAL_CARBS:-260}
       GOAL_FAT: ${GOAL_FAT:-75}
+      # Label extraction (ADR-0004): one of the two credentials, models per .env.
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL_FAST: ${LLM_MODEL_FAST:-claude-haiku-5-5}
+      LLM_MODEL_STRONG: ${LLM_MODEL_STRONG:-claude-sonnet-5-5}
     ports:
       - "2478:2478"
     volumes:
