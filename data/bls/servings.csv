@@ -1,0 +1,34 @@
+code,name,label,grams,origin
+F503100,Banane roh,1 Banane,120,estimated
+F110100,Apfel roh,1 Apfel,150,estimated
+F130100,Birne roh,1 Birne,160,estimated
+F603100,Orange roh,1 Orange,180,estimated
+F514100,Kiwi roh,1 Kiwi,75,estimated
+F301100,Erdbeere roh,1 Schale,150,estimated
+F502100,Avocado roh,½ Avocado,75,estimated
+E111100,Hühnerei roh,1 Ei (M),55,estimated
+B511000,Weizenbrötchen,1 Brötchen,55,estimated
+B121000,Roggenvollkornbrot,1 Scheibe,50,estimated
+B314000,Weizentoastbrot/Buttertoastbrot,1 Scheibe,25,estimated
+C133000,Hafer Flocken,1 Portion,50,estimated
+M111300,"Vollmilch frisch, 3,5 % Fett, pasteurisiert",1 Glas,200,estimated
+M141300,"Joghurt mild, mind. 3,5 % Fett",1 Becher,150,estimated
+M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr.",1 Becher,250,estimated
+M711100,Körniger Frischkäse < 10 % Fett i. Tr.,1 Becher,200,estimated
+M402600,Gouda 48 % Fett i. Tr.,1 Scheibe,20,estimated
+M032100,Mozzarella mind. 45 % Fett i. Tr.,1 Kugel,125,estimated
+Q611000,Butter mild gesäuert,1 Portion,10,estimated
+Q120000,Olivenöl,1 EL,10,estimated
+S120000,Honig,1 TL,8,estimated
+C352000,"Reis poliert, roh",1 Portion (roh),70,estimated
+E401000,"Teigwaren eifrei, roh",1 Portion (roh),100,estimated
+K110100,"Kartoffel geschält, roh",1 Kartoffel,100,estimated
+G561100,Tomate roh,1 Tomate,80,estimated
+G520100,Gurke roh,½ Gurke,200,estimated
+G620100,"Karotte/Möhre, roh",1 Karotte,70,estimated
+G543100,"Gemüsepaprika rot, roh",1 Paprika,160,estimated
+G312100,Broccoli roh,1 Portion,200,estimated
+V416100,"Hähnchen Brustfilet, roh",1 Filet,150,estimated
+T410100,Lachs roh,1 Filet,125,estimated
+H210100,Mandel süß,1 Handvoll,25,estimated
+H120100,Walnuss,1 Handvoll,25,estimated

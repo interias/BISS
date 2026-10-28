@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+
+# The same compose commands as locally: tests run in the containers against Postgres.
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose build api
+      - name: Lint
+        run: docker compose run --rm api uv run ruff check .
+      - name: Test
+        run: docker compose run --rm api uv run pytest
+      - if: always()
+        run: docker compose down -v
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose build web
+      - name: Lint
+        run: docker compose run --rm web pnpm lint
+      - name: Test
+        run: docker compose run --rm web pnpm test
+      - name: E2E
+        run: docker compose run --rm web pnpm e2e

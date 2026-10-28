@@ -1,0 +1,17 @@
+Bundeslebensmittelschlüssel (BLS) 4.0
+
+Herausgeber: Max Rubner-Institut (MRI), Bundesforschungsinstitut für Ernährung
+und Lebensmittel, Karlsruhe. https://www.blsdb.de
+
+Lizenz: Creative Commons Namensnennung 4.0 International (CC BY 4.0),
+https://creativecommons.org/licenses/by/4.0/deed.de
+
+Die Datei bls_4_0_extract.csv enthält Daten aus dem BLS 4.0 (BLS_4_0_Daten_2025_DE.xlsx).
+Die Daten wurden gekürzt und umformatiert: Es sind nur BLS-Code, deutsche Bezeichnung
+sowie die Werte je 100 g für Energie (ENERCC), Protein (PROT625), Kohlenhydrate (CHO),
+Fett (FAT), Ballaststoffe (FIBT), Zucker (SUGAR), gesättigte Fettsäuren (FASAT) und
+Salz (NACL) enthalten, ohne Angaben zu Datenherkunft und Referenz. Kennzeichen wie
+TR, <LOD, <LOQ und - sind unverändert übernommen.
+
+servings.csv ist keine BLS-Datei: Die Standardportionen sind eigene Schätzungen
+(Herkunft "estimated") und verweisen nur über den BLS-Code auf die Lebensmittel.
