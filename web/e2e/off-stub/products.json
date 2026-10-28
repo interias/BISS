@@ -12,5 +12,19 @@
       "fat_100g": 1.4,
       "sugars_100g": 3.1
     }
+  },
+  "4012346278001": {
+    "product_name": "Testtee Kräuter",
+    "brands": "Testmarke",
+    "product_quantity_unit": "g",
+    "serving_size": "1 Beutel (2 g)",
+    "serving_quantity": 2,
+    "nutriments": {
+      "energy-kcal_100g": 250,
+      "proteins_100g": 12,
+      "carbohydrates_100g": 40,
+      "fat_100g": 3,
+      "sugars_100g": 5
+    }
   }
 }

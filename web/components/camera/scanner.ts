@@ -30,15 +30,27 @@ export async function scanLive(video: HTMLVideoElement, onCode: (code: string) =
   return () => controls.stop();
 }
 
-/** The code in a photo, `null` when ZXing finds none. */
+/**
+ * The code in a photo, `null` when ZXing finds none or the file is no image. The pixels
+ * come upright from the canvas (EXIF orientation applied); decode.ts shrinks, turns and reads.
+ */
 export async function decodeImage(file: File): Promise<string | null> {
-  const url = URL.createObjectURL(file);
   try {
-    return (await (await reader()).decodeFromImageUrl(url)).getText();
+    const [{ decodePixels }, bitmap] = await Promise.all([
+      import("@/components/camera/decode"),
+      createImageBitmap(file, { imageOrientation: "from-image" }),
+    ]);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+    return decodePixels(data, width, height);
   } catch {
     return null;
-  } finally {
-    URL.revokeObjectURL(url);
   }
 }
 
