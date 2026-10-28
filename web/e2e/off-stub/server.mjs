@@ -1,6 +1,7 @@
 // Stand-in for Open Food Facts API v2 in the e2e stack (compose.test.yaml): the tests never
-// reach the real service. The products are invented (prefix 2, internal numbers); no data
-// from Open Food Facts belongs in the repo (ADR-0002).
+// reach the real service. The products are invented (prefix 2, internal numbers; one real
+// GTIN of a repo photo with invented values, ADR-0008); no data from Open Food Facts belongs
+// in the repo (ADR-0002).
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 

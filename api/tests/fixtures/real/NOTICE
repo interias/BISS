@@ -1,0 +1,280 @@
+Echte Fototestsätze (ADR-0008, docs/adr/0008-real-photo-fixtures.md)
+
+Die Fotos in diesem Verzeichnis prüfen die Foto-Erkennung an echten Aufnahmen statt an
+erzeugten Bildern: barcodes/ für den Barcode aus dem Handyfoto (E6), labels/ für das
+Etikett. Neben jedem Foto liegt seine Ground Truth als <name>.yaml.
+
+Lizenzregel: Im Repo liegen nur frei lizenzierte Bilder von Wikimedia Commons unter
+CC0, CC BY oder CC BY-SA, jedes mit Namensnennung in dieser Datei. Bilder von Open Food
+Facts kommen nie ins Repo (ADR-0002); sie sind nur im lokalen Satz unter
+BISS_REAL_FIXTURES erlaubt.
+
+Format je Eintrag:
+
+  Datei:     barcodes/<name>.jpg
+  Titel:     <Titel auf Wikimedia Commons>
+  Urheber:   <Name laut Dateiseite>
+  Lizenz:    <z. B. CC BY-SA 4.0>, <Link zum Lizenztext>
+  Quelle:    https://commons.wikimedia.org/wiki/File:<...>
+  Änderung:  unverändert | <was geändert wurde, z. B. "zugeschnitten, verkleinert">
+
+Einträge:
+
+  Datei:     barcodes/beer-can-vertical.jpg
+  Titel:     File:Bierdose mit EAN-Code vertikal.jpg
+  Urheber:   Einfach machen Hamburg, Fotograf = Peter Wuttke
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Bierdose_mit_EAN-Code_vertikal.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/bitburger-bottle.jpg
+  Titel:     File:Bitburger Winterbock Bottle Back.jpg
+  Urheber:   Sorennelson
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Bitburger_Winterbock_Bottle_Back.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/butter-setesdal.jpg
+  Titel:     File:Setesdalssmør.jpg
+  Urheber:   Rexpo
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Setesdalssm%C3%B8r.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/coffee-tin.jpg
+  Titel:     File:Kaffeepulver kennzeichnungen.jpg
+  Urheber:   Abdull (laut Commons angenommen, kein maschinenlesbarer Urheber)
+  Lizenz:    CC BY-SA 3.0, http://creativecommons.org/licenses/by-sa/3.0/
+  Quelle:    https://commons.wikimedia.org/wiki/File:Kaffeepulver_kennzeichnungen.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/coke-can.jpg
+  Titel:     File:Barcode on a Coke can.JPG
+  Urheber:   Mk2010
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_a_Coke_can.JPG
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/fanta-can.jpg
+  Titel:     File:Fanta can return deposit scheme barcode, Hillegersberg, Rotterdam (2023) 01.jpg
+  Urheber:   Donald Trung Quoc Don (Chữ Hán: 徵國單)
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Fanta_can_return_deposit_scheme_barcode,_Hillegersberg,_Rotterdam_(2023)_01.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-01.jpg
+  Titel:     File:Barcode on food products in Israel 01.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_01.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-03.jpg
+  Titel:     File:Barcode on food products in Israel 03.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_03.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-05.jpg
+  Titel:     File:Barcode on food products in Israel 05.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_05.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-07.jpg
+  Titel:     File:Barcode on food products in Israel 07.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_07.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-09.jpg
+  Titel:     File:Barcode on food products in Israel 09.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_09.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-14.jpg
+  Titel:     File:Barcode on food products in Israel 14.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_14.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-15.jpg
+  Titel:     File:Barcode on food products in Israel 15.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_15.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-16.jpg
+  Titel:     File:Barcode on food products in Israel 16.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_16.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-19.jpg
+  Titel:     File:Barcode on food products in Israel 19.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_19.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-21.jpg
+  Titel:     File:Barcode on food products in Israel 21.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_21.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-22.jpg
+  Titel:     File:Barcode on food products in Israel 22.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_22.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/israel-23.jpg
+  Titel:     File:Barcode on food products in Israel 23.jpg
+  Urheber:   Chenspec
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Barcode_on_food_products_in_Israel_23.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/mettwurst.jpg
+  Titel:     File:Braunschweiger Mettwurst W 25 MSZ111114.jpg
+  Urheber:   Monstourz
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Braunschweiger_Mettwurst_W_25_MSZ111114.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/peach-tin.jpg
+  Titel:     File:Etiquetatge.jpg
+  Urheber:   Paula.Gadi
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Etiquetatge.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/sandwich-be.jpg
+  Titel:     File:Food info of sandwich (be) 2026 product.jpg
+  Urheber:   Kaap bij Sneeuw
+  Lizenz:    Public domain
+  Quelle:    https://commons.wikimedia.org/wiki/File:Food_info_of_sandwich_(be)_2026_product.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     barcodes/tea-pack.jpg
+  Titel:     File:EAN auf einer Teepackung.jpg
+  Urheber:   SchmiAlf
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:EAN_auf_einer_Teepackung.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/bitburger.jpg
+  Titel:     File:Bitburger Winterbock Bottle Back.jpg
+  Urheber:   Sorennelson
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Bitburger_Winterbock_Bottle_Back.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/butter-setesdal.jpg
+  Titel:     File:Setesdalssmør.jpg
+  Urheber:   Rexpo
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Setesdalssm%C3%B8r.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/fanta.jpg
+  Titel:     File:Fanta can return deposit scheme barcode, Hillegersberg, Rotterdam (2023) 01.jpg
+  Urheber:   Donald Trung Quoc Don (Chữ Hán: 徵國單)
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Fanta_can_return_deposit_scheme_barcode,_Hillegersberg,_Rotterdam_(2023)_01.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/instant-soup.jpg
+  Titel:     File:Naehrwertangabe.jpg
+  Urheber:   Erik78
+  Lizenz:    CC BY-SA 3.0, http://creativecommons.org/licenses/by-sa/3.0/
+  Quelle:    https://commons.wikimedia.org/wiki/File:Naehrwertangabe.jpg
+  Änderung:  unverändert
+
+  Datei:     labels/mettwurst.jpg
+  Titel:     File:Braunschweiger Mettwurst W 25 MSZ111114.jpg
+  Urheber:   Monstourz
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Braunschweiger_Mettwurst_W_25_MSZ111114.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/milk-basque.jpg
+  Titel:     File:Nutrizio-balioak.jpg
+  Urheber:   Koldo Biguri
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Nutrizio-balioak.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/monster-zero.jpg
+  Titel:     File:Valeurs nutritionnelles Monster Zéro Sucre.jpg
+  Urheber:   Mathious Ier
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Valeurs_nutritionnelles_Monster_Z%C3%A9ro_Sucre.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/muesli.jpg
+  Titel:     File:Müsli-Nährwertinformation.jpg
+  Urheber:   BMK
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:M%C3%BCsli-N%C3%A4hrwertinformation.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/oranges.jpg
+  Titel:     File:Nutri info naranjas eu.jpg
+  Urheber:   Chianti
+  Lizenz:    CC BY 3.0, https://creativecommons.org/licenses/by/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Nutri_info_naranjas_eu.jpg
+  Änderung:  unverändert
+
+  Datei:     labels/peach-tin.jpg
+  Titel:     File:Etiquetatge.jpg
+  Urheber:   Paula.Gadi
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Etiquetatge.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/sandwich-be.jpg
+  Titel:     File:Food info of sandwich (be) 2026 product.jpg
+  Urheber:   Kaap bij Sneeuw
+  Lizenz:    Public domain
+  Quelle:    https://commons.wikimedia.org/wiki/File:Food_info_of_sandwich_(be)_2026_product.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/smarties.jpg
+  Titel:     File:Smarties Riesenrolle Nährwerttabelle.jpg
+  Urheber:   Faldrian
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Smarties_Riesenrolle_N%C3%A4hrwerttabelle.jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/spekulatius.jpg
+  Titel:     File:Butterspekulatius - Flickr - tm-md (2).jpg
+  Urheber:   Torsten Maue
+  Lizenz:    CC BY-SA 2.0, https://creativecommons.org/licenses/by-sa/2.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Butterspekulatius_-_Flickr_-_tm-md_(2).jpg
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     labels/uk-chocolate.jpg
+  Titel:     File:BritishNutritionLabel.jpg
+  Urheber:   Conor Alexander
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:BritishNutritionLabel.jpg
+  Änderung:  unverändert
+
+  Datei:     labels/white-pudding.jpg
+  Titel:     File:White pudding nutrition label.JPG
+  Urheber:   O'Dea
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:White_pudding_nutrition_label.JPG
+  Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)

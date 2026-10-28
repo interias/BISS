@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 
-// EAN-13 drawn by hand for the e2e tests, without a dependency: a PNG for the photo upload
-// and a Y4M video for Chromium's fake camera (--use-file-for-fake-video-capture).
+// EAN-13 (and EAN-8 for decode.test.ts) drawn by hand, without a dependency: a PNG for the
+// photo upload and a Y4M video for Chromium's fake camera (--use-file-for-fake-video-capture).
 
 const L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"];
 const R = L.map((code) => [...code].map((bit) => (bit === "0" ? "1" : "0")).join(""));
@@ -17,6 +17,13 @@ export function ean13Modules(code: string) {
   const left = digits.slice(1, 7).map((d, i) => (parity[i] === "L" ? L[d] : G[d])).join("");
   const right = digits.slice(7).map((d) => R[d]).join("");
   return `101${left}01010${right}101`;
+}
+
+/** The 67 modules of an EAN-8: four digits of the L set, four of the R set. */
+export function ean8Modules(code: string) {
+  if (!/^\d{8}$/.test(code)) throw new Error(`${code} is no EAN-8`);
+  const digits = [...code].map(Number);
+  return `101${digits.slice(0, 4).map((d) => L[d]).join("")}01010${digits.slice(4).map((d) => R[d]).join("")}101`;
 }
 
 /** A white picture with the barcode in the middle; one byte of luma per pixel. */

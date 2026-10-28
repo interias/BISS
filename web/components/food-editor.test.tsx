@@ -313,6 +313,20 @@ test("Speichern & eintragen creates the food with the GTIN, basis and servings o
   expect(calls.some((c) => c.method === "PUT")).toBe(false);
 });
 
+test("a label without a barcode shows an empty GTIN and saves the food without one", async () => {
+  const calls = fakeBackend({ ...bananaDetail, id: 99, gtin: null });
+  const onSaved = vi.fn();
+  inDialog(<EditorForm label={biscuitLabel(null)} onSaved={onSaved} onCancel={noop} />);
+  expect(field("GTIN")).toHaveValue("");
+  expect(field("GTIN")).toHaveAttribute("readonly");
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  const post = calls.find((c) => c.method === "POST" && c.url === "/api/v1/foods");
+  expect(post?.body).toMatchObject({ name: "Haferkeks Dinkel", basis: "g" });
+  expect(post?.body).not.toHaveProperty("gtin");
+});
+
 test("a changed or added label serving goes with what was read; the backend decides its origin", async () => {
   const calls = fakeBackend({ ...bananaDetail, id: 99, gtin: GTIN });
   const onSaved = vi.fn();

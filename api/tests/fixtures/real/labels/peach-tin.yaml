@@ -1,0 +1,12 @@
+# Values per 100 g or 100 ml (basis), read off the photo; a field not readable there is left out.
+basis: "g"
+energy_kj: "254"
+energy_kcal: "58"
+fat: "0.1"
+carbs: "13"
+sugar: "12.5"
+fiber: "1.7"
+protein: "0.4"
+source: "https://commons.wikimedia.org/wiki/File:Etiquetatge.jpg"
+author: "Paula.Gadi"
+license: "CC BY-SA 4.0"

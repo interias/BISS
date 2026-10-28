@@ -59,6 +59,37 @@ def test_violation_stays_draft_with_violations_and_strong_model() -> None:
     assert result.draft == BAD
 
 
+class FailingStrong(FakeLabelExtractor):
+    """The fast model reads BAD, the strong one gives no usable draft."""
+
+    async def extract(self, photo: bytes, model: str):
+        draft = await super().extract(photo, model)
+        if model == STRONG:
+            raise ExtractionFailed("no usable draft")
+        return draft
+
+
+def test_strong_model_without_usable_draft_keeps_the_fast_draft() -> None:
+    extractor = FailingStrong({FAST: BAD})
+    result = run(extractor)
+    assert extractor.calls == [FAST, STRONG]
+    assert (result.model, result.attempts) == (FAST, 2)
+    assert [v.rule for v in result.check.violations] == ["sugar"]
+    assert result.draft == BAD
+
+
+def test_fast_model_without_usable_draft_fails_the_extraction() -> None:
+    class FailingFast(FakeLabelExtractor):
+        async def extract(self, photo: bytes, model: str):
+            self.calls.append(model)
+            raise ExtractionFailed("no usable draft")
+
+    extractor = FailingFast()
+    with pytest.raises(ExtractionFailed):
+        run(extractor)
+    assert extractor.calls == [FAST]
+
+
 def test_schema_has_no_gtin_and_forbids_extra_fields() -> None:
     schema = json_schema()
     assert "gtin" not in json.dumps(schema)

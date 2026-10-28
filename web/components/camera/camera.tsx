@@ -21,14 +21,15 @@ type Status =
   | { kind: "miss"; gtin: string }
   | { kind: "unreadable" }
   | { kind: "no-code" }
-  // The label photo of a miss at the extraction; a failure offers a new photo or the hand.
-  | { kind: "reading"; gtin: string }
-  | { kind: "label-failed"; gtin: string; photo: boolean };
+  // The label photo at the extraction; a failure offers a new photo or the hand. `gtin` is
+  // the code of a miss; the label shutter without a barcode has none (SPEC 7).
+  | { kind: "reading" }
+  | { kind: "label-failed"; gtin?: string; photo: boolean };
 
 const HINTS: Record<Mode, string> = {
   starting: "Kamera startet …",
-  live: "Barcodes werden sofort erkannt.",
-  upload: "Keine Kamera verfügbar. Wähle ein Foto des Barcodes.",
+  live: "Barcodes werden sofort erkannt. Für das Etikett auslösen.",
+  upload: "Keine Kamera verfügbar. Wähle ein Foto des Barcodes oder des Etiketts.",
 };
 
 const STATUS_HINTS: Record<Exclude<Status["kind"], "idle" | "label-failed">, string> = {
@@ -59,8 +60,9 @@ const CORNERS = [
 /**
  * Camera overlay from the prototype: finder frame with scan line over the live picture.
  * A recognised barcode goes to the backend without a shutter (SPEC 3); a hit turns the
- * frame green and hands the food on, a miss offers "Etikett fotografieren". That shutter
- * sends the live picture (without camera a chosen photo) with the GTIN to the extraction.
+ * frame green and hands the food on, a miss offers "Etikett fotografieren". The shutter
+ * "Etikett" needs no barcode before. Both send the live picture (without camera a chosen
+ * photo) to the extraction, the first with the GTIN of the miss, the second without one.
  */
 export function Camera({
   onFound,
@@ -68,8 +70,11 @@ export function Camera({
   onClose,
 }: {
   onFound: (food: BarcodeFood) => void;
-  /** No hit: the draft read from the label, or only the GTIN-14 to go on by hand. */
-  onLabel: (gtin: string, label?: LabelExtraction) => void;
+  /**
+   * The draft read from the label, or nothing to go on by hand; with the GTIN-14 of a miss,
+   * without one after the shutter "Etikett".
+   */
+  onLabel: (gtin: string | undefined, label?: LabelExtraction) => void;
   onClose: () => void;
 }) {
   // The overlay only mounts after a tap, so the browser check runs on the client.
@@ -157,10 +162,10 @@ export function Camera({
   };
 
   /** The label photo goes to the extraction; no barcode lookup runs meanwhile. */
-  const readLabel = async (gtin: string, photo: () => Promise<Blob>) => {
+  const readLabel = async (gtin: string | undefined, photo: () => Promise<Blob>) => {
     if (busy.current) return;
     busy.current = true;
-    setStatus({ kind: "reading", gtin });
+    setStatus({ kind: "reading" });
     try {
       const label = await extractLabel(await photo(), gtin);
       handlers.current.onLabel(gtin, label);
@@ -172,21 +177,25 @@ export function Camera({
     busy.current = false;
   };
 
-  const shoot = (gtin: string) => {
-    if (mode === "upload") return labelFile.current?.click();
-    const live = video.current;
-    if (live) readLabel(gtin, () => captureFrame(live)).catch(console.error);
-  };
-
-  const pickLabel = (gtin: string, event: ChangeEvent<HTMLInputElement>) => {
-    const image = event.target.files?.[0];
-    event.target.value = ""; // the same photo can be chosen again
-    if (image) readLabel(gtin, async () => image).catch(console.error);
-  };
-
   const hit = status.kind === "hit";
   const reading = status.kind === "reading";
-  const labelGtin = status.kind === "miss" || status.kind === "label-failed" ? status.gtin : null;
+  // The GTIN goes along while a miss is on screen; the status stays during the file choice.
+  const labelGtin = status.kind === "miss" || status.kind === "label-failed" ? status.gtin : undefined;
+  // A miss offers its own shutter with the GTIN, so "Etikett" does not stand beside it.
+  const offer = labelGtin !== undefined;
+  const shutter = !offer && !hit && !reading && mode !== "starting";
+
+  const shoot = () => {
+    if (mode === "upload") return labelFile.current?.click();
+    const live = video.current;
+    if (live) readLabel(labelGtin, () => captureFrame(live)).catch(console.error);
+  };
+
+  const pickLabel = (event: ChangeEvent<HTMLInputElement>) => {
+    const image = event.target.files?.[0];
+    event.target.value = ""; // the same photo can be chosen again
+    if (image) readLabel(labelGtin, async () => image).catch(console.error);
+  };
 
   return (
     <section
@@ -204,7 +213,7 @@ export function Camera({
             <path d="M6 6l12 12M18 6 6 18" />
           </svg>
         </button>
-        <span className="text-[13px] font-semibold text-cam-muted">Barcode</span>
+        <span className="text-[13px] font-semibold text-cam-muted">Barcode · Etikett</span>
         <span className="w-10" />
       </div>
 
@@ -256,31 +265,41 @@ export function Camera({
       <p role="status" className="my-3 text-center text-[13px] text-cam-muted">
         {status.kind === "idle" ? HINTS[mode] : statusHint(status)}
       </p>
-      {labelGtin && (
+      {(offer || shutter) && (
         <div className="mx-auto flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => shoot(labelGtin)}
-            className="h-[54px] rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground"
-          >
-            Etikett fotografieren
-          </button>
+          {offer ? (
+            <button
+              type="button"
+              onClick={shoot}
+              className="h-[54px] rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground"
+            >
+              Etikett fotografieren
+            </button>
+          ) : (
+            // The shutter of the prototype, for the label without a barcode before (SPEC 3).
+            <button type="button" onClick={shoot} className="grid justify-items-center gap-1.5 text-[13px] font-semibold">
+              <span aria-hidden="true" className="grid size-[76px] place-items-center rounded-full border-4 border-cam-foreground">
+                <span className="size-[58px] rounded-full bg-cam-foreground" />
+              </span>
+              Etikett
+            </button>
+          )}
           {status.kind === "label-failed" && (
             <button type="button" onClick={() => onLabel(labelGtin)} className="h-10 px-4 text-sm font-semibold text-cam-muted">
               Von Hand eingeben
             </button>
           )}
-          <input
-            ref={labelFile}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            data-testid="label-photo"
-            onChange={(e) => pickLabel(labelGtin, e)}
-          />
         </div>
       )}
+      <input
+        ref={labelFile}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        data-testid="label-photo"
+        onChange={pickLabel}
+      />
     </section>
   );
 }

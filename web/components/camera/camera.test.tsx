@@ -56,7 +56,7 @@ test("a recognised barcode turns the frame green and hands on the food", async (
   const { calls } = fakeApi();
   const { onFound } = renderCamera();
   expect(screen.getByTestId("finder")).toHaveAttribute("data-hit", "false");
-  expect(await screen.findByText("Barcodes werden sofort erkannt.")).toBeInTheDocument();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
 
   await detect(PUDDING_CODE);
   await waitFor(() => expect(screen.getByTestId("finder")).toHaveAttribute("data-hit", "true"));
@@ -124,10 +124,13 @@ test("without a hit the shutter sends the live picture with the GTIN-14 to the e
   const { onLabel, onFound } = renderCamera();
   await detect(MISS_CODE);
   expect(await screen.findByText("Kein Treffer für diesen Barcode.")).toBeInTheDocument();
+  // The miss has its own shutter with the GTIN; "Etikett" does not stand beside it.
+  expect(screen.queryByRole("button", { name: "Etikett" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Etikett fotografieren" }));
 
   expect(await screen.findByText("Lese Nährwerttabelle …")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Etikett fotografieren" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Etikett" })).not.toBeInTheDocument();
   const [[, init]] = extractCalls();
   const form = init!.body as FormData;
   expect(init!.method).toBe("POST");
@@ -139,6 +142,65 @@ test("without a hit the shutter sends the live picture with the GTIN-14 to the e
   await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
   expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, label);
   expect(onFound).not.toHaveBeenCalled();
+});
+
+test("the shutter Etikett sends the live picture without a barcode and without GTIN", async () => {
+  const { calls } = fakeApi();
+  const answer = holdExtraction();
+  const { onLabel } = renderCamera();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Etikett" }));
+
+  expect(await screen.findByText("Lese Nährwerttabelle …")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Etikett" })).not.toBeInTheDocument();
+  const form = extractCalls()[0][1]!.body as FormData;
+  expect(form.get("file")).toBeInstanceOf(Blob); // the captured frame
+  expect(form.has("gtin")).toBe(false); // no GTIN: the food is stored without one (SPEC 7)
+  expect(calls.filter((c) => c.url.startsWith("/api/v1/foods/barcode/"))).toEqual([]);
+
+  const label = biscuitLabel(null);
+  await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
+  expect(onLabel).toHaveBeenCalledWith(undefined, label);
+});
+
+test("without camera the shutter Etikett opens the photo choice; a failure offers the hand", async () => {
+  scanner.available = false;
+  fakeApi();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const { onLabel } = renderCamera();
+  const input = screen.getByTestId("label-photo");
+  const click = vi.spyOn(input, "click").mockImplementation(() => {});
+  fireEvent.click(screen.getByRole("button", { name: "Etikett" }));
+  expect(click).toHaveBeenCalled();
+
+  const answer = holdExtraction();
+  const photo = new File(["jpeg"], "etikett.jpg", { type: "image/jpeg" });
+  fireEvent.change(input, { target: { files: [photo] } });
+  expect(await screen.findByText("Lese Nährwerttabelle …")).toBeInTheDocument();
+  const form = extractCalls()[0][1]!.body as FormData;
+  expect(form.get("file")).toBeInstanceOf(File);
+  expect(form.has("gtin")).toBe(false);
+  await answer(failed(502));
+
+  expect(screen.getByText("Nährwerttabelle nicht erkannt. Neues Foto oder von Hand eingeben.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Etikett" })).toBeInTheDocument(); // a new photo
+  expect(screen.queryByRole("button", { name: "Etikett fotografieren" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Von Hand eingeben" }));
+  expect(onLabel).toHaveBeenCalledWith(undefined);
+});
+
+test("an unreadable photo after the shutter Etikett says so", async () => {
+  scanner.available = false;
+  fakeApi();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const { onLabel } = renderCamera();
+  const answer = holdExtraction();
+  fireEvent.change(screen.getByTestId("label-photo"), {
+    target: { files: [new File(["gif"], "etikett.gif", { type: "image/gif" })] },
+  });
+  await answer(failed(422));
+  expect(screen.getByText("Foto nicht lesbar (JPEG, PNG oder WebP bis 10 MB).")).toBeInTheDocument();
+  expect(onLabel).not.toHaveBeenCalled();
 });
 
 test("a failed extraction offers a new photo or the editor by hand", async () => {
@@ -185,7 +247,7 @@ test("without camera the label is a chosen photo; an unreadable one says so", as
 test("the camera runs while live and stops on closing", async () => {
   fakeApi();
   const { onClose } = renderCamera();
-  expect(await screen.findByText("Barcodes werden sofort erkannt.")).toBeInTheDocument();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
   await act(async () => {}); // let the effects of the live mode run
   expect(scanner.stop).toHaveBeenCalledTimes(0);
   fireEvent.click(screen.getByRole("button", { name: "Schließen" }));
@@ -199,7 +261,7 @@ test("without a secure context or camera a photo of the barcode goes the same wa
   scanner.decoded = PUDDING_CODE;
   fakeApi();
   const { onFound } = renderCamera();
-  expect(screen.getByText("Keine Kamera verfügbar. Wähle ein Foto des Barcodes.")).toBeInTheDocument();
+  expect(screen.getByText("Keine Kamera verfügbar. Wähle ein Foto des Barcodes oder des Etiketts.")).toBeInTheDocument();
   expect(screen.queryByTestId("finder")).not.toBeInTheDocument();
   expect(scanner.start).not.toHaveBeenCalled();
 
