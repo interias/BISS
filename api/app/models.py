@@ -100,3 +100,13 @@ class Goal(Base):
     protein: Mapped[float] = mapped_column(Double)
     carbs: Mapped[float] = mapped_column(Double)
     fat: Mapped[float] = mapped_column(Double)
+
+
+class OffCache(Base):
+    """Open Food Facts products shown after a scan, valid for 30 days (SPEC 4)."""
+
+    __tablename__ = "off_cache"
+
+    gtin: Mapped[str] = mapped_column(String(14), primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
