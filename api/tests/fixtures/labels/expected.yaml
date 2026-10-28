@@ -1,0 +1,31 @@
+# Written by make_labels.py; the values the llm test expects per label.
+pudding_powder.png:
+  brand: Hofgut Lindental
+  name: Schoko-Pudding Pulver
+  basis: g
+  state: as_sold
+  per_100:
+    energy_kj: 1512
+    energy_kcal: 361
+    fat: 2.5
+    saturated_fat: 1.5
+    carbs: 76.0
+    sugar: 45.0
+    fiber: 6.0
+    protein: 6.5
+    salt: 0.3
+oat_drink.png:
+  brand: Nordfeld
+  name: Hafer-Drink Barista
+  basis: ml
+  state: as_sold
+  per_100:
+    energy_kj: 251
+    energy_kcal: 60
+    fat: 3.0
+    saturated_fat: 0.3
+    carbs: 6.6
+    sugar: 3.3
+    fiber: 0.8
+    protein: 1.0
+    salt: 0.1

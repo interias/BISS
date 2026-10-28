@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.meal import Meal
+from app.labels.draft import LabelDraft
+from app.labels.validation import Rule
 
 Source = Literal["own", "bls", "off"]
 Basis = Literal["g", "ml"]
@@ -188,6 +190,37 @@ class AtwaterResult(BaseModel):
 
 class Validation(BaseModel):
     atwater: AtwaterResult
+
+
+class LabelFoodDraft(LabelDraft):
+    """The draft read from the label; the editor fills its fields with it (SPEC 7)."""
+
+    gtin: str | None = Field(
+        description="GTIN-14 from the request, never read from the photo; null without one"
+    )
+
+
+class LabelViolation(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rule: Rule
+    detail: str
+
+
+class LabelValidation(BaseModel):
+    ok: bool = Field(description="no rule violated")
+    atwater: AtwaterResult
+    violations: list[LabelViolation] = Field(
+        description="atwater within 10 %, energy kJ ≈ kcal · 4.184 within 5 %, "
+        "sugar ≤ carbs, saturated_fat ≤ fat"
+    )
+
+
+class LabelExtraction(BaseModel):
+    draft: LabelFoodDraft
+    validation: LabelValidation = Field(description="of the returned draft; the editor warns")
+    model: str = Field(description="the model whose draft is returned")
+    attempts: int = Field(description="1, or 2 after a violation in the fast model's draft")
 
 
 class FoodRef(BaseModel):
