@@ -38,6 +38,8 @@ docker compose run --rm web pnpm e2e             # Playwright
 docker compose run --rm web pnpm lint
 ```
 
+Läuft schon ein Stack mit den Ports 2477/2478, oder laufen mehrere Testläufe gleichzeitig, dann mit eigenem Projektnamen und ohne veröffentlichte Ports: `docker compose -p <name> -f compose.yaml -f compose.test.yaml run --rm web pnpm e2e` (ebenso für die anderen Befehle).
+
 Nach Änderungen an `uv.lock` oder `pnpm-lock.yaml`: `docker compose build`, danach `docker compose up -d -V`, damit `web` nicht das alte `node_modules`-Volume weiterverwendet.
 
 ## BLS-Daten

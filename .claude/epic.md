@@ -15,12 +15,12 @@ adr_dir: docs/adr
 read_all_adrs: true
 must_read: [docs/SPEC.md]
 test_commands:
-  api: docker compose run --rm api uv run pytest
-  web: docker compose run --rm web pnpm test
-  e2e: docker compose run --rm web pnpm e2e
+  api: docker compose -f compose.yaml -f compose.test.yaml run --rm api uv run pytest
+  web: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm test
+  e2e: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm e2e
 lint_commands:
-  api: docker compose run --rm api uv run ruff check .
-  web: docker compose run --rm web pnpm lint
+  api: docker compose -f compose.yaml -f compose.test.yaml run --rm api uv run ruff check .
+  web: docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm lint
 writers: [api/app/importers, api/alembic]
 env_files: [.env]
 window: 1

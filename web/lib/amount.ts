@@ -9,14 +9,16 @@ export const stepUp = (grams: number) => grams + (grams >= 100 ? 10 : 5);
 /**
  * Local preview in the amount sheet: value per 100 × amount / 100 (ADR-0003). For
  * basis ml the values are per 100 ml, so the grams go through the density first.
- * Display only; the backend computes the stored snapshot.
+ * Rounded to 0.1 like the backend snapshot, so the preview shows what the diary will
+ * show. Display only; the backend computes the stored snapshot.
  */
 export function previewMacros(per100: Macros, grams: number, basis: Basis, density = 1): Macros {
   const factor = (basis === "ml" ? grams / density : grams) / 100;
+  const scale = (value: number) => Math.round(value * factor * 10) / 10;
   return {
-    kcal: per100.kcal * factor,
-    protein: per100.protein * factor,
-    carbs: per100.carbs * factor,
-    fat: per100.fat * factor,
+    kcal: scale(per100.kcal),
+    protein: scale(per100.protein),
+    carbs: scale(per100.carbs),
+    fat: scale(per100.fat),
   };
 }
