@@ -86,7 +86,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
 | PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
-| GET / PUT | `/goals/default`, `/goals/{date}` | Standardziele und Tagesziele (E5) |
+| GET / PUT | `/goals/default` | Standardziele (E5) |
+| GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |
 
 **MCP-Server** (E5, [ADR-0007](adr/0007-mcp.md)): Er liegt unter `/mcp` im API-Container und nutzt dieselben Services. Lesend sind `search_food`, `get_food`, `list_entries` und `daily_summary`, schreibend nur `log_meal`.
 

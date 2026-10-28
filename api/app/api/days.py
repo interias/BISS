@@ -17,18 +17,4 @@ def get_day(day: Literal["today"] | date, session: SessionDep, now: NowDep) -> s
 
     `today` resolves to the current day with the 04:00 boundary; the answer carries the date.
     """
-    summary = day_summary(session, day_of(now) if day == "today" else day, now=now)
-    return schemas.Day(
-        date=summary.day,
-        totals=schemas.Macros.model_validate(summary.totals),
-        targets=schemas.Macros.model_validate(summary.targets),
-        meals=[
-            schemas.MealEntries(
-                meal=meal.meal,
-                totals=schemas.Macros.model_validate(meal.totals),
-                entries=[convert.entry(entry, food) for entry, food in meal.entries],
-            )
-            for meal in summary.meals
-        ],
-        suggested_meal=summary.suggested_meal,
-    )
+    return convert.day(day_summary(session, day_of(now) if day == "today" else day, now=now))

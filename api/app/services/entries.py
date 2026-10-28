@@ -1,6 +1,6 @@
 """Entries: the backend decides day, meal, standard amount and macro snapshot (ADR-0003)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
@@ -89,6 +89,17 @@ def delete_entry(session: Session, entry_id: int) -> None:
     if session.execute(delete(Entry).where(Entry.id == entry_id)).rowcount == 0:
         raise NotFound(f"entry {entry_id} not found")
     session.commit()
+
+
+def entries_between(session: Session, first: date, last: date) -> list[tuple[Entry, Food]]:
+    """Entries of the days first to last, both included, by time (day after SPEC 4)."""
+    rows = session.execute(
+        select(Entry, Food)
+        .join(Food, Food.id == Entry.food_id)
+        .where(Entry.day.between(first, last))
+        .order_by(Entry.eaten_at, Entry.id)
+    ).all()
+    return [(entry, food) for entry, food in rows]
 
 
 def recent_foods(
