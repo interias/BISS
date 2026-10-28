@@ -19,7 +19,9 @@ export const metadata: Metadata = {
   description: "Barcode · Image · Scan · Save",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="de"

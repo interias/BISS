@@ -149,7 +149,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Dublettenrate in den Top 10 = 0.
   - p95 lokal < 300 ms.
   - Die Suite schlägt fehl, wenn eine Schwelle reißt.
-- **Adapter-Tests** mit aufgezeichneten OFF-Antworten (`respx`), inklusive Timeout und Ausfall.
+- **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall.
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
   - Fixture-Fotos echter Etiketten mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft.

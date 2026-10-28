@@ -1,4 +1,8 @@
-"""ORM models. The schema, including constraints and indexes, is owned by Alembic."""
+"""ORM models. The schema, including constraints and indexes, is owned by Alembic.
+
+The migrations are written by hand, so `alembic check` reports their indexes and
+constraints as removed; it is no drift check here.
+"""
 
 from datetime import date, datetime
 from typing import Any

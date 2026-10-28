@@ -57,6 +57,10 @@ def food_for_entry(session: Session, code: str, now: datetime) -> Food:
     """The food to log for a scanned code; a cached product is stored as food on first use.
 
     Not committed, the entry commits it. Raises InvalidGtin and NotFound.
+
+    Two concurrent first entries of the same GTIN both insert the food, and the second one
+    fails on the unique GTIN with a 500. Not caught: there is one user (ADR-0005) and the
+    amount sheet locks its button while saving.
     """
     gtin = normalize_gtin(code)
     food = _own(session, gtin)

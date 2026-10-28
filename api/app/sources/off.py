@@ -8,22 +8,17 @@ import math
 import re
 import threading
 import time
-import tomllib
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import httpx
 
+from app import VERSION
 from app.barcode.gtin import off_code
 
 SOURCE = "off"
-# The api project is no installed package, so its version is read from pyproject.toml.
-VERSION = tomllib.loads(
-    (Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8")
-)["project"]["version"]
 USER_AGENT = f"BISS/{VERSION} (github.com/interias/BISS)"
 TIMEOUT_SECONDS = 2.0
 # Local limit (ADR-0002), counted over all requests of the process.

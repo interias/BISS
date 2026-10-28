@@ -25,7 +25,7 @@ cp .env.example .env   # optional, alle Werte außer dem Token haben Standardwer
 docker compose up -d --wait
 ```
 
-Web läuft auf <http://localhost:2477>, die API auf <http://localhost:2478> (OpenAPI unter `/docs`, Health unter `/api/v1/health`). Beim Start der API laufen die Migrationen und, solange noch keine BLS-Lebensmittel in der Datenbank sind, der BLS-Import. Der Quellcode aus `api/` und `web/` ist in die Container gemountet.
+Web läuft auf <http://localhost:2477>, die API auf <http://localhost:2478> (OpenAPI unter `/docs`, Health unter `/api/v1/health`). Beim Start der API laufen die Migrationen und, solange noch keine BLS-Lebensmittel in der Datenbank sind, der BLS-Import. Der Quellcode aus `api/` und `web/` ist in die Container gemountet. Ohne gesetzte `OFF_BASE_URL` fragt ein Scan im Entwicklungsstack das echte Open Food Facts; die Tests nutzen den erfundenen Stub aus `compose.test.yaml`.
 
 ## Tests
 
