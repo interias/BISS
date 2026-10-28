@@ -213,6 +213,12 @@
     animation: biss-up 0.22s ease-out;
   }
 
+  /* Scan line of the camera finder, moving up and down. */
+  .biss-scan {
+    top: 10%;
+    animation: biss-scan 2.2s ease-in-out infinite alternate;
+  }
+
   .biss-no-scrollbar {
     scrollbar-width: none;
   }
@@ -232,8 +238,15 @@
   }
 }
 
+@keyframes biss-scan {
+  to {
+    top: 88%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .biss-sheet {
+  .biss-sheet,
+  .biss-scan {
     animation: none;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFood, imageUrl, type Entry, type FoodDetail, type Meal } from "@/lib/api";
+import { getFood, imageUrl, type Entry, type FoodDetail, type Meal, type Serving } from "@/lib/api";
 import { previewMacros, stepDown, stepUp } from "@/lib/amount";
 import { brandLine, fmt, MEAL_LABELS, MEALS, SOURCE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,12 @@ type Actions = {
 
 /** Grams and meal to start with, e.g. when the sheet comes back from the editor. */
 type Initial = { grams: number; meal: Meal };
+
+/** What the form shows: a stored food or a scanned draft, whose servings have no id yet. */
+export type AmountFood = Pick<
+  FoodDetail,
+  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "per_100" | "standard_serving"
+> & { servings: Omit<Serving, "id">[] };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
 export function AmountSheet({
@@ -59,7 +65,7 @@ export function AmountForm({
   onSubmit,
   onRemove,
   onEdit,
-}: Actions & { food: FoodDetail; entry?: Entry; initialMeal: Meal; initial?: Initial }) {
+}: Actions & { food: AmountFood; entry?: Entry; initialMeal: Meal; initial?: Initial }) {
   const [grams, setGrams] = useState(
     initial?.grams ?? entry?.grams ?? food.standard_serving.grams,
   );
@@ -107,6 +113,11 @@ export function AmountForm({
         </div>
       </div>
 
+      {food.source === "off" && (
+        // Attribution for data under ODbL (ADR-0002).
+        <p className="-mt-1 mb-3 text-[12px] text-muted-foreground">Daten von Open Food Facts (ODbL)</p>
+      )}
+
       <div className="mt-1 mb-3.5 flex items-center justify-center gap-[18px]">
         <button
           type="button"
@@ -137,7 +148,7 @@ export function AmountForm({
         <div className="mb-[18px] flex flex-wrap justify-center gap-2">
           {food.servings.map((serving) => (
             <button
-              key={serving.id}
+              key={`${serving.label}-${serving.grams}`}
               type="button"
               onClick={() => setGrams(serving.grams)}
               aria-pressed={serving.grams === grams}

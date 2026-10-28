@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { FAKE_VIDEO } from "./e2e/camera-setup";
 
 const port = 3100;
 
@@ -12,8 +13,25 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: { baseURL: `http://localhost:${port}` },
+  globalSetup: "./e2e/global-setup.ts",
   projects: [
-    { name: "chromium", use: phone, testIgnore: /screens\.spec\.ts/ },
+    { name: "chromium", use: phone, testIgnore: /screens\.spec\.ts|camera\.spec\.ts/ },
+    // Chromium's fake camera plays a barcode video; localhost is a secure context.
+    {
+      name: "camera",
+      testMatch: /camera\.spec\.ts/,
+      use: {
+        ...phone,
+        permissions: ["camera"],
+        launchOptions: {
+          args: [
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            `--use-file-for-fake-video-capture=${FAKE_VIDEO}`,
+          ],
+        },
+      },
+    },
     // Screenshots of prototype and app for the review, only with `pnpm screens`.
     ...(process.env.SCREENS ? [{ name: "screens", use: phone, testMatch: /screens\.spec\.ts/ }] : []),
   ],

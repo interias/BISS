@@ -29,8 +29,11 @@ type Actions = {
   onCancel: () => void;
 };
 
-/** Editor sheet; with a food id it loads the food and edits it, without one it creates. */
-export function FoodEditor({ foodId, ...actions }: Actions & { foodId?: number }) {
+/**
+ * Editor sheet; with a food id it loads the food and edits it, without one it creates.
+ * `gtin` is the scanned code of a barcode without a hit.
+ */
+export function FoodEditor({ foodId, gtin, ...actions }: Actions & { foodId?: number; gtin?: string }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     if (foodId === undefined) return;
@@ -44,7 +47,7 @@ export function FoodEditor({ foodId, ...actions }: Actions & { foodId?: number }
   if (foodId !== undefined && !food) {
     return <SheetTitle className="sr-only">Lebensmittel bearbeiten</SheetTitle>;
   }
-  return <EditorForm food={food ?? undefined} {...actions} />;
+  return <EditorForm food={food ?? undefined} gtin={gtin} {...actions} />;
 }
 
 type Row = { key: number; label: string; grams: string };
@@ -66,7 +69,7 @@ const inputClass =
  * list (star = standard, origin tag). Validation and the change of origin are the backend's
  * (ADR-0003); the `eigene` tag while typing is a preview.
  */
-export function EditorForm({ food, onSaved, onCancel }: Actions & { food?: FoodDetail }) {
+export function EditorForm({ food, gtin, onSaved, onCancel }: Actions & { food?: FoodDetail; gtin?: string }) {
   // The last saved state: after a save whose photo upload failed, a retry must update.
   const [base, setBase] = useState(food);
   const [name, setName] = useState(food?.name ?? "");
@@ -229,6 +232,15 @@ export function EditorForm({ food, onSaved, onCancel }: Actions & { food?: FoodD
             </label>
             <input id="food-brand" value={brand} onChange={(e) => setBrand(e.target.value)} className={inputClass} />
           </div>
+          {gtin && (
+            // Shown only: the API does not take a GTIN when it creates a food yet.
+            <div className="mb-2.5 grid min-w-0 gap-1">
+              <label htmlFor="food-gtin" className="text-xs font-bold text-muted-foreground">
+                GTIN
+              </label>
+              <input id="food-gtin" value={gtin} readOnly className={cn(inputClass, "tabular-nums text-muted-foreground")} />
+            </div>
+          )}
         </div>
       </div>
 
