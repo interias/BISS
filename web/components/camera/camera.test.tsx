@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { biscuitLabel, fakeApi, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
+import { biscuitLabel, fakeApi, fakePlate, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Camera, RETRY_MS } from "./camera";
 
 // ZXing is mocked: the tests hand codes to the overlay as the decoder would.
@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 const renderCamera = () => {
-  const actions = { onFound: vi.fn(), onLabel: vi.fn(), onClose: vi.fn() };
+  const actions = { onFound: vi.fn(), onLabel: vi.fn(), onPlate: vi.fn(), onClose: vi.fn() };
   render(<Camera {...actions} />);
   return actions;
 };
@@ -56,7 +56,7 @@ test("a recognised barcode turns the frame green and hands on the food", async (
   const { calls } = fakeApi();
   const { onFound } = renderCamera();
   expect(screen.getByTestId("finder")).toHaveAttribute("data-hit", "false");
-  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für Etikett oder Teller auslösen.")).toBeInTheDocument();
 
   await detect(PUDDING_CODE);
   await waitFor(() => expect(screen.getByTestId("finder")).toHaveAttribute("data-hit", "true"));
@@ -148,7 +148,7 @@ test("the shutter Etikett sends the live picture without a barcode and without G
   const { calls } = fakeApi();
   const answer = holdExtraction();
   const { onLabel } = renderCamera();
-  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für Etikett oder Teller auslösen.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Etikett" }));
 
   expect(await screen.findByText("Lese Nährwerttabelle …")).toBeInTheDocument();
@@ -244,10 +244,76 @@ test("without camera the label is a chosen photo; an unreadable one says so", as
   expect(onLabel).not.toHaveBeenCalled();
 });
 
+const plateCalls = () =>
+  vi.mocked(fetch).mock.calls.filter(([url]) => url === "/api/v1/plates/extract");
+
+/** Holds the answer of the plate extraction until `answer` is called. */
+function holdPlate() {
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  let answer: ((response: Response) => void) | undefined;
+  vi.mocked(fetch).mockImplementation(async (url, init) =>
+    url === "/api/v1/plates/extract" ? new Promise<Response>((resolve) => (answer = resolve)) : fake(url, init),
+  );
+  return async (response: Response) => {
+    await waitFor(() => expect(answer).toBeDefined());
+    await act(async () => answer!(response));
+  };
+}
+
+test("the shutter Teller sends the live picture to the plate extraction and hands on the dish", async () => {
+  fakeApi();
+  const answer = holdPlate();
+  const { onPlate, onLabel } = renderCamera();
+  fireEvent.click(await screen.findByRole("button", { name: "Teller" }));
+
+  expect(await screen.findByText("Erkenne Gericht …")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Teller" })).not.toBeInTheDocument();
+  const [[, init]] = plateCalls();
+  expect(init!.method).toBe("POST");
+  expect((init!.body as FormData).get("file")).toBeInstanceOf(Blob); // the captured frame
+
+  const plate = fakePlate();
+  await answer(new Response(JSON.stringify(plate), { headers: { "Content-Type": "application/json" } }));
+  expect(onPlate).toHaveBeenCalledWith(plate, scanner.frame);
+  expect(onLabel).not.toHaveBeenCalled();
+});
+
+test("without camera the shutter Teller opens the photo choice; the chosen photo is read", async () => {
+  scanner.available = false;
+  fakeApi();
+  const { onPlate } = renderCamera();
+  const input = screen.getByTestId("plate-photo");
+  const click = vi.spyOn(input, "click").mockImplementation(() => {});
+  fireEvent.click(screen.getByRole("button", { name: "Teller" }));
+  expect(click).toHaveBeenCalled();
+
+  const photo = new File(["jpeg"], "teller.jpg", { type: "image/jpeg" });
+  fireEvent.change(input, { target: { files: [photo] } });
+  expect(await screen.findByText("Erkenne Gericht …")).toBeInTheDocument();
+  await waitFor(() => expect(onPlate).toHaveBeenCalledWith(fakePlate(), photo));
+  expect((plateCalls()[0][1]!.body as FormData).get("file")).toBeInstanceOf(File);
+});
+
+test("a failed plate extraction says so and offers a new photo; an unreadable photo says that", async () => {
+  fakeApi();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const answer = holdPlate();
+  const { onPlate } = renderCamera();
+  fireEvent.click(await screen.findByRole("button", { name: "Teller" }));
+  await answer(failed(502));
+  expect(screen.getByText("Gericht nicht erkannt. Bitte noch einmal.")).toBeInTheDocument();
+  expect(onPlate).not.toHaveBeenCalled();
+
+  const again = holdPlate();
+  fireEvent.click(screen.getByRole("button", { name: "Teller" })); // a new photo
+  await again(failed(422));
+  expect(screen.getByText("Foto nicht lesbar (JPEG, PNG oder WebP bis 10 MB).")).toBeInTheDocument();
+});
+
 test("the camera runs while live and stops on closing", async () => {
   fakeApi();
   const { onClose } = renderCamera();
-  expect(await screen.findByText("Barcodes werden sofort erkannt. Für das Etikett auslösen.")).toBeInTheDocument();
+  expect(await screen.findByText("Barcodes werden sofort erkannt. Für Etikett oder Teller auslösen.")).toBeInTheDocument();
   await act(async () => {}); // let the effects of the live mode run
   expect(scanner.stop).toHaveBeenCalledTimes(0);
   fireEvent.click(screen.getByRole("button", { name: "Schließen" }));
@@ -261,7 +327,7 @@ test("without a secure context or camera a photo of the barcode goes the same wa
   scanner.decoded = PUDDING_CODE;
   fakeApi();
   const { onFound } = renderCamera();
-  expect(screen.getByText("Keine Kamera verfügbar. Wähle ein Foto des Barcodes oder des Etiketts.")).toBeInTheDocument();
+  expect(screen.getByText("Keine Kamera verfügbar. Wähle ein Foto des Barcodes, des Etiketts oder des Tellers.")).toBeInTheDocument();
   expect(screen.queryByTestId("finder")).not.toBeInTheDocument();
   expect(scanner.start).not.toHaveBeenCalled();
 

@@ -189,3 +189,128 @@ test("by hand after a failed extraction opens the empty editor with the GTIN", a
   expect(screen.getByLabelText("GTIN")).toHaveValue("02000000013022");
   expect(screen.getByLabelText("Name")).toHaveValue("");
 });
+
+async function photographPlate() {
+  fireEvent.click(await screen.findByRole("button", { name: /^Kamera/ }));
+  const file = new File(["jpeg"], "teller.jpg", { type: "image/jpeg" });
+  fireEvent.change(screen.getByTestId("plate-photo"), { target: { files: [file] } });
+}
+
+/** The Gericht logged from the fake plate: the diary shows it as a group. */
+async function logPlate() {
+  await photographPlate();
+  fireEvent.click(await screen.findByRole("button", { name: "Eintragen · 399 kcal" }));
+  return await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+}
+
+test("the plate photo opens the result sheet; Eintragen logs one group and the diary shows its sum", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await photographPlate();
+
+  expect(await screen.findByText("Erkannt · bitte prüfen")).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Gericht" })).toHaveValue("Hähnchen mit Reis und Brokkoli");
+  // Banane is a recent chip and not on the plate: a suggestion (rice is on it).
+  const suggestions = screen.getByRole("group", { name: "Vorschläge" });
+  expect(within(suggestions).getByRole("button", { name: "+ Banane roh" })).toBeInTheDocument();
+  expect(within(suggestions).queryByRole("button", { name: "+ Reis gekocht" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  // One call, no meal: the backend suggests it (ADR-0003); the sheet is closed.
+  expect(calls.filter((c) => c.method === "POST" && c.url === "/api/v1/entries/group")).toEqual([
+    {
+      method: "POST",
+      url: "/api/v1/entries/group",
+      body: {
+        group_name: "Hähnchen mit Reis und Brokkoli",
+        items: [
+          { food_id: 9, grams: 120 },
+          { food_id: 8, grams: 150 },
+          { food_id: 10, grams: 80 },
+        ],
+      },
+    },
+  ]);
+  expect(calls.some((c) => c.method === "POST" && c.url === "/api/v1/entries")).toBe(false);
+  expect(screen.queryByText("Erkannt · bitte prüfen")).not.toBeInTheDocument();
+
+  // The group stands in the diary with the sum of the day response, folded.
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const group = within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ });
+  expect(group).toHaveAttribute("aria-expanded", "false");
+  expect(group).toHaveTextContent("399");
+  expect(group).toHaveTextContent("3 Zutaten");
+  expect(within(diary).queryByText("Reis gekocht")).not.toBeInTheDocument();
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("399");
+
+  fireEvent.click(group);
+  expect(group).toHaveAttribute("aria-expanded", "true");
+  expect(within(diary).getByText("Reis gekocht")).toBeInTheDocument();
+  expect(within(diary).getByText("Broccoli gekocht")).toBeInTheDocument();
+});
+
+test("Rückgängig after logging a plate removes the whole group", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await logPlate();
+  fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
+
+  await waitFor(() => expect(screen.queryByText(/3 Zutaten/)).not.toBeInTheDocument());
+  expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/v1/entries/group/group-200")).toBe(true);
+  expect(calls.some((c) => c.method === "DELETE" && /^\/api\/v1\/entries\/\d+$/.test(c.url))).toBe(false);
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("0");
+});
+
+test("Verwerfen closes the plate sheet and logs nothing", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await photographPlate();
+  fireEvent.click(await screen.findByRole("button", { name: "Verwerfen" }));
+  await waitFor(() => expect(screen.queryByText("Erkannt · bitte prüfen")).not.toBeInTheDocument());
+  expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/v1/plates/extract"]);
+});
+
+test("Gericht entfernen deletes the group; Rückgängig logs it again with name, meal, time and amounts", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await logPlate();
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
+  fireEvent.click(within(diary).getByRole("button", { name: "Gericht entfernen" }));
+
+  await screen.findByText("Hähnchen mit Reis und Brokkoli entfernt");
+  expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/api/v1/entries/group/group-200"]);
+  expect(within(diary).queryByText(/3 Zutaten/)).not.toBeInTheDocument();
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("0");
+
+  fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
+  await waitFor(() => expect(within(diary).getByText(/3 Zutaten/)).toBeInTheDocument());
+  const posts = calls.filter((c) => c.method === "POST" && c.url === "/api/v1/entries/group");
+  expect(posts).toHaveLength(2);
+  expect(posts[1].body).toEqual({
+    group_name: "Hähnchen mit Reis und Brokkoli",
+    meal: "snack",
+    eaten_at: "2026-10-28T10:05:00+01:00",
+    items: [
+      { food_id: 9, grams: 120 },
+      { food_id: 8, grams: 150 },
+      { food_id: 10, grams: 80 },
+    ],
+  });
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("399");
+});
+
+test("an entry of a Gericht opens the amount sheet, but its meal is fixed to the group", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await logPlate();
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
+  fireEvent.click(within(diary).getByText("Reis gekocht"));
+
+  expect(await screen.findByRole("heading", { name: "Reis gekocht" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Mahlzeit: Snack" })).toBeDisabled();
+  expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+});

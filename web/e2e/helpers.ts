@@ -15,6 +15,7 @@ export async function findFood(request: APIRequestContext, query: string, name: 
 /** Tracks the entries a test creates and removes them afterwards (the db volume stays). */
 export class Entries {
   private ids = new Set<number>();
+  private groups = new Set<string>();
   constructor(private request: APIRequestContext) {}
 
   track(id: number) {
@@ -32,10 +33,18 @@ export class Entries {
     return entry;
   }
 
+  /** A Gericht logged by a test; cleanup removes the group with all its entries. */
+  trackGroup(id: string) {
+    this.groups.add(id);
+    return id;
+  }
+
   async cleanup() {
     // 404 is fine: the test may have removed the entry itself.
     for (const id of this.ids) await this.request.delete(`/api/v1/entries/${id}`);
+    for (const id of this.groups) await this.request.delete(`/api/v1/entries/group/${id}`);
     this.ids.clear();
+    this.groups.clear();
   }
 }
 

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   createEntry,
+  createEntryGroup,
   deleteEntry,
+  deleteEntryGroup,
   getRecent,
   getToday,
   scanBarcode,
@@ -16,15 +18,17 @@ import {
   type FoodSummary,
   type LabelExtraction,
   type Meal,
+  type PlateExtraction,
   type SearchHit,
 } from "@/lib/api";
 import { headerDate, shortName } from "@/lib/format";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera } from "@/components/camera/camera";
 import { DaySummary } from "@/components/day-summary";
-import { Diary } from "@/components/diary";
+import { Diary, type GroupRemoval } from "@/components/diary";
 import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
+import { PlateSheet } from "@/components/plate/plate-sheet";
 import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
@@ -41,7 +45,9 @@ type SheetState =
   | { kind: "draft"; food: BarcodeFood }
   // `back` is the amount sheet "Bearbeiten" came from; a new food has none. `gtin` is a
   // scanned barcode without a hit, `label` the draft read from its label photo.
-  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; back?: AmountState };
+  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; back?: AmountState }
+  // The dish read from a plate photo; nothing is logged before "Eintragen" (SPEC 7a).
+  | { kind: "plate"; plate: PlateExtraction; photo: Blob };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
@@ -119,6 +125,34 @@ export function Home() {
     else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), console.error);
   };
 
+  /** A Gericht is logged in one call; "Rückgängig" removes the whole group again. */
+  const submitPlate = (name: string, items: { food_id: number; grams: number }[]) =>
+    write(async () => {
+      const group = await createEntryGroup({ group_name: name, items });
+      show(`${name} eingetragen`, () => {
+        deleteEntryGroup(group.group_id).then(reload).catch(console.error);
+      });
+    }).catch(console.error);
+
+  /**
+   * Removes a Gericht. "Rückgängig" logs it again with the same name, meal, time and amounts
+   * (a new group with new snapshots), like the undo of a recent chip works after the write.
+   */
+  const removeGroup = async ({ meal, group, entries }: GroupRemoval) => {
+    await deleteEntryGroup(group.group_id);
+    await reload();
+    show(`${group.group_name} entfernt`, () => {
+      createEntryGroup({
+        group_name: group.group_name,
+        meal,
+        eaten_at: entries[0].eaten_at,
+        items: entries.map((entry) => ({ food_id: entry.food.id, grams: entry.grams })),
+      })
+        .then(reload)
+        .catch(console.error);
+    });
+  };
+
   const remove = (entry: Entry) => () =>
     write(async () => {
       await deleteEntry(entry.id);
@@ -141,7 +175,11 @@ export function Home() {
         {day && (
           <>
             <DaySummary totals={day.totals} targets={day.targets} />
-            <Diary meals={day.meals} onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })} />
+            <Diary
+              meals={day.meals}
+              onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
+              onRemoveGroup={(removal) => removeGroup(removal).catch(console.error)}
+            />
           </>
         )}
       </main>
@@ -162,6 +200,10 @@ export function Home() {
           onLabel={(gtin, label) => {
             setCamera(false);
             setSheet({ kind: "editor", gtin, label });
+          }}
+          onPlate={(plate, photo) => {
+            setCamera(false);
+            setSheet({ kind: "plate", plate, photo });
           }}
           onClose={() => setCamera(false)}
         />
@@ -200,6 +242,16 @@ export function Home() {
               initialMeal={day.suggested_meal}
               busy={busy}
               onSubmit={submit({ gtin: sheet.food.gtin }, undefined)}
+            />
+          )}
+          {sheet.kind === "plate" && (
+            <PlateSheet
+              plate={sheet.plate}
+              photo={sheet.photo}
+              recent={recent}
+              busy={busy}
+              onSubmit={submitPlate}
+              onDiscard={() => setSheet(null)}
             />
           )}
           {sheet.kind === "editor" && (

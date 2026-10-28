@@ -68,6 +68,14 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Der Auslöser „Etikett“ braucht keinen Barcode. Das Foto geht ohne GTIN an die Extraktion.
   - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
   - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet.
+  - Der Auslöser „Teller“ schickt das Foto an die Teller-Erkennung („Erkenne Gericht …“) und öffnet das Ergebnis-Sheet. Ohne Kamera öffnet er die Fotoauswahl.
+- **Teller-Ergebnis-Sheet** (E7):
+  - Foto, „Erkannt · bitte prüfen“ und der Name des Gerichts als Eingabe.
+  - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ 10 g (mindestens 5 g) und ✕.
+  - Der Hinweis „Mengen sind geschätzt. Fehlt etwas?“ und Vorschläge: die Zuletzt-Chips, die noch nicht auf dem Teller liegen. Ein Tap fügt das Lebensmittel mit seiner Standardportion als „manuell“ hinzu.
+  - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
+  - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“. Eingetragen wird ein Gericht (`POST /entries/group`) mit dem Toast „Rückgängig“.
+- **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Mahlzeit. Die Gruppe klappt auf und zeigt ihre Einträge, deren Menge sich wie bisher ändern lässt. Die Mahlzeit gilt für das ganze Gericht. „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
 
 ## 4. Domänenmodell
 
@@ -210,7 +218,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
-- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) zählen dabei ihr Tap-Budget aus Abschnitt 1.
+- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) und der Teller-Ablauf zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen.
 
 ## 9. Betrieb
 
