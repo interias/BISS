@@ -66,7 +66,7 @@ def test_unknown_food_is_404(client: TestClient) -> None:
     assert client.get("/api/v1/foods/banane").status_code == 422
 
 
-def test_recent_lists_at_most_8_foods_by_latest_entry(client: TestClient, session: Session) -> None:
+def test_recent_lists_at_most_8_foods_by_usage(client: TestClient, session: Session) -> None:
     foods = [add_food(session, f"Lebensmittel {n}") for n in range(10)]
     add_serving(session, foods[9], "1 Becher", 200, origin="package")
     for n, food in enumerate(foods):

@@ -3,6 +3,8 @@
 # expected: a BLS code, or "fixture:<key>" for a food of `foods`.
 # kind: generic | typo | umlaut | plural | brand | usage | priority
 # `foods` and `entries` are added next to the BLS seed; entries are dated days before now.
+# Not in the set: "Reis", "Nudeln", "Quark". The BLS seed has no generic entry for them, so the
+# raw food is not at place 1 by name alone; usage ranking lifts it after the first entry (epic #2).
 foods:
   - {key: muesli_beere, name: Müsli Beere, kcal: 370}
   - {key: muesli_nuss, name: Müsli Nuss, kcal: 430}

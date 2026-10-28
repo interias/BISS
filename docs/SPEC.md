@@ -94,7 +94,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 **Quellen:**
 - Das MVP durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
-- Alle Quellen liegen in Postgres, darum ist die Suche eine einzige Abfrage. Föderiert wird erst, wenn eine Live-Quelle für Text hinzukommt.
+- Alle Quellen liegen in Postgres, darum läuft die Suche lokal, ohne Föderation und ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt (Markennachschlag, gefilterter und ungefilterter Lauf). Föderiert wird erst, wenn eine Live-Quelle für Text hinzukommt.
 
 **Normalisierung**, in Python und als generierte Spalte:
 - Kleinschreibung und `unaccent`.
