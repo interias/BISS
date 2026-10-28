@@ -131,6 +131,10 @@ def test_openapi_documents_the_endpoints(client: TestClient) -> None:
         "/api/v1/recent",
         "/api/v1/foods/search",
         "/api/v1/foods/{food_id}",
+        "/api/v1/foods",
+        "/api/v1/foods/validate",
+        "/api/v1/foods/{food_id}/image",
+        "/api/v1/images/{name}",
     } <= set(paths)
     day = paths["/api/v1/days/{day}"]["get"]["responses"]["200"]["content"]["application/json"]
     assert day["schema"] == {"$ref": "#/components/schemas/Day"}

@@ -1,7 +1,8 @@
 """Seed the BLS 4.0 foods and their estimated standard servings.
 
-Runs on API start (see the Dockerfile) and may run any number of times: it does nothing
-once foods with source=bls exist. The raw CSV row is kept in food_source_data.
+Runs on API start (see the Dockerfile) only while no foods with source=bls exist. Run by
+hand on an existing database it updates the BLS foods without touching overlay fields
+(food.overridden, SPEC 4). The raw CSV row is kept in food_source_data.
 
     uv run python -m app.importers.bls
 """
@@ -11,7 +12,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import exists, select
+from sqlalchemy import any_, case, exists, func, literal, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -66,22 +67,76 @@ def has_bls_foods(session: Session) -> bool:
     return bool(session.scalar(select(exists().where(Food.source == SOURCE))))
 
 
+def _upsert_foods(session: Session, rows: list[dict[str, str]], fetched_at: datetime) -> None:
+    """Insert new BLS foods; at known ones update every field not in overridden."""
+    statement = insert(Food)
+    food = Food.__table__.c
+
+    def from_source(field: str):
+        kept = literal(field) == any_(food.overridden)
+        return case((kept, food[field]), else_=statement.excluded[field])
+
+    session.execute(
+        statement.on_conflict_do_update(
+            constraint="food_source_source_id",
+            set_={
+                **{field: from_source(field) for field in ("name", *CORE, *OPTIONAL)},
+                "fetched_at": statement.excluded.fetched_at,
+                "updated_at": func.now(),
+            },
+        ),
+        [_food(row, fetched_at) for row in rows],
+    )
+
+
+def _add_servings(
+    session: Session, servings_path: Path, food_ids: dict[str, int], known: set[str]
+) -> None:
+    """Estimated standard servings for the foods new in this run.
+
+    Existing servings stay: an unchanged estimated one with the same label takes the new
+    grams, an own one (also an edited estimate) is never touched, nothing is duplicated.
+    A known food without servings keeps none, since they were removed on purpose.
+    """
+    existing: dict[int, list[Serving]] = {}
+    for serving in session.scalars(select(Serving).where(Serving.food_id.in_(food_ids.values()))):
+        existing.setdefault(serving.food_id, []).append(serving)
+
+    for row in _read(servings_path):
+        if row["code"] not in food_ids:
+            raise ValueError(f"serving {row['label']!r} refers to unknown BLS code {row['code']}")
+        food_id = food_ids[row["code"]]
+        grams = float(row["grams"])
+        if row["code"] in known:
+            for serving in existing.get(food_id, []):
+                if serving.origin == "estimated" and serving.label == row["label"]:
+                    serving.grams = grams
+        elif food_id not in existing:
+            serving = Serving(
+                food_id=food_id,
+                label=row["label"],
+                grams=grams,
+                origin=row["origin"],
+                is_default=True,
+            )
+            session.add(serving)
+            existing[food_id] = [serving]
+
+
 def import_bls(
     session: Session, csv_path: Path = CSV_PATH, servings_path: Path = SERVINGS_PATH
 ) -> int:
-    """Import the extract unless BLS foods exist; return the number of foods added."""
-    if has_bls_foods(session):
-        return 0
-
+    """Import or update the extract; return the number of foods added."""
     rows = _read(csv_path)
     fetched_at = datetime.now(UTC)
-    inserted = session.execute(
-        insert(Food)
-        .on_conflict_do_nothing(constraint="food_source_source_id")
-        .returning(Food.id, Food.source_id),
-        [_food(row, fetched_at) for row in rows],
-    ).all()
-    food_ids = {source_id: food_id for food_id, source_id in inserted}
+    known = set(session.scalars(select(Food.source_id).where(Food.source == SOURCE)))
+    _upsert_foods(session, rows, fetched_at)
+    food_ids = {
+        source_id: food_id
+        for food_id, source_id in session.execute(
+            select(Food.id, Food.source_id).where(Food.source == SOURCE)
+        )
+    }
 
     raw_rows = [
         {
@@ -92,36 +147,32 @@ def import_bls(
             "fetched_at": fetched_at,
         }
         for row in rows
-        if row["code"] in food_ids
     ]
     if raw_rows:
-        session.execute(insert(FoodSourceData).on_conflict_do_nothing(), raw_rows)
-
-    servings = []
-    for row in _read(servings_path):
-        if row["code"] not in food_ids:
-            raise ValueError(f"serving {row['label']!r} refers to unknown BLS code {row['code']}")
-        servings.append(
-            {
-                "food_id": food_ids[row["code"]],
-                "label": row["label"],
-                "grams": float(row["grams"]),
-                "origin": row["origin"],
-                "is_default": True,
-            }
+        statement = insert(FoodSourceData)
+        session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["food_id", "source"],
+                set_={
+                    "source_id": statement.excluded.source_id,
+                    "payload": statement.excluded.payload,
+                    "fetched_at": statement.excluded.fetched_at,
+                },
+            ),
+            raw_rows,
         )
-    if servings:
-        session.execute(insert(Serving), servings)
 
+    _add_servings(session, servings_path, food_ids, known)
     session.commit()
-    return len(food_ids)
+    return len({row["code"] for row in rows} - known)
 
 
 def main() -> None:
     from app.db import get_session
 
     with get_session() as session:
-        count = import_bls(session)
+        # On API start the import only seeds; updating existing foods is a manual step.
+        count = 0 if has_bls_foods(session) else import_bls(session)
     message = f"imported {count} BLS foods" if count else "BLS foods present, nothing to import"
     print(message, file=sys.stderr)
 
