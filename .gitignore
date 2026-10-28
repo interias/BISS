@@ -1,0 +1,17 @@
+# Secrets and local config
+.env
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+playwright-report/
+test-results/
+
+# Local data
+backups/
