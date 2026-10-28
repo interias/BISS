@@ -19,7 +19,10 @@ router = APIRouter(prefix="/labels", tags=["labels"])
     "/extract",
     responses={
         422: {"description": "no readable JPEG, PNG or WebP up to 10 MB, or an invalid GTIN"},
-        502: {"description": "the model gave no usable draft"},
+        502: {
+            "description": "the model gave no usable draft; at the second try the fast "
+            "model's draft is dropped as well"
+        },
     },
 )
 async def extract(

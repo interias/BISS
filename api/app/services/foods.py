@@ -100,6 +100,10 @@ def create_food(
     stored as GTIN-14.
 
     Raises InvalidGtin, GtinTaken when another food has the GTIN, and InvalidFood.
+
+    Two concurrent creations with the same GTIN both pass the check, and the second one
+    fails on the unique GTIN with a 500, as in chain.food_for_entry. Not caught: there is
+    one user (ADR-0005) and the editor locks its button while saving.
     """
     code = None if gtin is None else normalize_gtin(gtin)
     if code is not None and session.scalar(select(Food.id).where(Food.gtin == code)) is not None:

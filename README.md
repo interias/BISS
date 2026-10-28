@@ -37,11 +37,13 @@ docker compose run --rm api uv run pytest tests/golden      # goldenes Suchtests
 docker compose run --rm api uv run pytest -m llm # Fixture-Etiketten gegen das echte Modell, nur mit Token
 docker compose run --rm api uv run ruff check .
 docker compose run --rm web pnpm test            # Vitest
-docker compose run --rm web pnpm e2e             # Playwright
+docker compose run --rm web pnpm e2e             # Playwright, nur mit eigenem Projekt (siehe unten)
 docker compose run --rm web pnpm lint
 ```
 
 Läuft schon ein Stack mit den Ports 2477/2478, oder laufen mehrere Testläufe gleichzeitig, dann mit eigenem Projektnamen und ohne veröffentlichte Ports: `docker compose -p <name> -f compose.yaml -f compose.test.yaml run --rm web pnpm e2e` (ebenso für die anderen Befehle).
+
+Die E2E-Tests schreiben in die Datenbank des Stacks, gegen den sie laufen; jeder Lauf legt unter anderem ein Lebensmittel „Haferkeks Dinkel“ mit neuer GTIN an und trägt es ins Tagebuch ein. Sie brauchen außerdem den OFF-Stub und den Fake-Extractor aus `compose.test.yaml`. Deshalb E2E nie gegen den eigenen Stack fahren, sondern immer mit eigenem Projektnamen und `compose.test.yaml`, und danach mit `docker compose -p <name> down -v` die Testdaten samt Volumes entfernen.
 
 Das normale `pytest` wählt die `llm`-Tests ab, damit kein Testlauf das Kontingent des Tokens belastet; ohne Token werden sie auch mit `-m llm` übersprungen. Den Ablauf der Extraktion mit Laufzeit zeigt `docker compose run --rm --no-deps api uv run python scripts/spike_label.py tests/fixtures/labels/oat_drink.png` (ein echter Modellaufruf; `--model both --transfer both` vergleicht Modelle und Bildübergabe).
 

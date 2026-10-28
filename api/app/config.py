@@ -25,6 +25,7 @@ class Settings:
     llm_model_fast: str
     llm_model_strong: str
     # agent: Claude Agent SDK; fake: invented draft without a model (tests, e2e).
+    # Not checked at startup: any other value fails only at a label request, with a 500.
     label_extractor: str
 
 

@@ -22,6 +22,8 @@ async def extract_label(
     """Draft of the fast model; with a violation exactly one second try with the strong one.
 
     If the violation stays, the strong model's draft is returned with its violations.
+    If the strong model gives no usable draft, ExtractionFailed propagates and the fast
+    model's draft is lost; SPEC 7 does not cover this case.
     """
     draft = await extractor.extract(photo, fast)
     result = check(draft.per_100)
