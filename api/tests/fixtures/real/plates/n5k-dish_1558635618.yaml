@@ -1,0 +1,7 @@
+# Main ingredients (at least 10 % of the mass, no oil or dressing) and kcal from the Nutrition5k annotation.
+main: "Mais|Maiskolben|Zuckermais; Apfel; Reis; Blumenkohl|Karfiol"
+kcal: "220"
+annotation: "corn on the cob 74 g, apple 117 g, white rice 43 g, cauliflower 100 g; 334 g"
+source: "https://github.com/google-research-datasets/Nutrition5k (dish_1558635618)"
+author: "Google Research (Thames et al., CVPR 2021)"
+license: "CC BY 4.0"

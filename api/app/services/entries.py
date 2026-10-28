@@ -1,12 +1,14 @@
 """Entries: the backend decides day, meal, standard amount and macro snapshot (ADR-0003)."""
 
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from uuid import UUID, uuid4
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.domain.day import day_of
-from app.domain.macros import Macros, macro_snapshot
+from app.domain.macros import Macros, macro_snapshot, total
 from app.domain.meal import Meal, suggest_meal
 from app.models import Entry, Food
 from app.search.usage import USAGE_BY_FOOD, usage_params
@@ -88,6 +90,91 @@ def update_entry(
 def delete_entry(session: Session, entry_id: int) -> None:
     if session.execute(delete(Entry).where(Entry.id == entry_id)).rowcount == 0:
         raise NotFound(f"entry {entry_id} not found")
+    session.commit()
+
+
+@dataclass(frozen=True)
+class EntryGroup:
+    """The entries of one plate (SPEC 7a), by time, with the sum of their snapshots."""
+
+    group_id: UUID
+    group_name: str
+    meal: Meal
+    day: date
+    totals: Macros
+    entries: list[tuple[Entry, Food]]
+
+
+def create_group(
+    session: Session,
+    group_name: str,
+    items: list[tuple[int, float]],
+    meal: Meal | None = None,
+    eaten_at: datetime | None = None,
+) -> EntryGroup:
+    """Log a plate: one entry per (food_id, grams), each with its own snapshot, all at once.
+
+    The entries share a new group_id, the name, the meal and the moment; without meal the
+    suggestion applies. With an unknown food nothing is logged.
+    """
+    eaten_at = eaten_at or datetime.now(UTC)
+    meal = meal or suggest_meal(eaten_at)
+    group_id = uuid4()
+    foods = [_food(session, food_id) for food_id, _ in items]
+    for food, (food_id, grams) in zip(foods, items, strict=True):
+        entry = Entry(
+            food_id=food_id,
+            grams=grams,
+            meal=meal,
+            eaten_at=eaten_at,
+            day=day_of(eaten_at),
+            group_id=group_id,
+            group_name=group_name,
+        )
+        _apply(entry, snapshot(food, grams))
+        session.add(entry)
+    session.commit()
+    return get_group(session, group_id)
+
+
+def get_group(session: Session, group_id: UUID) -> EntryGroup:
+    rows = session.execute(
+        select(Entry, Food)
+        .join(Food, Food.id == Entry.food_id)
+        .where(Entry.group_id == group_id)
+        .order_by(Entry.eaten_at, Entry.id)
+    ).all()
+    if not rows:
+        raise NotFound(f"group {group_id} not found")
+    first = rows[0][0]
+    return EntryGroup(
+        group_id=group_id,
+        group_name=first.group_name,
+        meal=first.meal,
+        day=first.day,
+        totals=total(entry for entry, _ in rows),
+        entries=[(entry, food) for entry, food in rows],
+    )
+
+
+def update_group(
+    session: Session, group_id: UUID, group_name: str | None = None, meal: Meal | None = None
+) -> EntryGroup:
+    """Change name or meal of every entry of the plate; the snapshots stay."""
+    group = get_group(session, group_id)
+    for entry, _ in group.entries:
+        if group_name is not None:
+            entry.group_name = group_name
+        if meal is not None:
+            entry.meal = meal
+    session.commit()
+    return get_group(session, group_id)
+
+
+def delete_group(session: Session, group_id: UUID) -> None:
+    """Remove every entry of the plate."""
+    if session.execute(delete(Entry).where(Entry.group_id == group_id)).rowcount == 0:
+        raise NotFound(f"group {group_id} not found")
     session.commit()
 
 

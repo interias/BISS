@@ -115,3 +115,51 @@ def test_migration_0003_downgrades_and_upgrades(engine: Engine) -> None:
         {"gtin", "payload", "fetched_at", "name_norm", "brand_norm"},
         {"off_cache_name_norm_trgm"},
     )
+
+
+def entry_columns(engine: Engine) -> dict[str, bool]:
+    schema = inspect(engine)
+    schema.clear_cache()
+    return {column["name"]: column["nullable"] for column in schema.get_columns("entry")}
+
+
+def test_migration_0004_adds_nullable_group_columns_and_keeps_entries(engine: Engine) -> None:
+    config = Config(API_DIR / "alembic.ini")
+    config.attributes["database_url"] = engine.url.render_as_string(hide_password=False)
+    try:
+        command.downgrade(config, "0003")
+        assert "group_id" not in entry_columns(engine)
+        with engine.begin() as connection:
+            food = connection.execute(
+                text(
+                    "INSERT INTO food (name, kcal, protein, carbs, fat, source) "
+                    "VALUES ('Migrationstest', 100, 1, 1, 1, 'own') RETURNING id"
+                )
+            ).scalar_one()
+            connection.execute(
+                text(
+                    "INSERT INTO entry (food_id, grams, meal, eaten_at, day, kcal, protein, "
+                    "carbs, fat) VALUES (:food, 50, 'lunch', now(), current_date, 50, 0.5, "
+                    "0.5, 0.5)"
+                ),
+                {"food": food},
+            )
+        command.upgrade(config, "head")
+        columns = entry_columns(engine)
+        assert (columns["group_id"], columns["group_name"]) == (True, True)
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT grams, kcal, group_id, group_name FROM entry WHERE food_id = :f"),
+                {"f": food},
+            ).all()
+        assert [tuple(row) for row in rows] == [(50, 50, None, None)]
+    finally:
+        command.upgrade(config, "head")
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "DELETE FROM entry WHERE food_id IN "
+                    "(SELECT id FROM food WHERE name = 'Migrationstest')"
+                )
+            )
+            connection.execute(text("DELETE FROM food WHERE name = 'Migrationstest'"))

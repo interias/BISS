@@ -33,7 +33,7 @@ def test_day_sums_entries_by_meal(client: TestClient, session: Session) -> None:
     _, lunch, snack, dinner = day["meals"]
     assert [e["grams"] for e in lunch["entries"]] == [40, 200]  # by time
     assert lunch["totals"] == {"kcal": 407.2, "protein": 10.8, "carbs": 79.5, "fat": 3.3}
-    assert snack == {"meal": "snack", "totals": ZERO, "entries": []}
+    assert snack == {"meal": "snack", "totals": ZERO, "entries": [], "groups": []}
     assert len(dinner["entries"]) == 1
     assert day["totals"]["kcal"] == round(220.8 + 260 + 147.2 + 130, 1)
     assert day["suggested_meal"] in {"breakfast", "lunch", "snack", "dinner"}

@@ -1,0 +1,7 @@
+# Main ingredients (at least 10 % of the mass, no oil or dressing) and kcal from the Nutrition5k annotation.
+main: "Kartoffel; Mandel; Reis"
+kcal: "291"
+annotation: "potatoes 96 g, almonds 25 g, spinach (raw) 11 g, white rice 54 g; 186 g"
+source: "https://github.com/google-research-datasets/Nutrition5k (dish_1558547205)"
+author: "Google Research (Thames et al., CVPR 2021)"
+license: "CC BY 4.0"
