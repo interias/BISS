@@ -19,6 +19,8 @@ from starlette.types import Receive, Scope, Send
 
 from app import VERSION
 from app.api import convert, schemas
+from app.barcode import chain
+from app.barcode.gtin import InvalidGtin
 from app.db import get_session
 from app.domain.day import day_of
 from app.domain.meal import Meal
@@ -40,10 +42,11 @@ def build_server(sessions: Sessions = get_session) -> MCPServer:
     def search_food(
         query: Annotated[str, Field(min_length=1, max_length=200)],
         limit: Annotated[int, Field(ge=1, le=50)] = 20,
-    ) -> list[schemas.FoodSummary]:
+    ) -> list[schemas.SearchHit]:
         """Search own foods, BLS and cached products; best match first, duplicates merged.
 
-        Values per 100 g (or 100 ml with basis ml), with the standard serving.
+        Values per 100 g (or 100 ml with basis ml), with the standard serving. A cached
+        product of Open Food Facts has id null; log_meal takes its gtin.
         """
         with sessions() as session:
             return [convert.search_hit(hit) for hit in search_foods(session, query, limit=limit)]
@@ -77,16 +80,26 @@ def build_server(sessions: Sessions = get_session) -> MCPServer:
 
     @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False))
     def log_meal(
-        food_id: int,
+        food_id: int | None = None,
+        gtin: str | None = None,
         grams: Annotated[float | None, Field(gt=0)] = None,
         meal: Meal | None = None,
     ) -> schemas.Entry:
-        """Log a food now. Without grams the standard serving applies, without meal the
-        meal suggested by the time of day."""
+        """Log a food now: exactly one of food_id and gtin, as POST /entries.
+
+        With the gtin of a cached product (search_food, id null) it is stored as food with
+        source off on its first entry. Without grams the standard serving applies, without
+        meal the meal suggested by the time of day.
+        """
+        if (food_id is None) == (gtin is None):
+            raise ToolError("give exactly one of food_id and gtin")
+        now = datetime.now(UTC)
         with sessions() as session:
             try:
-                entry = entries.create_entry(session, food_id, grams=grams, meal=meal)
-            except entries.NotFound as error:
+                if gtin is not None:
+                    food_id = chain.food_for_entry(session, gtin, now).id
+                entry = entries.create_entry(session, food_id, grams=grams, meal=meal, eaten_at=now)
+            except (InvalidGtin, chain.NotFound, entries.NotFound) as error:
                 raise ToolError(str(error)) from error
             return convert.entry(entry, foods.get_food(session, entry.food_id))
 

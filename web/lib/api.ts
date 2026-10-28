@@ -23,6 +23,13 @@ export type FoodSummary = {
   standard_serving: StandardServing;
 };
 
+/**
+ * A search hit: a food (id set) or a product of the Open Food Facts cache (id null), which
+ * the barcode chain answers as a draft and which is logged by its GTIN.
+ */
+export type SearchHit = Omit<FoodSummary, "id"> &
+  ({ id: number; gtin: string | null } | { id: null; gtin: string });
+
 export type Serving = {
   id: number;
   label: string;
@@ -158,7 +165,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const getToday = () => request<Day>("/days/today");
 export const getRecent = () => request<FoodSummary[]>("/recent");
 export const searchFoods = (q: string) =>
-  request<FoodSummary[]>(`/foods/search?q=${encodeURIComponent(q)}`);
+  request<SearchHit[]>(`/foods/search?q=${encodeURIComponent(q)}`);
 export const getFood = (id: number) => request<FoodDetail>(`/foods/${id}`);
 
 /**
