@@ -11,6 +11,7 @@ from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from sqlalchemy.orm import Session
@@ -108,7 +109,9 @@ class StreamableHttp:
         # Stateless: the tools keep nothing between requests. No DNS rebinding check
         # on the Host header: like the REST API it serves the local network (ADR-0005).
         self._app = self.server.streamable_http_app(
-            streamable_http_path=PATH, stateless_http=True, host="0.0.0.0"
+            streamable_http_path=PATH,
+            stateless_http=True,
+            transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
         )
         async with self._app.router.lifespan_context(self._app):
             yield
