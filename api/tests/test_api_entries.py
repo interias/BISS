@@ -1,10 +1,11 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.domain.day import day_of
-from tests.factories import add_food, add_serving
+from app.models import Food
+from tests.factories import add_cached, add_food, add_serving
 
 
 def post(client: TestClient, **body):
@@ -126,3 +127,22 @@ def test_delete_removes_the_entry(client: TestClient, session: Session) -> None:
     assert client.delete(f"/api/v1/entries/{entry['id']}").status_code == 404
     day = client.get("/api/v1/days/2026-10-28").json()
     assert all(meal["entries"] == [] for meal in day["meals"])
+
+
+def test_cached_search_hit_is_logged_by_its_gtin(client: TestClient, session: Session) -> None:
+    add_cached(session, "2000000021072", datetime.now(UTC) - timedelta(days=3))
+    (hit,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    assert (hit["id"], hit["gtin"], hit["source"]) == (None, "02000000021072", "off")
+    assert hit["standard_serving"] == {"label": "1 Riegel (40 g)", "grams": 40, "origin": "package"}
+
+    response = post(client, gtin=hit["gtin"], grams=hit["standard_serving"]["grams"])
+    assert response.status_code == 201
+    food = session.get(Food, response.json()["food"]["id"])
+    assert (food.gtin, food.source, food.name, food.brand) == (
+        "02000000021072",
+        "off",
+        hit["name"],
+        hit["brand"],
+    )
+    (again,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    assert (again["id"], again["gtin"], again["source"]) == (food.id, "02000000021072", "off")

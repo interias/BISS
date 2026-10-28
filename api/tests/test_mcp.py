@@ -1,7 +1,7 @@
 """The MCP tools over the in-memory client of the SDK against the test database (ADR-0007)."""
 
 from contextlib import nullcontext
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import anyio
 import pytest
@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.domain.day import day_of
 from app.mcp import build_server
-from app.models import Entry, Goal
-from tests.factories import add_food, add_serving
+from app.models import Entry, Food, Goal
+from tests.factories import add_cached, add_food, add_serving
 
 
 @pytest.fixture
@@ -193,4 +193,44 @@ def test_log_meal_rejects_what_post_entries_rejects(server: MCPServer, session: 
     assert call(server, "log_meal", food_id=999999)["error"].endswith("food 999999 not found")
     assert "error" in call(server, "log_meal", food_id=food.id, grams=0)
     assert "error" in call(server, "log_meal", food_id=food.id, meal="brunch")
+    assert entry_count(session) == before
+
+
+# An invented product in the Open Food Facts cache (ADR-0002).
+CODE = "2000000021058"
+GTIN = "0" + CODE
+
+
+def test_search_food_returns_a_cached_product_with_its_gtin(
+    server: MCPServer, session: Session, client: TestClient
+) -> None:
+    add_cached(session, CODE, datetime.now(UTC) - timedelta(days=1))
+    hits = call(server, "search_food", query="testriegel")
+    assert hits == client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    assert [(h["id"], h["gtin"], h["source"]) for h in hits] == [(None, GTIN, "off")]
+
+
+def test_log_meal_logs_a_cached_product_by_gtin(server: MCPServer, session: Session) -> None:
+    add_cached(session, CODE, datetime.now(UTC) - timedelta(days=1))
+    entry = call(server, "log_meal", gtin=CODE, meal="snack")
+    assert (entry["grams"], entry["meal"], entry["macros"]["kcal"]) == (40, "snack", 180.8)
+    food = session.get(Food, entry["food"]["id"])
+    assert (food.gtin, food.source, food.name) == (GTIN, "off", "Testriegel Haselnuss")
+    # Stored now: the search finds the food, and the next entry adds no second one.
+    assert [h["id"] for h in call(server, "search_food", query="testriegel")] == [food.id]
+    assert call(server, "log_meal", gtin=GTIN, grams=80)["food"]["id"] == food.id
+
+
+def test_log_meal_needs_exactly_one_valid_food(server: MCPServer, session: Session) -> None:
+    food = add_food(session, "Banane")
+    old = datetime.now(UTC) - timedelta(days=31)
+    add_cached(session, "2000000021065", old)
+    before = entry_count(session)
+    assert call(server, "log_meal")["error"].endswith("give exactly one of food_id and gtin")
+    both = call(server, "log_meal", food_id=food.id, gtin=CODE)
+    assert both["error"].endswith("give exactly one of food_id and gtin")
+    assert call(server, "log_meal", gtin=CODE)["error"].endswith(f"for GTIN {GTIN}")
+    assert "for GTIN 02000000021065" in call(server, "log_meal", gtin="2000000021065")["error"]
+    assert "check digit" in call(server, "log_meal", gtin="2000000021066")["error"]
+    assert "error" in call(server, "log_meal", gtin="x")
     assert entry_count(session) == before

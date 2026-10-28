@@ -1,8 +1,9 @@
 """Golden search set against the real BLS seed plus fixtures (SPEC 8).
 
 The fixtures of search.yaml are own and branded foods and entries dated relative to now,
-for the brand filter, duplicate priority and usage ranking. Its barcodes are scanned codes
-of the branded fixtures, with and without leading zeros, for the barcode chain.
+for the brand filter, duplicate priority and usage ranking, and invented products in the
+Open Food Facts cache. Its barcodes are scanned codes of the branded fixtures, with and
+without leading zeros, for the barcode chain.
 
 Fails if a threshold is missed: place 1 >= 90 %, top 5 >= 98 %, duplicates in the top 10
 = 0, p95 of the search time < 300 ms.
@@ -21,11 +22,14 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from app.barcode.chain import lookup
+from app.barcode.gtin import normalize_gtin
 from app.importers.bls import import_bls
-from app.models import Entry, Food
-from app.search.search import search_foods
+from app.models import Entry, Food, OffCache
+from app.search.normalize import normalize
+from app.search.search import Hit, search_foods
 from app.search.weights import DUPLICATE_KCAL_TOLERANCE, DUPLICATE_NAME_SIMILARITY
 from app.sources.off import OpenFoodFacts
+from tests.factories import off_answer
 
 GOLDEN = yaml.safe_load((Path(__file__).parent / "search.yaml").read_text(encoding="utf-8"))
 PAIRS = GOLDEN["pairs"]
@@ -34,7 +38,7 @@ RUNS = 5
 
 
 def add_fixtures(session: Session) -> None:
-    """Add the fixture foods (source_id "fixture:<key>") and their entries."""
+    """Add the fixture foods (source_id "fixture:<key>"), their entries and the cache."""
     now = datetime.now(UTC)
     ids = {}
     for fixture in GOLDEN["foods"]:
@@ -61,7 +65,23 @@ def add_fixtures(session: Session) -> None:
                     fat=0,
                 )
             )
+    for cached in GOLDEN["cache"]:
+        session.add(
+            OffCache(
+                gtin=normalize_gtin(cached["code"]),
+                payload=off_answer(cached["code"], **cached["product"]),
+                fetched_at=now - timedelta(days=cached["days_ago"]),
+            )
+        )
     session.flush()
+
+
+CACHE_KEYS = {normalize_gtin(c["code"]): f"cache:{c['key']}" for c in GOLDEN["cache"]}
+
+
+def code_of(codes: dict[int, str], hit: Hit) -> str:
+    """The BLS code or fixture key of a food hit, the cache key of a cache hit."""
+    return codes[hit.id] if hit.id is not None else CACHE_KEYS[hit.gtin]
 
 
 @pytest.fixture(scope="module")
@@ -77,21 +97,29 @@ def bls_session(engine: Engine) -> Iterator[Session]:
         transaction.rollback()
 
 
-def duplicates_in(session: Session, ids: list[int]) -> int:
-    """Results that duplicate a better-ranked result (generic, name >= 0.9, kcal +/- 10 %)."""
+def duplicates_in(session: Session, hits: list[Hit]) -> int:
+    """Results that duplicate a better-ranked result: the same GTIN, or generic (name >= 0.9,
+    kcal +/- 10 %). Foods and cache hits alike, by the name_norm of the hit's name."""
     return session.scalar(
         text(
             """
-            SELECT count(DISTINCT b.n) FROM unnest(CAST(:ids AS bigint[])) WITH ORDINALITY a(id, n)
-            JOIN unnest(CAST(:ids AS bigint[])) WITH ORDINALITY b(id, n) ON a.n < b.n
-            JOIN food fa ON fa.id = a.id JOIN food fb ON fb.id = b.id
-            WHERE fa.brand IS NULL AND fb.brand IS NULL
-              AND similarity(fa.name_norm, fb.name_norm) >= :name_similarity
-              AND abs(fa.kcal - fb.kcal) <= :kcal_tolerance * greatest(fa.kcal, fb.kcal)
+            WITH h AS (
+                SELECT * FROM unnest(CAST(:names AS text[]), CAST(:generic AS boolean[]),
+                                     CAST(:kcal AS float8[]), CAST(:gtins AS text[]))
+                              WITH ORDINALITY h(name_norm, generic, kcal, gtin, n)
+            )
+            SELECT count(DISTINCT b.n) FROM h a JOIN h b ON a.n < b.n
+            WHERE a.gtin = b.gtin
+               OR (a.generic AND b.generic
+                   AND similarity(a.name_norm, b.name_norm) >= :name_similarity
+                   AND abs(a.kcal - b.kcal) <= :kcal_tolerance * greatest(a.kcal, b.kcal))
             """
         ),
         {
-            "ids": ids,
+            "names": [normalize(hit.name) for hit in hits],
+            "generic": [hit.brand is None for hit in hits],
+            "kcal": [hit.kcal for hit in hits],
+            "gtins": [hit.gtin for hit in hits],
             "name_similarity": DUPLICATE_NAME_SIMILARITY,
             "kcal_tolerance": DUPLICATE_KCAL_TOLERANCE,
         },
@@ -108,10 +136,10 @@ def test_golden_search(bls_session: Session, capsys: pytest.CaptureFixture[str])
             start = time.perf_counter()
             hits = search_foods(bls_session, pair["query"], limit=10)
             timings.append((time.perf_counter() - start) * 1000)
-        found = [codes[hit.id] for hit in hits]
+        found = [code_of(codes, hit) for hit in hits]
         expected = pair["expected"]
         ranks[pair["query"]] = found.index(expected) + 1 if expected in found else None
-        duplicates += duplicates_in(bls_session, [hit.id for hit in hits])
+        duplicates += duplicates_in(bls_session, hits)
         results += len(hits)
 
     total = len(PAIRS)
@@ -138,7 +166,7 @@ def test_banane_is_a_single_hit_on_place_1(bls_session: Session) -> None:
     names = [hit.name for hit in hits]
     assert names[0] == "Banane roh"
     assert names.count("Banane roh") == 1
-    assert duplicates_in(bls_session, [hit.id for hit in hits]) == 0
+    assert duplicates_in(bls_session, hits) == 0
 
 
 @pytest.mark.parametrize("case", BARCODES, ids=[f"{c['kind']} {c['code']}" for c in BARCODES])

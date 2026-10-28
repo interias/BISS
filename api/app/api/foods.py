@@ -34,8 +34,11 @@ def search(
     session: SessionDep,
     q: str = Query(min_length=1, max_length=200),
     limit: int = Query(default=20, ge=1, le=50),
-) -> list[schemas.FoodSummary]:
-    """Search own foods, BLS and cached products; best match first, duplicates merged."""
+) -> list[schemas.SearchHit]:
+    """Search own foods, BLS and cached products; best match first, duplicates merged.
+
+    A cached product of Open Food Facts has id null and is logged with its gtin.
+    """
     return [convert.search_hit(hit) for hit in search_foods(session, q, limit=limit)]
 
 

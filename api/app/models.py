@@ -106,11 +106,29 @@ class Goal(Base):
     fat: Mapped[float] = mapped_column(Double)
 
 
+# Name and brand of the payload as off.draft() reads them, normalised (migration 0003).
+_OFF_NAME_NORM = r"""biss_normalize(CASE
+    WHEN jsonb_typeof(payload #> '{product,product_name_de}') = 'string'
+         AND payload #>> '{product,product_name_de}' ~ '\S'
+    THEN payload #>> '{product,product_name_de}'
+    WHEN jsonb_typeof(payload #> '{product,product_name}') = 'string'
+         AND payload #>> '{product,product_name}' ~ '\S'
+    THEN payload #>> '{product,product_name}' END)"""
+_OFF_BRAND_NORM = r"""biss_normalize(substring(CASE
+    WHEN jsonb_typeof(payload #> '{product,brands}') = 'string'
+    THEN payload #>> '{product,brands}' END FROM '[^,]*[^,\s][^,]*'))"""
+
+
 class OffCache(Base):
-    """Open Food Facts products shown after a scan, valid for 30 days (SPEC 4)."""
+    """Open Food Facts products shown after a scan, valid for 30 days (SPEC 4).
+
+    The search finds them by name_norm (trigram index) and brand_norm (SPEC 6).
+    """
 
     __tablename__ = "off_cache"
 
     gtin: Mapped[str] = mapped_column(String(14), primary_key=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    name_norm: Mapped[str | None] = mapped_column(Text, Computed(_OFF_NAME_NORM, persisted=True))
+    brand_norm: Mapped[str | None] = mapped_column(Text, Computed(_OFF_BRAND_NORM, persisted=True))

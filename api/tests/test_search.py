@@ -7,11 +7,12 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.barcode import chain
 from app.models import Entry
 from app.search.search import search_foods
 from app.search.usage import USAGE_BY_FOOD, usage_params
 from app.search.weights import RANKING
-from tests.factories import add_food
+from tests.factories import add_cached, add_food
 
 
 def names(session: Session, query: str) -> list[str]:
@@ -228,3 +229,116 @@ def test_brand_match_ranks_before_an_equal_name_of_another_brand(session: Sessio
     add_food(session, "Haferdrink", brand="Alpro", source="off", kcal=45)
     oatly = add_food(session, "Haferdrink Barista", brand="Oatly", source="off", kcal=60)
     assert search_foods(session, "Oatly Haferdrink")[0].id == oatly.id
+
+
+# The Open Food Facts cache (SPEC 6): products shown after a scan, invented answers.
+BAR = "2000000021003"
+
+
+def test_cached_product_is_a_hit_as_its_draft(session: Session) -> None:
+    add_cached(session, BAR, NOW - timedelta(days=2))
+    (hit,) = search_foods(session, "testriegel", now=NOW)
+    assert (hit.id, hit.gtin, hit.source) == (None, "0" + BAR, "off")
+    assert (hit.name, hit.brand, hit.basis, hit.density) == (
+        "Testriegel Haselnuss",
+        "Testmarke",
+        "g",
+        1.0,
+    )
+    assert (hit.kcal, hit.protein, hit.carbs, hit.fat) == (452, 8.2, 54, 21.5)
+    assert (hit.serving_label, hit.serving_grams, hit.serving_origin) == (
+        "1 Riegel (40 g)",
+        40,
+        "package",
+    )
+
+
+def test_cache_window_is_the_one_of_the_barcode_chain(session: Session) -> None:
+    ages = {"Testkeks Mohn": 29.9, "Testkeks Sesam": 30, "Testkeks Kakao": 31}
+    for i, (name, days) in enumerate(ages.items()):
+        add_cached(
+            session,
+            ["2000000021010", "2000000021027", "2000000021034"][i],
+            NOW - timedelta(days=days),
+            product_name_de=name,
+        )
+    found = {hit.name for hit in search_foods(session, "testkeks", now=NOW)}
+    assert found == {"Testkeks Mohn"}
+    cached = {
+        gtin
+        for gtin in ("02000000021010", "02000000021027", "02000000021034")
+        if chain._cached(session, gtin, NOW) is not None
+    }
+    assert cached == {"02000000021010"}
+    assert chain.CACHE_DAYS == 30
+
+
+def test_cached_product_with_the_gtin_of_a_food_does_not_appear(session: Session) -> None:
+    food = add_food(session, "Testriegel Nuss", brand="Testmarke", gtin="0" + BAR, source="off")
+    add_cached(session, BAR, NOW - timedelta(days=1))  # the same GTIN, the older name
+    hits = search_foods(session, "testriegel", now=NOW)
+    assert [(hit.id, hit.gtin) for hit in hits] == [(food.id, "0" + BAR)]
+
+
+def test_cached_product_ranks_after_own_and_bls_at_equal_text(session: Session) -> None:
+    add_food(session, "Skyr", source="bls", kcal=64)
+    add_food(session, "Skyr", source="own", kcal=90)
+    add_cached(
+        session,
+        BAR,
+        NOW - timedelta(days=1),
+        product_name_de="Skyr",
+        brands=None,
+        nutriments={"energy-kcal_100g": 120, "fiber_100g": 0},
+    )
+    assert [hit.source for hit in search_foods(session, "skyr", now=NOW)] == ["own", "bls", "off"]
+
+
+def test_generic_cached_product_merges_into_its_bls_duplicate(session: Session) -> None:
+    bls = add_food(session, "Gurke roh", source="bls", kcal=16)
+    add_cached(
+        session,
+        BAR,
+        NOW - timedelta(days=1),
+        product_name_de="Gurke roh",
+        brands=None,
+        nutriments={"energy-kcal_100g": 15},
+    )
+    assert [hit.id for hit in search_foods(session, "gurke", now=NOW)] == [bls.id]
+
+
+def test_cached_values_are_read_like_the_draft(session: Session) -> None:
+    add_cached(
+        session,
+        BAR,
+        NOW - timedelta(days=1),
+        product_name_de=" ",
+        product_name="Test Bar Cocoa",
+        brands=" , Zweitmarke",
+        serving_size=None,
+        nutriments={"energy-kj_100g": "1891", "proteins_100g": "8,2", "fat_100g": -1},
+    )
+    (hit,) = search_foods(session, "test bar", now=NOW)
+    assert (hit.name, hit.brand) == ("Test Bar Cocoa", "Zweitmarke")
+    assert (hit.kcal, hit.protein, hit.carbs, hit.fat) == (452.0, 8.2, 0.0, 0.0)
+    assert hit.serving_label is None
+
+
+def test_cached_product_without_name_or_energy_is_no_hit(session: Session) -> None:
+    add_cached(session, BAR, NOW - timedelta(days=1), nutriments={"proteins_100g": 8})
+    add_cached(
+        session,
+        "2000000021041",
+        NOW - timedelta(days=1),
+        product_name_de=None,
+        product_name=None,
+        brands="Testriegel",
+    )
+    assert search_foods(session, "testriegel", now=NOW) == []
+
+
+def test_cached_brand_is_a_known_brand(session: Session) -> None:
+    add_food(session, "Haselnuss", source="bls", kcal=650)
+    add_cached(session, BAR, NOW - timedelta(days=1), brands="Zwergmarke")
+    hits = search_foods(session, "Zwergmarke Haselnuss", now=NOW)
+    assert [(hit.gtin, hit.brand) for hit in hits] == [("0" + BAR, "Zwergmarke")]

@@ -1,8 +1,11 @@
-"""Small helpers that add foods and servings to the test session."""
+"""Small helpers that add foods, servings and cached products to the test session."""
+
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Food, Serving
+from app.barcode.gtin import normalize_gtin
+from app.models import Food, OffCache, Serving
 
 
 def add_food(session: Session, name: str, **values) -> Food:
@@ -66,3 +69,13 @@ def off_answer(code: str = "2000000000015", **product) -> dict:
         "status_verbose": "product found",
         "product": {key: value for key, value in fields.items() if value is not None},
     }
+
+
+def add_cached(session: Session, code: str, fetched_at: datetime, **product) -> OffCache:
+    """A product in the Open Food Facts cache, an invented answer as off_answer() builds it."""
+    row = OffCache(
+        gtin=normalize_gtin(code), payload=off_answer(code, **product), fetched_at=fetched_at
+    )
+    session.add(row)
+    session.flush()
+    return row
