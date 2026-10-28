@@ -6,11 +6,14 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_db
 from app.config import get_settings
+from app.main import app
 
 TEST_DATABASE = "biss_test"
 API_DIR = Path(__file__).resolve().parents[1]
@@ -45,3 +48,12 @@ def session(engine: Engine) -> Iterator[Session]:
         yield db_session
         db_session.close()
         transaction.rollback()
+
+
+@pytest.fixture
+def client(session: Session) -> Iterator[TestClient]:
+    """An API client whose requests use the rolled-back test session."""
+    app.dependency_overrides[get_db] = lambda: session
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()

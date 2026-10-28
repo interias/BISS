@@ -31,6 +31,7 @@ Web läuft auf <http://localhost:2477>, die API auf <http://localhost:2478> (Ope
 
 ```bash
 docker compose run --rm api uv run pytest        # gegen Postgres, eigene Datenbank biss_test
+docker compose run --rm api uv run pytest tests/golden      # goldenes Suchtestset mit Metriken
 docker compose run --rm api uv run ruff check .
 docker compose run --rm web pnpm test            # Vitest
 docker compose run --rm web pnpm e2e             # Playwright
