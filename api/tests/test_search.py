@@ -1,11 +1,16 @@
 """Search service: candidates, ranking and deduplication of generic foods (SPEC 6)."""
 
-from datetime import UTC, date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 
+import pytest
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models import Entry
 from app.search.search import search_foods
+from app.search.usage import USAGE_BY_FOOD, usage_params
+from app.search.weights import RANKING
 from tests.factories import add_food
 
 
@@ -98,3 +103,128 @@ def test_brand_finds_a_candidate(session: Session) -> None:
 def test_empty_query_finds_nothing(session: Session) -> None:
     add_food(session, "Banane roh", source="bls")
     assert search_foods(session, " - ") == []
+
+
+NOW = datetime(2026, 10, 28, 12, tzinfo=UTC)
+
+
+def log(session: Session, food_id: int, *days_ago: float) -> None:
+    for days in days_ago:
+        eaten_at = NOW - timedelta(days=days)
+        session.add(
+            Entry(
+                food_id=food_id,
+                grams=100,
+                meal="lunch",
+                eaten_at=eaten_at,
+                day=eaten_at.date(),
+                kcal=1,
+                protein=0,
+                carbs=0,
+                fat=0,
+            )
+        )
+    session.flush()
+
+
+def ranked(session: Session, query: str) -> list[str]:
+    return [hit.name for hit in search_foods(session, query, now=NOW)]
+
+
+def test_usage_measure_halves_every_30_days(session: Session) -> None:
+    today, month, two_months = (add_food(session, f"Skyr {n}", kcal=n) for n in (60, 80, 100))
+    log(session, today.id, 0)
+    log(session, month.id, 30)
+    log(session, two_months.id, 60)
+    usage = dict(
+        session.execute(
+            text(f"SELECT food_id, usage FROM ({USAGE_BY_FOOD}) u"), usage_params(NOW)
+        ).all()
+    )
+    assert usage[today.id] == pytest.approx(1.0)
+    assert usage[month.id] == pytest.approx(0.5)
+    assert usage[two_months.id] == pytest.approx(0.25)
+
+
+def test_often_eaten_food_ranks_first(session: Session) -> None:
+    add_food(session, "Müsli Nuss", kcal=430)
+    often = add_food(session, "Müsli Beere", kcal=370)
+    log(session, often.id, 1, 2, 3, 5, 8)
+    assert ranked(session, "müsli") == ["Müsli Beere", "Müsli Nuss"]
+
+
+def test_recent_entries_outweigh_many_old_ones(session: Session) -> None:
+    old = add_food(session, "Kefir mild", kcal=50)
+    recent = add_food(session, "Kefir natur", kcal=62)
+    log(session, old.id, *range(120, 180, 6))  # ten entries, four to six months ago
+    log(session, recent.id, 2, 6, 10)
+    assert ranked(session, "kefir") == ["Kefir natur", "Kefir mild"]
+
+
+def test_usage_does_not_lift_a_poor_text_match(session: Session) -> None:
+    add_food(session, "Broccoli roh", source="bls", kcal=35)
+    other = add_food(session, "Brot Dinkel", kcal=240)
+    log(session, other.id, *range(1, 30))
+    assert ranked(session, "Brokkoli")[0] == "Broccoli roh"
+
+
+def test_used_food_does_not_pass_a_better_name_match(session: Session) -> None:
+    add_food(session, "Apfel roh", source="bls", kcal=58)
+    other = add_food(session, "Apfelmus Zimt", kcal=70)
+    log(session, other.id, *range(1, 30))
+    assert ranked(session, "apfel")[0] == "Apfel roh"
+
+
+def test_duplicate_priority_own_then_used_then_bls_then_off(session: Session) -> None:
+    off = add_food(session, "Linsen roh", source="off", kcal=300)
+    bls = add_food(session, "Linsen roh", source="bls", kcal=301)
+    assert [hit.id for hit in search_foods(session, "linsen", now=NOW)] == [bls.id]
+    log(session, off.id, 3)
+    assert [hit.id for hit in search_foods(session, "linsen", now=NOW)] == [off.id]
+    own = add_food(session, "Linsen, roh", source="own", kcal=299)
+    assert [hit.id for hit in search_foods(session, "linsen", now=NOW)] == [own.id]
+
+
+def test_known_brand_word_filters_on_the_brand(session: Session) -> None:
+    add_food(session, "Hühnerfrikassee mit Reis", source="bls", kcal=120)
+    iglo = add_food(session, "Hühnerfrikassee", brand="Iglo", source="off", kcal=118)
+    bofrost = add_food(session, "Hühnerfrikassee", brand="Bofrost", source="off", kcal=140)
+    for query in ["Hühnerfrikassee Bofrost", "bofrost Hühnerfrikassee", "BOFROST hühnerfrikassee"]:
+        assert [hit.id for hit in search_foods(session, query)] == [bofrost.id], query
+    assert [hit.id for hit in search_foods(session, "Iglo Hühnerfrikassee")] == [iglo.id]
+
+
+def test_multi_word_brand_filters(session: Session) -> None:
+    add_food(session, "Puddingpulver Vanille", source="bls", kcal=350)
+    oetker = add_food(session, "Puddingpulver Vanille", brand="Dr. Oetker", source="off", kcal=360)
+    assert [hit.id for hit in search_foods(session, "Dr Oetker Puddingpulver")] == [oetker.id]
+
+
+def test_brand_without_a_hit_only_weighs(session: Session) -> None:
+    add_food(session, "Banane roh", source="bls", kcal=79)
+    add_food(session, "Hühnerfrikassee", brand="Bofrost", source="off", kcal=140)
+    assert names(session, "Banane Bofrost")[0] == "Banane roh"
+
+
+def test_brand_without_a_hit_adds_the_brand_bonus(session: Session) -> None:
+    add_food(session, "Banane roh", source="bls", kcal=79)
+    frikassee = add_food(session, "Hühnerfrikassee", brand="Bofrost", source="off", kcal=140)
+
+    def score(config) -> float:
+        hits = search_foods(session, "Banane Bofrost", config=config)
+        return next(hit.score for hit in hits if hit.id == frikassee.id)
+
+    assert RANKING.brand > 0
+    assert score(RANKING) - score(replace(RANKING, brand=0.0)) == pytest.approx(RANKING.brand)
+
+
+def test_brand_alone_still_finds_the_brand(session: Session) -> None:
+    add_food(session, "Banane roh", source="bls", kcal=79)
+    add_food(session, "Haferflocken zart", brand="Kölln", source="off", kcal=372)
+    assert names(session, "kölln") == ["Haferflocken zart"]
+
+
+def test_brand_match_ranks_before_an_equal_name_of_another_brand(session: Session) -> None:
+    add_food(session, "Haferdrink", brand="Alpro", source="off", kcal=45)
+    oatly = add_food(session, "Haferdrink Barista", brand="Oatly", source="off", kcal=60)
+    assert search_foods(session, "Oatly Haferdrink")[0].id == oatly.id

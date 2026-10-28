@@ -2,13 +2,14 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.domain.day import day_of
 from app.domain.macros import Macros, macro_snapshot
 from app.domain.meal import Meal, suggest_meal
 from app.models import Entry, Food
+from app.search.usage import USAGE_BY_FOOD, usage_params
 from app.services.foods import StandardServing, standard_serving, standard_servings
 
 
@@ -90,22 +91,23 @@ def delete_entry(session: Session, entry_id: int) -> None:
     session.commit()
 
 
-def recent_foods(session: Session, limit: int = 8) -> list[tuple[Food, StandardServing]]:
-    """The foods logged most recently (by their latest eaten_at), each once."""
-    latest = (
-        select(
-            Entry.food_id,
-            func.max(Entry.eaten_at).label("last"),
-            func.max(Entry.id).label("last_id"),
-        )
-        .group_by(Entry.food_id)
-        .subquery()
-    )
-    foods = session.scalars(
-        select(Food)
-        .join(latest, latest.c.food_id == Food.id)
-        .order_by(latest.c.last.desc(), latest.c.last_id.desc())
-        .limit(limit)
+def recent_foods(
+    session: Session, limit: int = 8, now: datetime | None = None
+) -> list[tuple[Food, StandardServing]]:
+    """The foods eaten most, each once: the usage measure of the search (count and recency).
+
+    Ties go to the latest entry.
+    """
+    ids = session.scalars(
+        text(
+            f"""
+            SELECT u.food_id FROM ({USAGE_BY_FOOD}) u
+            ORDER BY u.usage DESC, u.last_eaten DESC, u.last_id DESC
+            LIMIT :limit
+            """
+        ),
+        usage_params(now) | {"limit": limit},
     ).all()
-    servings = standard_servings(session, [food.id for food in foods])
-    return [(food, servings[food.id]) for food in foods]
+    by_id = {food.id: food for food in session.scalars(select(Food).where(Food.id.in_(ids)))}
+    servings = standard_servings(session, ids)
+    return [(by_id[food_id], servings[food_id]) for food_id in ids]
