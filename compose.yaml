@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-biss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-biss}
+      POSTGRES_DB: ${POSTGRES_DB:-biss}
+    volumes:
+      # Postgres 18 images keep the data in a versioned directory below this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      additional_contexts:
+        data: ./data
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-biss}:${POSTGRES_PASSWORD:-biss}@db:5432/${POSTGRES_DB:-biss}
+      GOAL_KCAL: ${GOAL_KCAL:-2400}
+      GOAL_PROTEIN: ${GOAL_PROTEIN:-160}
+      GOAL_CARBS: ${GOAL_CARBS:-260}
+      GOAL_FAT: ${GOAL_FAT:-75}
+    ports:
+      - "2478:2478"
+    volumes:
+      # Source and seed data from the working tree; dependencies stay in the image.
+      - ./api:/app
+      - ./data:/data:ro
+      - images:/images
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:2478/api/v1/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    environment:
+      # Target of the /api/v1 rewrite in next.config.ts, read when the app is built.
+      API_URL: ${API_URL:-http://api:2478}
+    ports:
+      - "2477:2477"
+    volumes:
+      # Source from the working tree; node_modules and the build stay in the container.
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:2477').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 120s
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  images:

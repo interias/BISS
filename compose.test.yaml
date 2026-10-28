@@ -1,0 +1,8 @@
+# Test runs without published ports, so several stacks (`-p <name>`) run side by side:
+#   docker compose -f compose.yaml -f compose.test.yaml run --rm web pnpm e2e
+# `run` also starts the dependencies; without this file api would publish 2478.
+services:
+  api:
+    ports: !reset []
+  web:
+    ports: !reset []

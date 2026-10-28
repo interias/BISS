@@ -1,0 +1,51 @@
+# Golden search set (SPEC 8): query -> expected BLS code at place 1.
+# Chosen before tuning: what a person typing the query means, usually the raw food.
+# kind: generic | typo | umlaut | plural
+- query: banane
+  expected: F503100  # Banane roh; exactly one banana at place 1, no duplicate
+  kind: generic
+- query: bananen
+  expected: F503100
+  kind: plural
+- query: Banahne
+  expected: F503100
+  kind: typo
+- query: Möhre
+  expected: G620100  # Karotte/Möhre, roh
+  kind: umlaut
+- query: moehre
+  expected: G620100
+  kind: umlaut
+- query: mohre
+  expected: G620100
+  kind: umlaut
+- query: Karotte
+  expected: G620100
+  kind: generic
+- query: Apfel
+  expected: F110100  # Apfel roh
+  kind: generic
+- query: Haferflocken
+  expected: C133000  # Hafer Flocken
+  kind: generic
+- query: Hühnerei
+  expected: E111100  # Hühnerei roh
+  kind: umlaut
+- query: Gurke
+  expected: G520100  # Gurke roh
+  kind: generic
+- query: Tomaten
+  expected: G561100  # Tomate roh
+  kind: plural
+- query: Lachs
+  expected: T410100  # Lachs roh
+  kind: generic
+- query: Brokkoli
+  expected: G312100  # Broccoli roh
+  kind: typo
+- query: Erdbeeren
+  expected: F301100  # Erdbeere roh
+  kind: plural
+- query: Vollmilch
+  expected: M111300  # Vollmilch frisch, 3,5 % Fett, pasteurisiert
+  kind: generic
