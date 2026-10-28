@@ -47,6 +47,13 @@ export type FoodDetail = Omit<FoodSummary, "per_100"> & {
 
 export type Per100 = FoodDetail["per_100"];
 
+/** A scanned product: a stored food (id set) or a draft from Open Food Facts (id null). */
+export type BarcodeFood = Omit<FoodDetail, "id" | "gtin" | "source_id" | "servings"> & {
+  id: number | null;
+  gtin: string;
+  servings: Omit<Serving, "id">[];
+};
+
 /** What the editor sends; servings with an id are changed, the others are new. */
 export type FoodWrite = {
   name: string;
@@ -96,8 +103,25 @@ export const searchFoods = (q: string) =>
   request<FoodSummary[]>(`/foods/search?q=${encodeURIComponent(q)}`);
 export const getFood = (id: number) => request<FoodDetail>(`/foods/${id}`);
 
-/** Without grams the backend takes the standard serving, without meal its suggestion. */
-export const createEntry = (body: { food_id: number; grams?: number; meal?: Meal }) =>
+/**
+ * Barcode chain (ADR-0003): the raw code goes to the backend, which normalises it to GTIN-14.
+ * A miss (404) carries that GTIN; the camera then offers the label photo.
+ */
+export async function scanBarcode(code: string): Promise<{ food: BarcodeFood } | { gtin: string }> {
+  const path = `/foods/barcode/${encodeURIComponent(code)}`;
+  const response = await fetch(BASE + path);
+  if (response.status === 404) return { gtin: ((await response.json()) as { gtin: string }).gtin };
+  if (!response.ok) throw new Error(`GET ${path}: ${response.status}`);
+  return { food: (await response.json()) as BarcodeFood };
+}
+
+/**
+ * Exactly one of food_id and gtin; a gtin logs a scanned draft and stores it as food.
+ * Without grams the backend takes the standard serving, without meal its suggestion.
+ */
+export const createEntry = (
+  body: ({ food_id: number } | { gtin: string }) & { grams?: number; meal?: Meal },
+) =>
   request<Entry>("/entries", { method: "POST", body: JSON.stringify(body) });
 export const updateEntry = (id: number, body: { grams?: number; meal?: Meal }) =>
   request<Entry>(`/entries/${id}`, { method: "PATCH", body: JSON.stringify(body) });

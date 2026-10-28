@@ -8,6 +8,7 @@ import {
   getRecent,
   getToday,
   updateEntry,
+  type BarcodeFood,
   type Day,
   type Entry,
   type FoodDetail,
@@ -15,7 +16,8 @@ import {
   type Meal,
 } from "@/lib/api";
 import { headerDate, shortName } from "@/lib/format";
-import { AmountSheet } from "@/components/amount-sheet";
+import { AmountForm, AmountSheet } from "@/components/amount-sheet";
+import { Camera } from "@/components/camera/camera";
 import { DaySummary } from "@/components/day-summary";
 import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
@@ -32,14 +34,18 @@ type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number; m
 type SheetState =
   | { kind: "search" }
   | ({ kind: "amount" } & AmountState)
-  // `back` is the amount sheet "Bearbeiten" came from; a new food has none.
-  | { kind: "editor"; foodId?: number; back?: AmountState };
+  // A scanned draft from Open Food Facts; its first entry stores it as food.
+  | { kind: "draft"; food: BarcodeFood }
+  // `back` is the amount sheet "Bearbeiten" came from; a new food has none. `gtin` is a
+  // scanned barcode without a hit.
+  | { kind: "editor"; foodId?: number; gtin?: string; back?: AmountState };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
   const [day, setDay] = useState<Day | null>(null);
   const [recent, setRecent] = useState<FoodSummary[]>([]);
   const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast, show, hide } = useToast();
 
@@ -77,7 +83,9 @@ export function Home() {
     show(`${shortName(food.name)} eingetragen`, undo(entry.id));
   };
 
-  const submit = (foodId: number, entry: Entry | undefined) => (grams: number, meal: Meal) =>
+  /** A draft is logged by its GTIN; the backend stores it as food on this first entry. */
+  const submit =
+    (target: { food_id: number } | { gtin: string }, entry: Entry | undefined) => (grams: number, meal: Meal) =>
     write(async () => {
       if (entry) {
         await updateEntry(entry.id, {
@@ -86,7 +94,7 @@ export function Home() {
         });
         show("Gespeichert");
       } else {
-        const created = await createEntry({ food_id: foodId, grams, meal });
+        const created = await createEntry({ ...target, grams, meal });
         show(`${shortName(created.food.name)} eingetragen`, undo(created.id));
       }
     }).catch(console.error);
@@ -97,6 +105,11 @@ export function Home() {
     setSheet({ kind: "amount", ...(back ?? { foodId: food.id }) });
   };
 
+  const scanned = (food: BarcodeFood) => {
+    setCamera(false);
+    setSheet(food.id === null ? { kind: "draft", food } : { kind: "amount", foodId: food.id });
+  };
+
   const remove = (entry: Entry) => () =>
     write(async () => {
       await deleteEntry(entry.id);
@@ -104,7 +117,7 @@ export function Home() {
     }).catch(console.error);
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
+    <div className="relative mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
       <header className="flex items-center justify-between px-5 pt-[18px] pb-1.5">
         <div className="flex items-center gap-2">
           <Image src="/logo.svg" alt="" width={26} height={26} priority />
@@ -128,7 +141,22 @@ export function Home() {
         recent={recent}
         onRecent={(food) => logRecent(food).catch(console.error)}
         onSearch={() => setSheet({ kind: "search" })}
+        onCamera={() => {
+          setSheet(null);
+          setCamera(true);
+        }}
       />
+
+      {camera && (
+        <Camera
+          onFound={scanned}
+          onLabel={(gtin) => {
+            setCamera(false);
+            setSheet({ kind: "editor", gtin });
+          }}
+          onClose={() => setCamera(false)}
+        />
+      )}
 
       {sheet && day && (
         <Sheet onClose={() => setSheet(null)}>
@@ -146,7 +174,7 @@ export function Home() {
               initial={sheet.initial}
               suggestedMeal={day.suggested_meal}
               busy={busy}
-              onSubmit={submit(sheet.foodId, sheet.entry)}
+              onSubmit={submit({ food_id: sheet.foodId }, sheet.entry)}
               onRemove={sheet.entry && remove(sheet.entry)}
               onEdit={(grams, meal) =>
                 setSheet({
@@ -157,10 +185,19 @@ export function Home() {
               }
             />
           )}
+          {sheet.kind === "draft" && (
+            <AmountForm
+              food={sheet.food}
+              initialMeal={day.suggested_meal}
+              busy={busy}
+              onSubmit={submit({ gtin: sheet.food.gtin }, undefined)}
+            />
+          )}
           {sheet.kind === "editor" && (
             <FoodEditor
               key={sheet.foodId ?? "new"}
               foodId={sheet.foodId}
+              gtin={sheet.gtin}
               onSaved={edited(sheet.back)}
               onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />

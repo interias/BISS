@@ -1,7 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { fakeApi } from "@/test/fixtures";
+import { fakeApi, PUDDING_CODE } from "@/test/fixtures";
 import { Home } from "./home";
+
+// No camera in jsdom: the overlay takes a photo, and ZXing "reads" this code from it.
+const photo = vi.hoisted(() => ({ code: "" }));
+vi.mock("@/components/camera/scanner", () => ({
+  cameraAvailable: () => false,
+  scanLive: async () => () => {},
+  decodeImage: async () => photo.code,
+}));
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -86,4 +94,43 @@ test("an empty search offers Neu anlegen; Speichern & eintragen leads into the a
   fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
   expect(await screen.findByRole("heading", { name: "Skyr" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^Eintragen · / })).toBeInTheDocument();
+});
+
+async function scanPhoto(code: string) {
+  photo.code = code;
+  fireEvent.click(await screen.findByRole("button", { name: /^Kamera/ }));
+  const file = new File(["png"], "barcode.png", { type: "image/png" });
+  fireEvent.change(screen.getByTestId("barcode-photo"), { target: { files: [file] } });
+}
+
+test("a scanned draft opens the amount sheet with the source note and is logged by GTIN", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await scanPhoto(PUDDING_CODE);
+
+  expect(await screen.findByRole("heading", { name: "Testpudding Schoko" })).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
+  expect(screen.getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
+  expect(screen.getByRole("status", { name: "Menge" })).toHaveTextContent("200g");
+  expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 148 kcal" }));
+  await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+  expect(calls.find((c) => c.method === "POST")).toEqual({
+    method: "POST",
+    url: "/api/v1/entries",
+    body: { gtin: "0" + PUDDING_CODE, grams: 200, meal: "snack" },
+  });
+});
+
+test("Etikett fotografieren opens the empty editor with the GTIN filled in", async () => {
+  fakeApi();
+  render(<Home />);
+  await scanPhoto("2000000013022");
+  fireEvent.click(await screen.findByRole("button", { name: "Etikett fotografieren" }));
+
+  expect(await screen.findByText("Neues Lebensmittel")).toBeInTheDocument();
+  expect(screen.getByLabelText("GTIN")).toHaveValue("02000000013022");
+  expect(screen.getByLabelText("Name")).toHaveValue("");
+  expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
 });
