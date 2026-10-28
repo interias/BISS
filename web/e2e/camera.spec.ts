@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { barcodePng } from "./barcode-image";
 import { HIT_CODE, MISS_CODE } from "./camera-setup";
-import { Entries, entryIdFrom } from "./helpers";
+import { readFileSync } from "node:fs";
+import { countTaps, Entries, entryIdFrom } from "./helpers";
+import { photoSet, realSets } from "./real-fixtures";
 
 // Barcode flow of SPEC 3 (project "camera"): Chromium's fake camera shows HIT_CODE after a
 // white start (barcode-image.ts), the api asks the OFF stub of compose.test.yaml. The first
@@ -147,4 +149,52 @@ test("a photo of a known barcode goes the same way as the live picture", async (
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("heading", { name: "Testpudding Schoko" })).toBeVisible();
   await expect(sheet.getByText("Daten von Open Food Facts (ODbL)")).toBeVisible();
+});
+
+/** The repo photo for the e2e test: the one whose ground truth carries e2e: "true" (ADR-0008). */
+function e2ePhoto() {
+  const set = photoSet(realSets()[0].root, "barcodes");
+  const marked = set.photos.filter((photo) => photo.truth.e2e === "true");
+  if (marked.length !== 1) {
+    throw new Error(`exactly one photo in ${set.dir} needs e2e: "true" in its YAML, found ${marked.length}`);
+  }
+  return marked[0];
+}
+
+const MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+
+test("tap budget: a real photo of a known barcode is logged with Kamera + 1", async ({ page }) => {
+  // As without HTTPS: the photo upload stands in for the camera (ADR-0005).
+  await page.addInitScript(() => Object.defineProperty(navigator, "mediaDevices", { value: undefined }));
+  const taps = await countTaps(page);
+  const photo = e2ePhoto();
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Kamera/ }).click();
+  const camera = page.getByRole("region", { name: "Kamera" });
+  await expect(camera.getByRole("button", { name: "Foto wählen" })).toBeVisible();
+
+  // The file goes straight into the input, without a click on "Foto wählen": that button
+  // and the file choice replace the missing camera and do not count (SPEC 1).
+  const [lookup] = await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname.startsWith("/api/v1/foods/barcode/")),
+    camera.getByTestId("barcode-photo").setInputFiles({
+      name: photo.file,
+      mimeType: MIME[photo.file.split(".").pop()!.toLowerCase()],
+      buffer: readFileSync(photo.path),
+    }),
+  ]);
+  // The right digits: same GTIN-14 as the ground truth (a UPC-A comes as 12 digits).
+  const read = new URL(lookup.url()).pathname.split("/").pop()!;
+  expect(read.padStart(14, "0")).toBe(photo.truth.code.padStart(14, "0"));
+  expect(lookup.status()).toBe(200);
+
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ })).toBeVisible();
+  await expect(camera).toHaveCount(0);
+  const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  );
+  entries.track(created.id);
+  await expect(page.locator(`[data-entry-id="${created.id}"]`)).toBeVisible();
+  expect(await taps(), "Kamera + Eintragen").toBe(2);
 });

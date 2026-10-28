@@ -54,3 +54,23 @@ export async function entryIdFrom(page: Page, method: string, path: RegExp, acti
   expect(response.ok()).toBe(true);
   return (await response.json()) as Entry;
 }
+
+/**
+ * Counts the taps for the tap budgets of SPEC 1: every trusted click in the page, seen in
+ * the capture phase at the document. Call before `page.goto`; the count starts there.
+ * `setInputFiles` clicks nothing, so a file choice in place of the camera is not counted.
+ */
+export async function countTaps(page: Page) {
+  await page.addInitScript(() => {
+    const counter = window as Window & { bissTaps?: number };
+    counter.bissTaps = 0;
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (event.isTrusted) counter.bissTaps = (counter.bissTaps ?? 0) + 1;
+      },
+      { capture: true },
+    );
+  });
+  return () => page.evaluate(() => (window as Window & { bissTaps?: number }).bissTaps ?? 0);
+}

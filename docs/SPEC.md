@@ -6,7 +6,21 @@ Stand: 28.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [d
 
 BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wächst mit der Nutzung, realistisch sind es 50–100 verschiedene Lebensmittel im Jahr.
 
-1. **Wenige Taps:** Wiederkehrendes Essen kostet einen Tap, ein neues Produkt höchstens zwei Bestätigungen.
+**Kernphilosophie: Möglichst wenige Taps bis zum getrackten Eintrag.** Jede Funktion wird daran gemessen, wie schnell sie vom Öffnen der App zum gespeicherten Eintrag führt.
+
+| Ablauf | Tap-Budget |
+|---|---|
+| Zuletzt-Chip | 1 |
+| Suche | + 2 |
+| Bekannter Barcode | Kamera + 1 |
+| Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
+| Teller | Kamera + Auslöser + 1 Bestätigung |
+
+Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht eine Entscheidung des Menschen.
+
+**Leitprinzipien:**
+
+1. **Wenige Taps:** Jeder Ablauf hält sein Tap-Budget aus der Kernphilosophie. Wiederkehrendes Essen kostet einen Tap, ein neues Produkt höchstens zwei Bestätigungen.
 2. **Nur erfassen:** Die App zeigt ausschließlich den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Es gibt keine Diagramme und keine Historie-Auswertungen.
 3. **Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
 4. **Logik im Backend:** Der Web-Client zeigt nur an. Eine spätere Flutter-App nutzt dieselbe API ([ADR-0003](adr/0003-logic-in-backend.md)).
@@ -20,8 +34,10 @@ BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wä
 | **E3 Barcode** | Live-Scan mit ZXing, GTIN-14, Open Food Facts live mit Cache, Quellenhinweis | Markenprodukte per Scan |
 | **E4 Etikett-Foto** | Auslösen in der Kamera, Extraktion per LLM, Validierung, Fallback-Modell, Editor vorbelegt | Neues Produkt mit zwei Bestätigungen |
 | **E5 Anbindung und Betrieb** | MCP-Server, Tagesziele per API, nächtliches Backup | Auswertung extern, Daten gesichert |
+| **E6 Foto-Erkennung mit echten Fotos** | Barcode aus Handyfoto robust lesen, Auslöser „Etikett“ ohne Barcode, Testsätze echter Fotos | Handyfotos funktionieren auch ohne HTTPS |
+| **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Teller-Erkennung, Mahlzeiten-Kombinationen, Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Mahlzeiten-Kombinationen, Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Spracheingabe, Statistiken jeder Art.
 
 ## 3. Abläufe
 
@@ -154,6 +170,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
   - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)); Fotos echter Etiketten können hinzukommen.
+- **Echte Fototestsätze** (Marker `realdata`, [ADR-0008](adr/0008-real-photo-fixtures.md)): Barcode-Fotos mit Ground Truth, frei lizenziert im Repo und lokal unter `BISS_REAL_FIXTURES`; je Satz ≥ 75 % richtige Ziffern und keine Fehllesung; ein EAN-8 oder UPC-A gilt erst nach Bestätigung durch einen zweiten Versuch.
 - **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt).
 
 ## 9. Betrieb
