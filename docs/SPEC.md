@@ -157,7 +157,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 **Modelle:**
 - Ein schnelles Modell als Standard und ein stärkeres als Fallback, beide konfigurierbar.
-- Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem stärkeren Modell. Bleibt der Verstoß, zeigt der Editor die Warnung.
+- Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem stärkeren Modell. Bleibt der Verstoß, zeigt der Editor die Warnung. Liefert das stärkere Modell keinen brauchbaren Entwurf, bleibt der des schnellen mit seiner Warnung.
 - Das Etikett-Foto wird nach der Extraktion verworfen.
 
 ## 8. Tests
@@ -176,7 +176,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)).
   - Echte Etiketten (Marker `llm` und `realdata`): je Satz ≥ 90 % der Felder in Toleranz. Energie ± 5 %, die übrigen Werte ± 0,5 g oder ± 5 %, das Größere gilt; die Basis g/ml muss stimmen.
 - **Echte Fototestsätze** (Marker `realdata`, [ADR-0008](adr/0008-real-photo-fixtures.md)): Barcode-Fotos mit Ground Truth, frei lizenziert im Repo und lokal unter `BISS_REAL_FIXTURES`; je Satz ≥ 75 % richtige Ziffern und keine Fehllesung; ein EAN-8 oder UPC-A gilt erst nach Bestätigung durch einen zweiten Versuch.
-- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt).
+- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) zählen dabei ihr Tap-Budget aus Abschnitt 1.
 
 ## 9. Betrieb
 

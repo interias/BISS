@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { expect, test } from "vitest";
-import { BarcodeFormat } from "@zxing/library";
+import { expect, test, vi } from "vitest";
+import { BarcodeFormat, FormatException, NotFoundException } from "@zxing/library";
 import { ean13Modules, ean8Modules } from "@/e2e/barcode-image";
 import { HIT_CODE } from "@/e2e/camera-setup";
-import { attempts, decodePixels, settle } from "./decode";
+import { attempts, decodePixels, quietly, settle } from "./decode";
 
 /** Deterministic noise (mulberry32), so the picture is the same in every run. */
 function random(seed: number) {
@@ -105,11 +105,12 @@ test("a clear EAN-8 in a phone photo is read: both sizes confirm it", () => {
   expect(decodePixels(photo, 4000, 3000)).toBe(EAN_8);
 });
 
-test("an EAN-8 that only one attempt reads gives null", () => {
-  // Up to 1000 px there is one size only, and upright only the 0° attempt reads the bars.
+test("an EAN-8 in a small photo is confirmed at a second, smaller size", () => {
+  // Up to 1000 px SIZES give one size only; upright only the 0° attempt reads the bars, so
+  // the read at CONFIRM of the size is the second attempt that confirms the code (#25).
   const photo = phonePhoto(EAN_8, { width: 1000, height: 750, module: 3, skew: -88, seed: 8 });
-  expect([...attempts(photo, 1000, 750)]).toEqual([{ format: BarcodeFormat.EAN_8, text: EAN_8 }]);
-  expect(decodePixels(photo, 1000, 750)).toBeNull();
+  expect([...attempts(photo, 1000, 750)]).toEqual(Array(2).fill({ format: BarcodeFormat.EAN_8, text: EAN_8 }));
+  expect(decodePixels(photo, 1000, 750)).toBe(EAN_8);
 });
 
 test("settle: an EAN-13 counts at once, a short code once a second read confirms it", () => {
@@ -122,4 +123,25 @@ test("settle: an EAN-13 counts at once, a short code once a second read confirms
   expect(settle([upcA, ean8, upcA])).toBe(upcA.text);
   expect(settle([ean8, ean13, ean8])).toBe(HIT_CODE);
   expect(settle([])).toBeNull();
+});
+
+test("quietly leaves out the reader-found-nothing warnings of ZXing, and only those", () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const message = "MultiFormatReader: non-ReaderException from reader:";
+    // A photo without a barcode: each attempt makes ZXing warn without quietly.
+    const noise = Uint8ClampedArray.from({ length: 200 * 150 * 4 }, (_, i) => (i % 4 === 3 ? 255 : (i * 37) % 256));
+    expect(decodePixels(noise, 200, 150)).toBeNull();
+    quietly(() => console.warn(message, new FormatException()));
+    expect(warn).not.toHaveBeenCalled();
+    // Anything else passes: another message, or another error behind the same message.
+    quietly(() => console.warn("something else"));
+    quietly(() => console.warn(message, new TypeError("real")));
+    expect(warn.mock.calls.map(([first]) => first)).toEqual(["something else", message]);
+    // Outside quietly console.warn is the original again.
+    console.warn(message, new NotFoundException());
+    expect(warn).toHaveBeenCalledTimes(3);
+  } finally {
+    warn.mockRestore();
+  }
 });

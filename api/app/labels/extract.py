@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from app.labels.draft import LabelDraft
-from app.labels.extractor import LabelExtractor
+from app.labels.extractor import ExtractionFailed, LabelExtractor
 from app.labels.validation import Check, check
 
 
@@ -22,12 +22,15 @@ async def extract_label(
     """Draft of the fast model; with a violation exactly one second try with the strong one.
 
     If the violation stays, the strong model's draft is returned with its violations.
-    If the strong model gives no usable draft, ExtractionFailed propagates and the fast
-    model's draft is lost; SPEC 7 does not cover this case.
+    If the strong model gives no usable draft, the fast model's draft stays, with its
+    violations: the editor shows the warning (SPEC 7) instead of losing what was read (#25).
     """
     draft = await extractor.extract(photo, fast)
     result = check(draft.per_100)
     if result.ok:
         return Extraction(draft, result, fast, 1)
-    draft = await extractor.extract(photo, strong)
-    return Extraction(draft, check(draft.per_100), strong, 2)
+    try:
+        strong_draft = await extractor.extract(photo, strong)
+    except ExtractionFailed:
+        return Extraction(draft, result, fast, 2)
+    return Extraction(strong_draft, check(strong_draft.per_100), strong, 2)

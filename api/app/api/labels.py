@@ -20,8 +20,8 @@ router = APIRouter(prefix="/labels", tags=["labels"])
     responses={
         422: {"description": "no readable JPEG, PNG or WebP up to 10 MB, or an invalid GTIN"},
         502: {
-            "description": "the model gave no usable draft; at the second try the fast "
-            "model's draft is dropped as well"
+            "description": "the fast model gave no usable draft; when only the strong one "
+            "fails, the fast model's draft is returned with its violations"
         },
     },
 )

@@ -4,14 +4,22 @@
 import {
   BarcodeFormat,
   BinaryBitmap,
+  ChecksumException,
   DecodeHintType,
+  FormatException,
   HybridBinarizer,
   MultiFormatReader,
+  NotFoundException,
   RGBLuminanceSource,
 } from "@zxing/library";
 
 /** Longest edges the photo is read at, in this order; a smaller photo stays as it is. */
 const SIZES = [1600, 1000];
+/**
+ * A photo up to the smallest size is read at one size only; it is read once more at this
+ * share of it, so that a second attempt can confirm an EAN-8 or UPC-A (#25).
+ */
+const CONFIRM = 0.8;
 /** Turns of each size: ZXing reads 1D codes along rows only. */
 const TURNS = [0, 90] as const;
 
@@ -77,21 +85,47 @@ function turn({ data, width, height }: Luma): Luma {
   return { data: turned, width: height, height: width };
 }
 
+/**
+ * @zxing/library 0.23 warns for every reader that finds nothing: its NotFound, Checksum and
+ * Format exceptions are no `instanceof ReaderException` there. Up to 12 such lines a photo
+ * bury real warnings (#25); only these are left out, every other warning passes.
+ */
+export function quietly<T>(read: () => T): T {
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const [message, error] = args;
+    const noise =
+      message === "MultiFormatReader: non-ReaderException from reader:" &&
+      (error instanceof NotFoundException || error instanceof ChecksumException || error instanceof FormatException);
+    if (!noise) warn(...args);
+  };
+  try {
+    return read();
+  } finally {
+    console.warn = warn;
+  }
+}
+
 /** One read of an attempt: the digits and the format ZXing found them in. */
 export type Read = { format: BarcodeFormat; text: string };
 
-/** The reads of the attempts in order: each size of SIZES at each turn of TURNS, with TRY_HARDER. */
+/**
+ * The reads of the attempts in order: each size of SIZES (a small photo at its own size and
+ * at CONFIRM of it) at each turn of TURNS, with TRY_HARDER.
+ */
 export function* attempts(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Generator<Read> {
   const reader = new MultiFormatReader();
   reader.setHints(HINTS);
   const scales = [...new Set(SIZES.map((size) => Math.min(1, size / Math.max(width, height))))];
+  if (scales.length === 1) scales.push(scales[0] * CONFIRM);
   for (const scale of scales) {
     const luma = shrink(rgba, width, height, scale);
     for (const degrees of TURNS) {
       const { data, width: w, height: h } = degrees === 0 ? luma : turn(luma);
       // For 1D codes both binarizers give the same rows (getBlackRow), so one is enough.
       try {
-        const result = reader.decodeWithState(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(data, w, h))));
+        const bitmap = new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(data, w, h)));
+        const result = quietly(() => reader.decodeWithState(bitmap));
         yield { format: result.getBarcodeFormat(), text: result.getText() };
       } catch {
         // NotFound, Checksum or Format: the next attempt.
@@ -116,11 +150,7 @@ export function settle(reads: Iterable<Read>): string | null {
   return null;
 }
 
-/**
- * The digits of the barcode in the photo, `null` without one. `rgba` holds 4 bytes per
- * pixel. A photo with a longest edge up to 1000 px is read at one size only, so an EAN-8
- * or UPC-A in it stays unconfirmed.
- */
+/** The digits of the barcode in the photo, `null` without one. `rgba` holds 4 bytes per pixel. */
 export function decodePixels(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): string | null {
   return settle(attempts(rgba, width, height));
 }
