@@ -221,3 +221,111 @@ def test_validate_returns_the_atwater_result(client: TestClient) -> None:
     result = client.post("/api/v1/foods/validate", json=with_fiber).json()["atwater"]
     assert result["computed_kcal"] == pytest.approx(100)
     assert client.post("/api/v1/foods/validate", json={"kcal": 100}).status_code == 422
+
+
+# An invented EAN-13 (prefix 2, internal numbers) and its GTIN-14.
+CODE = "2000000000015"
+GTIN = "02000000000015"
+
+
+def test_create_stores_the_gtin_normalised(client: TestClient, session: Session) -> None:
+    response = client.post("/api/v1/foods", json=SKYR | {"gtin": CODE})
+
+    assert response.status_code == 201
+    food = response.json()
+    assert food["gtin"] == GTIN
+    assert session.get(Food, food["id"]).gtin == GTIN
+
+
+def test_create_without_gtin_leaves_it_empty(client: TestClient) -> None:
+    assert client.post("/api/v1/foods", json=SKYR | {"gtin": None}).json()["gtin"] is None
+
+
+def test_a_gtin_of_another_food_is_409(client: TestClient, session: Session) -> None:
+    taken = add_food(session, "Joghurt", gtin=GTIN)
+
+    response = client.post("/api/v1/foods", json=SKYR | {"gtin": CODE})  # the EAN-13 spelling
+
+    assert response.status_code == 409
+    assert GTIN in response.json()["detail"]
+    assert session.query(Food).filter(Food.gtin == GTIN).one().id == taken.id
+    assert session.query(Food).filter(Food.name == SKYR["name"]).count() == 0
+
+
+@pytest.mark.parametrize("code", ["2000000000016", "123", "abcdefghijklm", ""])
+def test_an_invalid_gtin_is_422(client: TestClient, session: Session, code: str) -> None:
+    assert client.post("/api/v1/foods", json=SKYR | {"gtin": code}).status_code == 422
+    assert session.query(Food).filter(Food.name == SKYR["name"]).count() == 0
+
+
+def test_the_barcode_chain_finds_the_new_food(client: TestClient) -> None:
+    created = client.post("/api/v1/foods", json=SKYR | {"gtin": CODE}).json()
+
+    response = client.get(f"/api/v1/foods/barcode/{CODE}")
+
+    assert response.status_code == 200
+    found = response.json()
+    assert (found["id"], found["gtin"], found["source"]) == (created["id"], GTIN, "own")
+
+
+# A serving read from a label keeps its origin; the default is own (SPEC 3, SPEC 7).
+@pytest.mark.parametrize(
+    ("given", "origin"),
+    [
+        ({"origin": "package"}, "package"),
+        ({"origin": "estimated"}, "estimated"),
+        ({"origin": "own"}, "own"),
+        ({}, "own"),
+    ],
+)
+def test_create_takes_the_origin_of_a_serving(client: TestClient, given: dict, origin: str) -> None:
+    body = SKYR | {"servings": [{"label": "1 Becher", "grams": 150} | given]}
+
+    food = client.post("/api/v1/foods", json=body).json()
+
+    assert servings_of(food) == [("1 Becher", 150, origin, True)]
+    assert food["standard_serving"]["origin"] == origin
+
+
+def test_create_rejects_an_unknown_origin(client: TestClient, session: Session) -> None:
+    body = SKYR | {"servings": [{"label": "1 Becher", "grams": 150, "origin": "bls"}]}
+    assert client.post("/api/v1/foods", json=body).status_code == 422
+    assert session.query(Food).filter(Food.name == SKYR["name"]).count() == 0
+
+
+def test_a_serving_changed_since_the_label_is_created_own(client: TestClient) -> None:
+    read = {"label": "1 Becher", "grams": 150}
+    body = SKYR | {
+        "servings": [
+            {"label": "1 Becher", "grams": 150, "origin": "package", "as_read": read},
+            {"label": "1 Becher", "grams": 175, "origin": "package", "as_read": read},
+            {"label": "1 großer Becher", "grams": 150, "origin": "estimated", "as_read": read},
+        ]
+    }
+
+    food = client.post("/api/v1/foods", json=body).json()
+
+    assert servings_of(food) == [
+        ("1 Becher", 150, "package", True),
+        ("1 Becher", 175, "own", False),
+        ("1 großer Becher", 150, "own", False),
+    ]
+
+
+def test_patch_cannot_set_the_origin(client: TestClient, session: Session) -> None:
+    food = add_food(session, "Quark")
+    spoon = add_serving(session, food, "1 Löffel", 15, origin="own")
+
+    body = {
+        "servings": [
+            {"id": spoon.id, "label": "1 Löffel", "grams": 15, "origin": "package"},
+            {"label": "1 Becher", "grams": 250, "origin": "package", "as_read": None},
+        ]
+    }
+    response = patch(client, food, body)
+
+    assert response.status_code == 200
+    assert servings_of(response.json()) == [
+        ("1 Becher", 250, "own", False),
+        ("1 Löffel", 15, "own", True),
+    ]

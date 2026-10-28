@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { barcodePng } from "./barcode-image";
 import { HIT_CODE, MISS_CODE } from "./camera-setup";
 import { Entries, entryIdFrom } from "./helpers";
@@ -6,7 +6,8 @@ import { Entries, entryIdFrom } from "./helpers";
 // Barcode flow of SPEC 3 (project "camera"): Chromium's fake camera shows HIT_CODE after a
 // white start (barcode-image.ts), the api asks the OFF stub of compose.test.yaml. The first
 // entry stores the draft as food, so later runs find it in the own DB; both are a hit with
-// the source Open Food Facts.
+// the source Open Food Facts. The label photo goes to the fake extractor (LABEL_EXTRACTOR
+// in compose.test.yaml), which always reads FAKE_DRAFT, "Haferkeks Dinkel".
 
 let entries: Entries;
 
@@ -52,25 +53,88 @@ test("a barcode in the live picture opens the amount sheet with the OFF note", a
   await expect(page.locator(`[data-entry-id="${created.id}"]`)).toContainText("Testpudding Schoko");
 });
 
-test("without camera a photo of an unknown barcode leads to the editor with its GTIN", async ({ page }) => {
-  // As without HTTPS: no mediaDevices, so the overlay offers the photo upload.
-  await page.addInitScript(() => Object.defineProperty(navigator, "mediaDevices", { value: undefined }));
-  await page.goto("/");
+/** An EAN-13 with prefix 2 (internal numbers), new in every run: its food stays in the db. */
+function newCode() {
+  const body = "2" + String(Date.now()).slice(-11);
+  const total = [...body].reverse().reduce((sum, digit, i) => sum + Number(digit) * (i % 2 === 0 ? 3 : 1), 0);
+  return body + String((10 - (total % 10)) % 10);
+}
+
+async function scanPhoto(page: Page, code: string) {
   await page.getByRole("button", { name: /^Kamera/ }).click();
   const camera = page.getByRole("region", { name: "Kamera" });
   await expect(camera.getByRole("button", { name: "Foto wählen" })).toBeVisible();
-  await expect(camera.getByTestId("finder")).toHaveCount(0);
-
   await camera
     .getByTestId("barcode-photo")
-    .setInputFiles({ name: "barcode.png", mimeType: "image/png", buffer: barcodePng(MISS_CODE) });
+    .setInputFiles({ name: "barcode.png", mimeType: "image/png", buffer: barcodePng(code) });
+  return camera;
+}
+
+test("without camera the label of an unknown barcode fills the editor and is logged", async ({ page }) => {
+  // As without HTTPS: no mediaDevices, so the overlay offers the photo upload.
+  await page.addInitScript(() => Object.defineProperty(navigator, "mediaDevices", { value: undefined }));
+  const code = newCode();
+  await page.goto("/");
+  const camera = await scanPhoto(page, code);
+  await expect(camera.getByTestId("finder")).toHaveCount(0);
   await expect(camera.getByText("Kein Treffer für diesen Barcode.")).toBeVisible();
+
+  // The shutter: without camera a photo of the label; any image will do for the fake.
   await camera.getByRole("button", { name: "Etikett fotografieren" }).click();
+  const extracted = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/v1/labels/extract");
+  await camera
+    .getByTestId("label-photo")
+    .setInputFiles({ name: "etikett.png", mimeType: "image/png", buffer: barcodePng(MISS_CODE) });
+  expect((await extracted).status()).toBe(200);
 
   const sheet = page.getByRole("dialog");
-  await expect(sheet.getByText("Neues Lebensmittel")).toBeVisible();
-  await expect(sheet.getByLabel("GTIN")).toHaveValue("0" + MISS_CODE);
-  await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("");
+  await expect(sheet.getByText("Neu · aus Etikett gelesen")).toBeVisible();
+  await expect(camera).toHaveCount(0);
+  await expect(sheet.getByText(/Etikett-Foto\s*wird nur zum Auslesen genutzt und nicht gespeichert/)).toBeVisible();
+  await expect(sheet.getByLabel("GTIN")).toHaveValue("0" + code);
+  await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("Haferkeks Dinkel");
+  await expect(sheet.getByLabel("Marke")).toHaveValue("Testmühle");
+  await expect(sheet.getByLabel("Energie (kcal)")).toHaveValue("460");
+  await expect(sheet.getByRole("listitem").getByLabel("Bezeichnung")).toHaveValue("1 Keks (12,5 g)");
+  await expect(sheet.getByRole("listitem").getByTestId("origin")).toHaveText("Packung");
+  await expect(sheet.getByTestId("label-warning")).toHaveCount(0); // the fake's draft is plausible
+
+  // First confirmation: save, straight into the amount sheet of the new food.
+  const [saved] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/foods"),
+    sheet.getByRole("button", { name: "Speichern & eintragen" }).click(),
+  ]);
+  expect(saved.status()).toBe(201);
+  const food: {
+    id: number;
+    gtin: string;
+    image_path: string | null;
+    servings: { label: string; grams: number; origin: string }[];
+  } = await saved.json();
+  expect(food.gtin).toBe("0" + code);
+  expect(food.image_path).toBeNull(); // the label photo is no product photo
+  expect(food.servings.map(({ label, grams, origin }) => ({ label, grams, origin }))).toEqual([
+    { label: "1 Keks (12,5 g)", grams: 12.5, origin: "package" },
+  ]);
+  await expect(sheet.getByRole("heading", { name: "Haferkeks Dinkel" })).toBeVisible();
+
+  // Second confirmation: the entry.
+  const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  );
+  entries.track(created.id);
+  expect(created.grams).toBe(12.5); // the package serving of the label is the standard
+  await expect(page.locator(`[data-entry-id="${created.id}"]`)).toContainText("Haferkeks Dinkel");
+
+  // A new scan of the same GTIN finds the new food in the own DB.
+  const [found] = await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === `/api/v1/foods/barcode/${code}`),
+    scanPhoto(page, code),
+  ]);
+  expect(found.status()).toBe(200);
+  expect(((await found.json()) as { id: number }).id).toBe(food.id);
+  await expect(sheet.getByRole("heading", { name: "Haferkeks Dinkel" })).toBeVisible();
+  await expect(sheet.getByText("Daten von Open Food Facts (ODbL)")).toHaveCount(0);
 });
 
 test("a photo of a known barcode goes the same way as the live picture", async ({ page }) => {

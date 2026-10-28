@@ -7,6 +7,8 @@ services:
     environment:
       # The barcode chain asks the stub, never the real Open Food Facts.
       OFF_BASE_URL: http://off-stub:8080
+      # The label photo goes to the fake extractor (FAKE_DRAFT), never to a model.
+      LABEL_EXTRACTOR: fake
     depends_on:
       off-stub:
         condition: service_started

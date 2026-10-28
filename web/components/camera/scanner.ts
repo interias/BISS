@@ -41,3 +41,14 @@ export async function decodeImage(file: File): Promise<string | null> {
     URL.revokeObjectURL(url);
   }
 }
+
+/** The current picture of the live video as JPEG, for the label photo. */
+export function captureFrame(video: HTMLVideoElement): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d")?.drawImage(video, 0, 0);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("no camera picture"))), "image/jpeg", 0.92),
+  );
+}

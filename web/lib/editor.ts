@@ -1,4 +1,4 @@
-import type { Per100, Serving } from "@/lib/api";
+import type { LabelDraft, Per100, Serving } from "@/lib/api";
 
 /** Number fields of the editor, in the order of the nutrition table. */
 export const NUTRIENTS = [
@@ -54,3 +54,40 @@ export function shownOrigin(original: ServingBase | undefined, label: string, gr
 
 /** True for text that is no number or negative; blank is fine (see `readNutrients`). */
 export const isInvalid = (text: string) => !valid(parseInput(text));
+
+/** The values of a label draft under the food's names (SPEC 7 `energy_kcal` → `kcal` …). */
+export const per100OfLabel = (v: LabelDraft["per_100"]): Per100 => ({
+  kcal: v.energy_kcal,
+  protein: v.protein,
+  carbs: v.carbs,
+  fat: v.fat,
+  fiber: v.fiber,
+  sugar: v.sugar,
+  sat_fat: v.saturated_fat,
+  salt: v.salt,
+});
+
+/**
+ * The servings of a label draft the editor takes over, with their origin (SPEC 7 `source`),
+ * and why the others stay out. A serving is stored in grams, so only an amount in the unit
+ * of the basis is one: ml at a food per 100 ml counts as grams with the density 1.0 a new
+ * food gets (SPEC 4), ml at a food per 100 g is no amount in grams.
+ */
+export function servingsOfLabel(draft: LabelDraft) {
+  const basis = draft.per_100.basis;
+  const servings: ServingBase[] = [];
+  const skipped: string[] = [];
+  for (const s of draft.servings) {
+    if (s.unit !== basis) skipped.push(`${s.unit} bei Basis ${basis}`);
+    else if (!(s.amount > 0)) skipped.push("ohne Menge");
+    else servings.push({ label: s.label.trim(), grams: s.amount, origin: s.source });
+  }
+  return { servings, skipped };
+}
+
+/** The editor's note on label servings left out, `null` when none is. */
+export function skippedNote(skipped: string[]) {
+  if (skipped.length === 0) return null;
+  const count = skipped.length === 1 ? "1 Portion" : `${skipped.length} Portionen`;
+  return `${count} aus dem Etikett nicht übernommen (${[...new Set(skipped)].join(", ")}).`;
+}
