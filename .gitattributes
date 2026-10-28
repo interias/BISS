@@ -1,0 +1,2 @@
+# Shell scripts are bind-mounted into Linux containers and need LF on every checkout.
+*.sh text eol=lf
