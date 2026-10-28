@@ -2,10 +2,12 @@ Echte Fototestsätze (ADR-0008, docs/adr/0008-real-photo-fixtures.md)
 
 Die Fotos in diesem Verzeichnis prüfen die Foto-Erkennung an echten Aufnahmen statt an
 erzeugten Bildern: barcodes/ für den Barcode aus dem Handyfoto (E6), labels/ für das
-Etikett. Neben jedem Foto liegt seine Ground Truth als <name>.yaml.
+Etikett, plates/ für den Teller (E7). Neben jedem Foto liegt seine Ground Truth als
+<name>.yaml.
 
 Lizenzregel: Im Repo liegen nur frei lizenzierte Bilder von Wikimedia Commons unter
-CC0, CC BY oder CC BY-SA, jedes mit Namensnennung in dieser Datei. Bilder von Open Food
+CC0, CC BY oder CC BY-SA, jedes mit Namensnennung in dieser Datei. Einzige Ausnahme
+sind fünf Teller aus Nutrition5k (CC BY 4.0, ADR-0009). Bilder von Open Food
 Facts kommen nie ins Repo (ADR-0002); sie sind nur im lokalen Satz unter
 BISS_REAL_FIXTURES erlaubt.
 
@@ -278,3 +280,153 @@ Einträge:
   Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
   Quelle:    https://commons.wikimedia.org/wiki/File:White_pudding_nutrition_label.JPG
   Änderung:  verkleinert auf höchstens 1600 px Kantenlänge (Vorschaubild von Commons)
+
+  Datei:     plates/banana.jpg
+  Titel:     File:Banana-Single.jpg
+  Urheber:   Evan-Amos
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Banana-Single.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/apple-plate-red.jpg
+  Titel:     File:Red apple on a plate 2017 A.jpg
+  Urheber:   Fructibus
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Red_apple_on_a_plate_2017_A.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/apple-plate-top.jpg
+  Titel:     File:Apple on a plate.jpg
+  Urheber:   BogTar201213
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Apple_on_a_plate.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/dark-bread-cheese.jpg
+  Titel:     File:Four dark bread cheese sandwiches.jpg
+  Urheber:   JIP
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Four_dark_bread_cheese_sandwiches.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/roll-cucumber-cheese.jpg
+  Titel:     File:Sandwich with cucumber and cheese.jpg
+  Urheber:   Flygklubben
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Sandwich_with_cucumber_and_cheese.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/toast-salami-cheese.jpg
+  Titel:     File:Salami and cheese sandwiches at home.jpg
+  Urheber:   JIP
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Salami_and_cheese_sandwiches_at_home.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/cheese-bread-porridge.jpg
+  Titel:     File:Cheese sandwich and oatmeal porridge as a night snack in December 2023.jpg
+  Urheber:   JIP
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Cheese_sandwich_and_oatmeal_porridge_as_a_night_snack_in_December_2023.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/spaghetti-bolognese.jpg
+  Titel:     File:Spaghetti bolognese at restaurant Persilja.jpg
+  Urheber:   JIP
+  Lizenz:    CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Spaghetti_bolognese_at_restaurant_Persilja.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/side-salad.jpg
+  Titel:     File:Side salad at Sainsbury's Low Hall, Chingford, London 1 top view.jpg
+  Urheber:   Acabashi
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Side_salad_at_Sainsbury%27s_Low_Hall,_Chingford,_London_1_top_view.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/buddha-bowl.jpg
+  Titel:     File:Healthy Vegan Buddha Bowl.jpg
+  Urheber:   FitTasteTic
+  Lizenz:    CC BY-SA 2.0, https://creativecommons.org/licenses/by-sa/2.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Healthy_Vegan_Buddha_Bowl.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/falafel-bowl.jpg
+  Titel:     File:Tasty Buddha Bowl with Falafel - Dyke Road Park Cafe 2025-05-09.jpg
+  Urheber:   Andy Li
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Tasty_Buddha_Bowl_with_Falafel_-_Dyke_Road_Park_Cafe_2025-05-09.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/poke-bowl.jpg
+  Titel:     File:Salmon Poke Bowl (S) with Spicy mayo sauce - Kitokito.jpg
+  Urheber:   Andy Li
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Salmon_Poke_Bowl_(S)_with_Spicy_mayo_sauce_-_Kitokito.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/english-breakfast.jpg
+  Titel:     File:Full English breakfast.jpg
+  Urheber:   Joadl
+  Lizenz:    CC BY-SA 3.0 at, https://creativecommons.org/licenses/by-sa/3.0/at/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Full_English_breakfast.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/cheeseburger-chips.jpg
+  Titel:     File:Cheeseburger, chips and salad at Sainsbury's, Chingford, London, England 1.jpg
+  Urheber:   Acabashi
+  Lizenz:    CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0
+  Quelle:    https://commons.wikimedia.org/wiki/File:Cheeseburger,_chips_and_salad_at_Sainsbury%27s,_Chingford,_London,_England_1.jpg
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/lentil-stew.jpg
+  Titel:     File:Linseneintopf mit Blutwurst 1.JPG
+  Urheber:   Brücke-Osteuropa
+  Lizenz:    CC0, http://creativecommons.org/publicdomain/zero/1.0/deed.en
+  Quelle:    https://commons.wikimedia.org/wiki/File:Linseneintopf_mit_Blutwurst_1.JPG
+  Änderung:  verkleinert auf 1280 px Breite (Vorschaubild von Commons)
+
+  Datei:     plates/n5k-dish_1558547205.jpg
+  Titel:     Nutrition5k, dish_1558547205, imagery/realsense_overhead/dish_1558547205/rgb.png
+  Urheber:   Google Research (Thames et al., "Nutrition5k: Towards Automatic
+             Nutritional Understanding of Generic Food", CVPR 2021)
+  Lizenz:    CC BY 4.0, https://creativecommons.org/licenses/by/4.0
+  Quelle:    https://github.com/google-research-datasets/Nutrition5k
+  Änderung:  als JPEG gespeichert (Qualität 90); Ground Truth aus
+             metadata/dish_metadata_cafe1.csv übernommen
+
+  Datei:     plates/n5k-dish_1558635618.jpg
+  Titel:     Nutrition5k, dish_1558635618, imagery/realsense_overhead/dish_1558635618/rgb.png
+  Urheber:   Google Research (Thames et al., "Nutrition5k: Towards Automatic
+             Nutritional Understanding of Generic Food", CVPR 2021)
+  Lizenz:    CC BY 4.0, https://creativecommons.org/licenses/by/4.0
+  Quelle:    https://github.com/google-research-datasets/Nutrition5k
+  Änderung:  als JPEG gespeichert (Qualität 90); Ground Truth aus
+             metadata/dish_metadata_cafe1.csv übernommen
+
+  Datei:     plates/n5k-dish_1560798785.jpg
+  Titel:     Nutrition5k, dish_1560798785, imagery/realsense_overhead/dish_1560798785/rgb.png
+  Urheber:   Google Research (Thames et al., "Nutrition5k: Towards Automatic
+             Nutritional Understanding of Generic Food", CVPR 2021)
+  Lizenz:    CC BY 4.0, https://creativecommons.org/licenses/by/4.0
+  Quelle:    https://github.com/google-research-datasets/Nutrition5k
+  Änderung:  als JPEG gespeichert (Qualität 90); Ground Truth aus
+             metadata/dish_metadata_cafe1.csv übernommen
+
+  Datei:     plates/n5k-dish_1562949541.jpg
+  Titel:     Nutrition5k, dish_1562949541, imagery/realsense_overhead/dish_1562949541/rgb.png
+  Urheber:   Google Research (Thames et al., "Nutrition5k: Towards Automatic
+             Nutritional Understanding of Generic Food", CVPR 2021)
+  Lizenz:    CC BY 4.0, https://creativecommons.org/licenses/by/4.0
+  Quelle:    https://github.com/google-research-datasets/Nutrition5k
+  Änderung:  als JPEG gespeichert (Qualität 90); Ground Truth aus
+             metadata/dish_metadata_cafe1.csv übernommen
+
+  Datei:     plates/n5k-dish_1563900205.jpg
+  Titel:     Nutrition5k, dish_1563900205, imagery/realsense_overhead/dish_1563900205/rgb.png
+  Urheber:   Google Research (Thames et al., "Nutrition5k: Towards Automatic
+             Nutritional Understanding of Generic Food", CVPR 2021)
+  Lizenz:    CC BY 4.0, https://creativecommons.org/licenses/by/4.0
+  Quelle:    https://github.com/google-research-datasets/Nutrition5k
+  Änderung:  als JPEG gespeichert (Qualität 90); Ground Truth aus
+             metadata/dish_metadata_cafe1.csv übernommen

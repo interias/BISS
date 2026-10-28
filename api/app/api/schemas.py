@@ -2,6 +2,7 @@
 
 from datetime import date, datetime
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -271,6 +272,10 @@ class Entry(BaseModel):
     eaten_at: datetime
     day: date
     macros: Macros = Field(description="snapshot taken when the amount was set")
+    group_id: UUID | None = Field(
+        description="the plate this entry was logged with (POST /entries/group); null alone"
+    )
+    group_name: str | None = Field(description="name of that plate, e.g. the dish")
 
 
 class EntryCreate(BaseModel):
@@ -299,10 +304,50 @@ class EntryUpdate(BaseModel):
     meal: Meal | None = None
 
 
+class EntryGroupItem(BaseModel):
+    food_id: int
+    grams: float = Field(gt=0)
+
+
+class EntryGroupCreate(BaseModel):
+    """The entries of one plate, logged together: one entry per item."""
+
+    group_name: str = Field(min_length=1, description="e.g. the dish of the plate")
+    items: list[EntryGroupItem] = Field(min_length=1)
+    meal: Meal | None = Field(default=None, description="default: suggested by eaten_at")
+    eaten_at: AwareDatetime | None = Field(default=None, description="default: now")
+
+
+class EntryGroupUpdate(BaseModel):
+    """Applied to every entry of the plate; amounts change per entry (PATCH /entries/{id})."""
+
+    group_name: str | None = Field(default=None, min_length=1)
+    meal: Meal | None = None
+
+
+class EntryGroup(BaseModel):
+    group_id: UUID
+    group_name: str
+    meal: Meal
+    day: date
+    totals: Macros = Field(description="sum of the entries' snapshots")
+    entries: list[Entry]
+
+
+class DayGroup(BaseModel):
+    """A plate within a meal: its entries are those of the meal with this group_id."""
+
+    group_id: UUID
+    group_name: str
+    totals: Macros = Field(description="sum of the entries' snapshots")
+    entry_ids: list[int] = Field(description="ids in the meal's entries, in their order")
+
+
 class MealEntries(BaseModel):
     meal: Meal
     totals: Macros
-    entries: list[Entry]
+    entries: list[Entry] = Field(description="all entries of the meal by time, plates included")
+    groups: list[DayGroup] = Field(description="the plates among the entries, by first entry")
 
 
 class Day(BaseModel):
@@ -324,3 +369,30 @@ class Goal(Macros):
     kind: Literal["day", "default"] = Field(
         description="day: a goal set for this day; default: the default goal applies"
     )
+
+
+Certainty = Literal["recognized", "guessed"]
+
+
+class PlateItem(BaseModel):
+    """A recognised ingredient; food_id null: no food matched, no values ("nicht zugeordnet")."""
+
+    food_id: int | None
+    name: str = Field(description="the ingredient as recognised")
+    grams: float = Field(description="estimated amount, whole grams")
+    confidence: float = Field(description="0 to 1, from the model")
+    certainty: Certainty = Field(
+        description="recognized from confidence 0.7 on, guessed below (ADR-0009)"
+    )
+    food: FoodRef | None = Field(description="the matched food")
+    per_100: Macros | None = Field(description="values of the matched food per 100 g or 100 ml")
+    macros: Macros | None = Field(description="values for grams, as an entry would store them")
+
+
+class PlateExtraction(BaseModel):
+    dish: str
+    items: list[PlateItem]
+    totals: Macros = Field(description="sum over the matched items")
+    notes: str
+    model: str = Field(description="the model whose draft is returned")
+    attempts: int = Field(description="1, or 2 after a rule violation in the fast model's draft")

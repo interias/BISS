@@ -22,3 +22,6 @@ Alle Tests der Foto-Erkennung liefen bisher gegen erzeugte Bilder: Barcodes von 
 - Für EAN-8 und UPC-A gibt es kein frei lizenziertes echtes Foto. Die Schwelle gilt für das Vorhandene, EAN-8 und UPC-A prüft der lokale Satz: Er enthält 2× UPC-A und 1× EAN-8 von OFF.
 - Mehrsprachige und fremdsprachige Etiketten zählen im Etiketten-Satz mit.
 - Ground Truth wird nur aus dem Bild selbst abgelesen, nie aus OFF übernommen.
+
+## Nachtrag 28.10.2026: Teller (E7)
+Der Repo-Satz `plates/` enthält neben Commons-Bildern fünf Teller aus Nutrition5k (Google Research, CC BY 4.0), weil nur dieser Datensatz gewogene Mengen und kcal liefert. Die Ground Truth dieser Teller stammt aus der Annotation des Datensatzes, nicht aus dem Bild ([Entscheidung](https://github.com/interias/BISS/issues/25#issuecomment-6477090945), [ADR-0009](0009-plate-recognition.md)). Commons liefert nur feste Vorschaugrößen; die Commons-Teller liegen als Vorschaubild mit 1280 px Breite im Repo, der größten Stufe unter 1600 px. Die Nutrition5k-Teller liegen in ihrer Originalgröße von 640 × 480 px im Repo.

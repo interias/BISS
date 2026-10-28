@@ -17,6 +17,8 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Tagesziel | `goal` | Sollwerte eines Tages; ohne eigenen Wert gilt das Standardziel |
 | Zuletzt-Chip | `recent` | Lebensmittel im Dock, ein Tap trägt die Standardportion ein |
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird nur ausgelesen und nicht gespeichert |
+| Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
+| Gericht | `group` | Die Einträge eines Tellers mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |
 

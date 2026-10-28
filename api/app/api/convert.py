@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.api import schemas
 from app.models import Entry, Food
+from app.plates.match import Plate
 from app.search.search import Hit
 from app.services import foods
 from app.services.days import DaySummary
+from app.services.entries import EntryGroup
 from app.services.foods import FALLBACK_SERVING, StandardServing, standard_serving
 
 
@@ -69,6 +71,15 @@ def day(summary: DaySummary) -> schemas.Day:
                 meal=meal.meal,
                 totals=schemas.Macros.model_validate(meal.totals),
                 entries=[entry(e, food) for e, food in meal.entries],
+                groups=[
+                    schemas.DayGroup(
+                        group_id=group.group_id,
+                        group_name=group.group_name,
+                        totals=schemas.Macros.model_validate(group.totals),
+                        entry_ids=group.entry_ids,
+                    )
+                    for group in meal.groups
+                ],
             )
             for meal in summary.meals
         ],
@@ -85,4 +96,40 @@ def entry(entry: Entry, food: Food) -> schemas.Entry:
         eaten_at=entry.eaten_at,
         day=entry.day,
         macros=schemas.Macros.model_validate(entry),
+        group_id=entry.group_id,
+        group_name=entry.group_name,
+    )
+
+
+def entry_group(group: EntryGroup) -> schemas.EntryGroup:
+    return schemas.EntryGroup(
+        group_id=group.group_id,
+        group_name=group.group_name,
+        meal=group.meal,
+        day=group.day,
+        totals=schemas.Macros.model_validate(group.totals),
+        entries=[entry(e, food) for e, food in group.entries],
+    )
+
+
+def plate(found: Plate, model: str, attempts: int) -> schemas.PlateExtraction:
+    return schemas.PlateExtraction(
+        dish=found.dish,
+        items=[
+            schemas.PlateItem(
+                food_id=None if item.food is None else item.food.id,
+                name=item.name,
+                grams=item.grams,
+                confidence=item.confidence,
+                certainty=item.certainty,
+                food=None if item.food is None else food_ref(item.food),
+                per_100=None if item.food is None else schemas.Macros.model_validate(item.food),
+                macros=None if item.macros is None else schemas.Macros.model_validate(item.macros),
+            )
+            for item in found.items
+        ],
+        totals=schemas.Macros.model_validate(found.totals),
+        notes=found.notes,
+        model=model,
+        attempts=attempts,
     )

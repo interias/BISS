@@ -1,5 +1,6 @@
 """Macro snapshot of an entry, computed from the food's values per 100 g."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -36,4 +37,15 @@ def macro_snapshot(food: Per100, grams: float) -> Macros:
         protein=_scale(food.protein, grams),
         carbs=_scale(food.carbs, grams),
         fat=_scale(food.fat, grams),
+    )
+
+
+def total(items: Iterable[Per100]) -> Macros:
+    """Sum of kcal, protein, carbs and fat, e.g. of entry snapshots, rounded to 0.1."""
+    items = list(items)
+    return Macros(
+        kcal=round(sum(i.kcal for i in items), 1),
+        protein=round(sum(i.protein for i in items), 1),
+        carbs=round(sum(i.carbs for i in items), 1),
+        fat=round(sum(i.fat for i in items), 1),
     )
