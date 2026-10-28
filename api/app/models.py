@@ -6,6 +6,7 @@ constraints as removed; it is no drift check here.
 
 from datetime import date, datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     Identity,
     String,
     Text,
+    Uuid,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -93,6 +95,9 @@ class Entry(Base):
     protein: Mapped[float] = mapped_column(Double)
     carbs: Mapped[float] = mapped_column(Double)
     fat: Mapped[float] = mapped_column(Double)
+    # The entries of one plate share group_id and group_name (SPEC 7a); null for others.
+    group_id: Mapped[UUID | None] = mapped_column(Uuid)
+    group_name: Mapped[str | None] = mapped_column(Text)
 
 
 class Goal(Base):

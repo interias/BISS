@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 
@@ -48,6 +50,58 @@ def create_entry(body: schemas.EntryCreate, session: SessionDep, now: NowDep) ->
     except NotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     return convert.entry(entry, session.get(Food, entry.food_id))
+
+
+@router.post(
+    "/entries/group",
+    status_code=status.HTTP_201_CREATED,
+    responses={404: {"description": "an unknown food_id; then nothing is logged"}},
+)
+def create_group(
+    body: schemas.EntryGroupCreate, session: SessionDep, now: NowDep
+) -> schemas.EntryGroup:
+    """Log a plate: one entry per item, sharing group_id, group_name, meal and moment.
+
+    Each entry takes its own snapshot (SPEC 4). Without meal the suggestion applies.
+    """
+    try:
+        group = entries.create_group(
+            session,
+            body.group_name,
+            [(item.food_id, item.grams) for item in body.items],
+            meal=body.meal,
+            eaten_at=body.eaten_at or now,
+        )
+    except NotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return convert.entry_group(group)
+
+
+GROUP_NOT_FOUND = {404: {"description": "no entry has this group_id"}}
+
+
+@router.patch("/entries/group/{group_id}", responses=GROUP_NOT_FOUND)
+def update_group(
+    group_id: UUID, body: schemas.EntryGroupUpdate, session: SessionDep
+) -> schemas.EntryGroup:
+    """Change meal or name of every entry of the plate; the snapshots stay."""
+    try:
+        group = entries.update_group(session, group_id, body.group_name, body.meal)
+    except NotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return convert.entry_group(group)
+
+
+@router.delete(
+    "/entries/group/{group_id}", status_code=status.HTTP_204_NO_CONTENT, responses=GROUP_NOT_FOUND
+)
+def delete_group(group_id: UUID, session: SessionDep) -> Response:
+    """Remove every entry of the plate, also for "Rückgängig"."""
+    try:
+        entries.delete_group(session, group_id)
+    except NotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/entries/{entry_id}", responses=NOT_FOUND)

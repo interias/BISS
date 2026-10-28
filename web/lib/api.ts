@@ -127,9 +127,15 @@ export type Entry = {
   eaten_at: string;
   day: string;
   macros: Macros;
+  /** The plate the entry was logged with (POST /entries/group); null alone. */
+  group_id: string | null;
+  group_name: string | null;
 };
 
-export type MealEntries = { meal: Meal; totals: Macros; entries: Entry[] };
+/** A plate within a meal; its entries are those of the meal with these ids. */
+export type DayGroup = { group_id: string; group_name: string; totals: Macros; entry_ids: number[] };
+
+export type MealEntries = { meal: Meal; totals: Macros; entries: Entry[]; groups: DayGroup[] };
 
 export type Day = {
   date: string;
@@ -137,6 +143,44 @@ export type Day = {
   targets: Macros;
   meals: MealEntries[];
   suggested_meal: Meal;
+};
+
+export type FoodRef = Entry["food"];
+
+/**
+ * An ingredient read from a plate (SPEC 7a). `food_id` null: nothing matched, there are no
+ * values ("nicht zugeordnet"). `certainty` comes from the backend (ADR-0003).
+ */
+export type PlateItem = {
+  food_id: number | null;
+  name: string;
+  grams: number;
+  confidence: number;
+  certainty: "recognized" | "guessed";
+  food: FoodRef | null;
+  /** Of the matched food: per_100 is per 100 g or 100 ml, density turns grams into ml. */
+  basis: Basis | null;
+  density: number | null;
+  per_100: Macros | null;
+  macros: Macros | null;
+};
+
+export type PlateExtraction = {
+  dish: string;
+  items: PlateItem[];
+  totals: Macros;
+  notes: string;
+  model: string;
+  attempts: number;
+};
+
+export type EntryGroup = {
+  group_id: string;
+  group_name: string;
+  meal: Meal;
+  day: string;
+  totals: Macros;
+  entries: Entry[];
 };
 
 const BASE = "/api/v1";
@@ -223,3 +267,22 @@ export function extractLabel(photo: Blob, gtin?: string) {
   if (gtin) form.append("gtin", gtin);
   return request<LabelExtraction>("/labels/extract", { method: "POST", body: form });
 }
+
+/** Plate photo → dish with ingredients, amounts and food matches (SPEC 7a); nothing is logged. */
+export function extractPlate(photo: Blob) {
+  const form = new FormData();
+  form.append("file", photo, photo instanceof File ? photo.name : "plate.jpg");
+  return request<PlateExtraction>("/plates/extract", { method: "POST", body: form });
+}
+
+/** One entry per item with a shared group; without meal and time the backend takes its defaults. */
+export const createEntryGroup = (body: {
+  group_name: string;
+  items: { food_id: number; grams: number }[];
+  meal?: Meal;
+  eaten_at?: string;
+}) => request<EntryGroup>("/entries/group", { method: "POST", body: JSON.stringify(body) });
+
+/** Removes every entry of the plate. */
+export const deleteEntryGroup = (groupId: string) =>
+  request<void>(`/entries/group/${groupId}`, { method: "DELETE" });

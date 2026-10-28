@@ -68,6 +68,14 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Der Auslöser „Etikett“ braucht keinen Barcode. Das Foto geht ohne GTIN an die Extraktion.
   - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
   - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet.
+  - Der Auslöser „Teller“ schickt das Foto an die Teller-Erkennung („Erkenne Gericht …“) und öffnet das Ergebnis-Sheet. Ohne Kamera öffnet er die Fotoauswahl.
+- **Teller-Ergebnis-Sheet** (E7):
+  - Foto, „Erkannt · bitte prüfen“ und der Name des Gerichts als Eingabe.
+  - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ 10 g (mindestens 5 g) und ✕.
+  - Der Hinweis „Mengen sind geschätzt. Fehlt etwas?“ und Vorschläge: die Zuletzt-Chips, die noch nicht auf dem Teller liegen. Ein Tap fügt das Lebensmittel mit seiner Standardportion als „manuell“ hinzu.
+  - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
+  - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“. Eingetragen wird ein Gericht (`POST /entries/group`) mit dem Toast „Rückgängig“.
+- **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Mahlzeit. Die Gruppe klappt auf und zeigt ihre Einträge, deren Menge sich wie bisher ändern lässt. Die Mahlzeit gilt für das ganze Gericht. „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
 
 ## 4. Domänenmodell
 
@@ -78,7 +86,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
 | `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
-| `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern) |
+| `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Tellers (Abschnitt 7a) |
 | `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
 | `off_cache` | `gtin`, `payload`, `fetched_at`, `name_norm` und `brand_norm` (aus `payload` normalisiert, Trigram-Index auf `name_norm`) – Kurzzeit-Cache angezeigter Treffer, 30 Tage, durchsuchbar (Abschnitt 6) |
 
@@ -96,15 +104,18 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/days/{date}` | Tagesbilanz, Ziele, Einträge nach Mahlzeit, `suggested_meal` |
+| GET | `/days/{date}` | Tagesbilanz, Ziele, Einträge nach Mahlzeit mit ihren Gerichten und deren Summen, `suggested_meal` |
 | POST | `/entries` | Eintrag anlegen. Ohne `grams` gilt die Standardportion, ohne `meal` der Vorschlag |
 | PATCH / DELETE | `/entries/{id}` | Menge oder Mahlzeit ändern, entfernen (auch für „Rückgängig“) |
+| POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` (E7) |
+| PATCH / DELETE | `/entries/group/{id}` | Mahlzeit oder Name aller Einträge des Gerichts ändern, alle entfernen (E7) |
 | GET | `/recent` | Zuletzt-Chips: Lebensmittel nach Nutzung und Aktualität, mit Standardportion |
 | GET | `/foods/search?q=` | föderierte Suche (Abschnitt 6) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
 | PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
+| POST | `/plates/extract` | Teller-Foto → Gericht mit Zutaten, Mengen und Zuordnung, nichts wird eingetragen (E7) |
 | GET / PUT | `/goals/default` | Standardziele (E5) |
 | GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |
 
@@ -160,6 +171,33 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 - Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem stärkeren Modell. Bleibt der Verstoß, zeigt der Editor die Warnung. Liefert das stärkere Modell keinen brauchbaren Entwurf, bleibt der des schnellen mit seiner Warnung.
 - Das Etikett-Foto wird nach der Extraktion verworfen.
 
+## 7a. Teller-Erkennung (E7)
+
+[ADR-0009](adr/0009-plate-recognition.md)
+
+**Ein- und Ausgabe:**
+- Eingabe ist das Foto eines Tellers. Es wird nur ausgelesen und nach der Erkennung verworfen.
+- Das Modell antwortet nach festem JSON-Schema: `dish, ingredients [{name, grams, confidence}], notes`.
+- `POST /plates/extract` liefert `dish`, `items`, `totals` und `notes`. Ein Item hat `food_id` (oder `null`), `name`, `grams`, `confidence`, `certainty` (`recognized`/`guessed`, in der App „erkannt“/„vermutet“, ab `confidence` 0,7 erkannt), das zugeordnete Lebensmittel, dessen `basis` und `density`, dessen Werte je 100 g bzw. 100 ml und `macros` für die Menge. Mit `basis` und `density` rechnet die Vorschau der App wie das Backend.
+- `totals` summiert die zugeordneten Items. Eingetragen wird erst nach der Bestätigung.
+
+**Prompt:** Er verlangt eine Zutat je sichtbarem Bestandteil, deutsch und generisch benannt wie im BLS (Lebensmittel, dann Zubereitung), und die Menge in Gramm wie gegessen. Er gibt Mengenanker vor, weil Schätzungen aus Fotos zu hoch ausfallen.
+
+**Zuordnung:**
+- Jede Zutat läuft durch die Suche aus Abschnitt 6, lokal und ohne Netz.
+- Der beste Treffer, der ein Lebensmittel ist, wird zugeordnet, wenn sein Score mindestens 1,6 beträgt.
+- Ohne solchen Treffer bleibt die Zutat „nicht zugeordnet“: `food_id` ist `null`, Werte gibt es keine. Erfunden wird nichts.
+
+**Regeln im Code:** Ein Entwurf verstößt gegen die Regeln, wenn er keine Zutat hat, eine Zutat ohne Namen, eine Menge ≤ 0 g oder über 1.500 g, einen Teller über 3.000 g oder eine `confidence` außerhalb von 0 bis 1.
+
+**Modelle:** wie beim Etikett (Abschnitt 7). Das schnelle Modell liest zuerst. Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem starken. Liefert das starke keinen brauchbaren Entwurf, bleibt der des schnellen.
+
+**Gericht:**
+- `POST /entries/group` legt je Zutat einen Eintrag an. Alle Einträge teilen `group_id`, `group_name`, Mahlzeit und Zeitpunkt.
+- Die Snapshot-Regel gilt je Eintrag (Abschnitt 4). Eine geänderte Menge (`PATCH /entries/{id}`) ändert nur den Snapshot dieses Eintrags.
+- `PATCH /entries/group/{id}` ändert Mahlzeit oder Name aller Einträge. `DELETE /entries/group/{id}` entfernt sie, auch für „Rückgängig“.
+- `/days` führt je Mahlzeit alle Einträge und dazu `groups` mit `group_id`, `group_name`, `totals` und `entry_ids`. Die Summen rechnet das Backend.
+
 ## 8. Tests
 
 Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compose up`.
@@ -176,7 +214,11 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)).
   - Echte Etiketten (Marker `llm` und `realdata`): je Satz ≥ 90 % der Felder in Toleranz. Energie ± 5 %, die übrigen Werte ± 0,5 g oder ± 5 %, das Größere gilt; die Basis g/ml muss stimmen.
 - **Echte Fototestsätze** (Marker `realdata`, [ADR-0008](adr/0008-real-photo-fixtures.md)): Barcode-Fotos mit Ground Truth, frei lizenziert im Repo und lokal unter `BISS_REAL_FIXTURES`; je Satz ≥ 75 % richtige Ziffern und keine Fehllesung; ein EAN-8 oder UPC-A gilt erst nach Bestätigung durch einen zweiten Versuch.
-- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) zählen dabei ihr Tap-Budget aus Abschnitt 1.
+- **Teller-Fotos** (Marker `llm` und `realdata`, [ADR-0009](adr/0009-plate-recognition.md)): Ground Truth mit Hauptzutaten, bei gewogenen Tellern auch kcal. Die Zuordnung läuft gegen den vollen BLS-Seed. Je Satz gelten:
+  - Recall der Hauptzutaten ≥ 70 %.
+  - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
+  - p95 der Zeit je Foto < 15 s.
+- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) und der Teller-Ablauf zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen.
 
 ## 9. Betrieb
 

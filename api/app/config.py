@@ -27,6 +27,8 @@ class Settings:
     # agent: Claude Agent SDK; fake: invented draft without a model (tests, e2e).
     # Not checked at startup: any other value fails only at a label request, with a 500.
     label_extractor: str
+    # Plate recognition (ADR-0009) with the same models: agent or fake, as label_extractor.
+    plate_extractor: str
 
 
 def get_settings() -> Settings:
@@ -43,4 +45,5 @@ def get_settings() -> Settings:
         llm_model_fast=os.environ.get("LLM_MODEL_FAST") or "claude-haiku-5-5",
         llm_model_strong=os.environ.get("LLM_MODEL_STRONG") or "claude-sonnet-5-5",
         label_extractor=os.environ.get("LABEL_EXTRACTOR") or "agent",
+        plate_extractor=os.environ.get("PLATE_EXTRACTOR") or "agent",
     )

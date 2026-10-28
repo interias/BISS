@@ -7,6 +7,8 @@ import type {
   FoodSummary,
   LabelExtraction,
   Macros,
+  PlateExtraction,
+  PlateItem,
   SearchHit,
 } from "@/lib/api";
 
@@ -97,6 +99,91 @@ export const bananaEntry: Entry = {
   eaten_at: "2026-10-28T10:05:00+01:00",
   day: "2026-10-28",
   macros: { kcal: 111.6, protein: 1.3, carbs: 24, fat: 0.2 },
+  group_id: null,
+  group_name: null,
+};
+
+export const riceDetail: FoodSummary = {
+  id: 8,
+  name: "Reis gekocht",
+  brand: null,
+  source: "bls",
+  basis: "g",
+  per_100: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 },
+  standard_serving: { label: "1 Portion", grams: 150, origin: "estimated" },
+};
+
+const chicken: FoodSummary = {
+  id: 9,
+  name: "Hähnchen Brustfilet, gegrillt",
+  brand: null,
+  source: "bls",
+  basis: "g",
+  per_100: { kcal: 150, protein: 30, carbs: 0, fat: 3 },
+  standard_serving: { label: "1 Filet", grams: 120, origin: "estimated" },
+};
+
+const ref = (food: FoodSummary) => ({ id: food.id, name: food.name, brand: food.brand, source: food.source });
+const scale = (per100: Macros, grams: number): Macros => ({
+  kcal: Math.round(per100.kcal * grams) / 100,
+  protein: Math.round(per100.protein * grams) / 100,
+  carbs: Math.round(per100.carbs * grams) / 100,
+  fat: Math.round(per100.fat * grams) / 100,
+});
+
+/**
+ * The fake extractor's plate (api/app/plates/extractor.py) on the full BLS: chicken and rice
+ * recognized, a vague third ingredient guessed. With `broccoliMatched` false it is not matched
+ * (food_id null, no values), as on a database without that food.
+ */
+export const fakePlate = (broccoliMatched = true): PlateExtraction => {
+  const item = (food: FoodSummary, grams: number, confidence: number): PlateItem => ({
+    food_id: food.id,
+    name: food.name,
+    grams,
+    confidence,
+    certainty: confidence >= 0.7 ? "recognized" : "guessed",
+    food: ref(food),
+    basis: food.basis,
+    density: 1,
+    per_100: food.per_100,
+    macros: scale(food.per_100, grams),
+  });
+  return {
+    dish: "Hähnchen mit Reis und Brokkoli",
+    items: [
+      item(chicken, 120, 0.9),
+      item(riceDetail, 150, 0.85),
+      broccoliMatched
+        ? item(broccoli, 80, 0.6)
+        : {
+            food_id: null,
+            name: "Broccoli gekocht",
+            grams: 80,
+            confidence: 0.6,
+            certainty: "guessed",
+            food: null,
+            basis: null,
+            density: null,
+            per_100: null,
+            macros: null,
+          },
+    ],
+    totals: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+    notes: "",
+    model: "claude-haiku-5-5",
+    attempts: 1,
+  };
+};
+
+export const broccoli: FoodSummary = {
+  id: 10,
+  name: "Broccoli gekocht",
+  brand: null,
+  source: "bls",
+  basis: "g",
+  per_100: { kcal: 30, protein: 3, carbs: 2.5, fat: 0.4 },
+  standard_serving: { label: "1 Portion", grams: 100, origin: "estimated" },
 };
 
 export function makeDay(entries: Entry[] = []): Day {
@@ -116,7 +203,12 @@ export function makeDay(entries: Entry[] = []): Day {
     targets: { kcal: 2400, protein: 160, carbs: 260, fat: 75 },
     meals: (["breakfast", "lunch", "snack", "dinner"] as const).map((meal) => {
       const own = entries.filter((e) => e.meal === meal);
-      return { meal, totals: sum(own), entries: own };
+      // The backend lists the plates of the meal by their first entry.
+      const groups = [...new Set(own.flatMap((e) => (e.group_id ? [e.group_id] : [])))].map((id) => {
+        const members = own.filter((e) => e.group_id === id);
+        return { group_id: id, group_name: members[0].group_name!, totals: sum(members), entry_ids: members.map((e) => e.id) };
+      });
+      return { meal, totals: sum(own), entries: own, groups };
     }),
     suggested_meal: "snack",
   };
@@ -135,20 +227,68 @@ const json = (body: unknown, status = 200) =>
  * creates food 55 with the given name; /foods/validate always finds the values plausible.
  * The barcode chain knows only the pudding draft, by any form of its code; any other code is
  * a miss. The label
- * extraction answers the fake extractor's draft with the GTIN sent.
+ * extraction answers the fake extractor's draft with the GTIN sent. The plate extraction
+ * answers `fakePlate()`; POST /entries/group logs one entry per item in the meal "snack"
+ * (kcal from per 100 g) and DELETE /entries/group/{id} removes them.
  */
-export function fakeApi() {
+export function fakeApi({ plate = fakePlate() }: { plate?: PlateExtraction } = {}) {
   let entries: Entry[] = [];
-  const foods: Record<number, FoodDetail> = { 7: bananaDetail };
+  let nextId = 200;
+  const catalog = [banana, riceDetail, chicken, broccoli];
+  const detail = (food: FoodSummary): FoodDetail => ({
+    ...bananaDetail,
+    ...food,
+    per_100: { ...food.per_100, fiber: null, sugar: null, sat_fat: null, salt: null },
+    servings: [{ id: food.id, ...food.standard_serving, origin: "estimated", is_default: true }],
+  });
+  const foods: Record<number, FoodDetail> = {
+    7: bananaDetail,
+    8: detail(riceDetail),
+    9: detail(chicken),
+    10: detail(broccoli),
+  };
   const calls: { method: string; url: string; body?: unknown }[] = [];
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
-    if (url === "/api/v1/recent") return json([banana]);
+    if (url === "/api/v1/recent") return json([banana, riceDetail]);
     if (url.startsWith("/api/v1/foods/search")) {
-      return json(url.includes("banane") ? [banana] : url.includes("pudding") ? [puddingHit] : []);
+      return json(
+        url.includes("banane")
+          ? [banana]
+          : url.includes("pudding")
+            ? [puddingHit]
+            : url.includes("brok")
+              ? [broccoli, puddingHit]
+              : [],
+      );
+    }
+    if (url === "/api/v1/plates/extract" && method === "POST") return json(plate);
+    if (url === "/api/v1/entries/group" && method === "POST") {
+      const group_id = `group-${nextId}`;
+      const created = (body.items as { food_id: number; grams: number }[]).map((item) => {
+        const food = catalog.find((f) => f.id === item.food_id)!;
+        return {
+          ...bananaEntry,
+          id: nextId++,
+          food: ref(food),
+          grams: item.grams,
+          meal: body.meal ?? "snack",
+          eaten_at: body.eaten_at ?? bananaEntry.eaten_at,
+          macros: scale(food.per_100, item.grams),
+          group_id,
+          group_name: body.group_name,
+        };
+      });
+      entries = [...entries, ...created];
+      return json({ group_id, group_name: body.group_name, meal: created[0].meal, day: "2026-10-28", totals: ZERO, entries: created }, 201);
+    }
+    const groupPrefix = "/api/v1/entries/group/";
+    if (url.startsWith(groupPrefix) && method === "DELETE") {
+      entries = entries.filter((e) => e.group_id !== url.slice(groupPrefix.length));
+      return json(null, 204);
     }
     const barcode = url.match(/^\/api\/v1\/foods\/barcode\/(\d+)$/);
     if (barcode && barcode[1].padStart(14, "0") === puddingDraft.gtin) return json(puddingDraft);

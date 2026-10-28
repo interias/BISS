@@ -1,7 +1,7 @@
 """FastAPI dependencies.
 
-Tests override get_db with their rolled-back session, get_now, get_off and
-get_label_extractor.
+Tests override get_db with their rolled-back session, get_now, get_off,
+get_label_extractor and get_plate_extractor.
 """
 
 from collections.abc import Iterator
@@ -16,6 +16,8 @@ from app.config import get_settings
 from app.db import get_session
 from app.labels.agent import AgentLabelExtractor
 from app.labels.extractor import FakeLabelExtractor, LabelExtractor
+from app.plates.agent import AgentPlateExtractor
+from app.plates.extractor import FakePlateExtractor, PlateExtractor
 from app.sources.off import OpenFoodFacts
 
 
@@ -55,3 +57,16 @@ def get_label_extractor() -> LabelExtractor:
 
 
 LabelExtractorDep = Annotated[LabelExtractor, Depends(get_label_extractor)]
+
+
+def get_plate_extractor() -> PlateExtractor:
+    """The Agent SDK; with PLATE_EXTRACTOR=fake an invented plate without any model."""
+    kind = get_settings().plate_extractor
+    if kind == "fake":
+        return FakePlateExtractor()
+    if kind == "agent":
+        return AgentPlateExtractor()
+    raise ValueError(f"PLATE_EXTRACTOR {kind!r} is neither agent nor fake")
+
+
+PlateExtractorDep = Annotated[PlateExtractor, Depends(get_plate_extractor)]

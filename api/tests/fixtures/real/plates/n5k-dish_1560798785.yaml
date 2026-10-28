@@ -1,0 +1,7 @@
+# Main ingredients (at least 10 % of the mass, no oil or dressing) and kcal from the Nutrition5k annotation.
+main: "Pizza; Tofu; Blumenkohl|Karfiol; Broccoli|Brokkoli"
+kcal: "380"
+annotation: "cheese pizza 108 g, tofu 81 g, cauliflower 90 g, broccoli 31 g; 310 g"
+source: "https://github.com/google-research-datasets/Nutrition5k (dish_1560798785)"
+author: "Google Research (Thames et al., CVPR 2021)"
+license: "CC BY 4.0"

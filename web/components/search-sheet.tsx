@@ -8,13 +8,19 @@ import { SheetTitle } from "@/components/sheet";
 
 const DEBOUNCE_MS = 150;
 
-/** Search sheet: input, hits with picture, name, brand and kcal per 100 g, the empty hint. */
+/**
+ * Search sheet: input, hits with picture, name, brand and kcal per 100 g, the empty hint.
+ * `foodsOnly` leaves out the products of the Open Food Facts cache, which have no food yet;
+ * without `onCreate` the sheet does not offer a new food.
+ */
 export function SearchSheet({
   onPick,
   onCreate,
+  foodsOnly,
 }: {
   onPick: (food: SearchHit) => void;
-  onCreate: () => void;
+  onCreate?: () => void;
+  foodsOnly?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<{ query: string; hits: SearchHit[] } | null>(null);
@@ -24,13 +30,16 @@ export function SearchSheet({
     if (!q) return;
     let live = true;
     const timer = setTimeout(() => {
-      searchFoods(q).then((hits) => live && setResult({ query: q, hits }), console.error);
+      searchFoods(q).then(
+        (found) => live && setResult({ query: q, hits: foodsOnly ? found.filter((hit) => hit.id !== null) : found }),
+        console.error,
+      );
     }, DEBOUNCE_MS);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [q]);
+  }, [q, foodsOnly]);
 
   const hits = q && result?.query === q ? result.hits : null;
 
@@ -51,14 +60,16 @@ export function SearchSheet({
       <div aria-label="Treffer">
         {hits?.length === 0 && (
           <div className="py-2 text-[13px] text-muted-foreground">
-            Nicht gefunden. Packung fotografieren und BISS legt den Eintrag an.
-            <button
-              type="button"
-              onClick={onCreate}
-              className="mt-2.5 h-[42px] w-full rounded-xl border-[1.5px] border-dashed font-bold text-primary"
-            >
-              Neu anlegen
-            </button>
+            {onCreate ? "Nicht gefunden. Packung fotografieren und BISS legt den Eintrag an." : "Nicht gefunden."}
+            {onCreate && (
+              <button
+                type="button"
+                onClick={onCreate}
+                className="mt-2.5 h-[42px] w-full rounded-xl border-[1.5px] border-dashed font-bold text-primary"
+              >
+                Neu anlegen
+              </button>
+            )}
           </div>
         )}
         {hits?.map((food) => (
