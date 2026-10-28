@@ -61,7 +61,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
 | `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern) |
 | `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
-| `off_cache` | `gtin`, `payload`, `fetched_at` – Kurzzeit-Cache angezeigter Treffer, 30 Tage |
+| `off_cache` | `gtin`, `payload`, `fetched_at`, `name_norm` und `brand_norm` (aus `payload` normalisiert, Trigram-Index auf `name_norm`) – Kurzzeit-Cache angezeigter Treffer, 30 Tage, durchsuchbar (Abschnitt 6) |
 
 Regeln:
 
