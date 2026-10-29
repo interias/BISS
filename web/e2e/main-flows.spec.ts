@@ -101,3 +101,19 @@ test("removing an entry takes it out of the diary", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("Entfernt");
   expect((await page.request.delete(`/api/v1/entries/${seeded.id}`)).status()).toBe(404);
 });
+
+test("with the keyboard open the search field stays in view while the hits scroll", async ({ page }) => {
+  // A phone with the keyboard up: resizes-content leaves about this much page above it.
+  await page.setViewportSize({ width: 390, height: 420 });
+  await page.goto("/");
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /interactive-widget=resizes-content/);
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  const sheet = page.getByRole("dialog");
+  const field = sheet.getByRole("textbox", { name: "Suchen" });
+  await field.fill("banane");
+  await expect(sheet.getByRole("button", { name: /^Banane roh/ }).first()).toBeVisible();
+  const box = await sheet.boundingBox();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(420);
+  await sheet.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await expect(field).toBeInViewport();
+});

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,14 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   title: "BISS",
   description: "Barcode · Image · Scan · Save",
+};
+
+// The keyboard shrinks the page instead of covering it (Chrome on Android lays it over the
+// page by default), so a bottom sheet with a text field ends above the keyboard.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
