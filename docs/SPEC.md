@@ -39,7 +39,7 @@ Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht ei
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Spracheingabe, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Spracheingabe, Statistiken jeder Art.
 
 ## 3. Abläufe
 
@@ -48,25 +48,34 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
 - **Hauptscreen:**
   - Header mit Logo, „BISS“ und Datum.
   - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g).
-  - Tagebuch nach Mahlzeiten.
+  - Tagebuch als eine Liste, neueste zuerst. Jede Zeile zeigt ihre Uhrzeit. Mahlzeiten zeigt die App nicht.
   - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
-- **Zuletzt-Chip:** Ein Tap trägt die Standardportion zur vorgeschlagenen Mahlzeit ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
+- **Chips im Dock:**
+  - „+ Neu“ steht vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. „+ Neu“ braucht nie Scrollen.
+  - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
+  - Lange Namen enden nach etwa 14 Zeichen mit „…“. Der volle Name steht im Tooltip und für Screenreader.
+- **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
 - **Schnellzugriff** (E8, [ADR-0010](adr/0010-combo-template.md)):
-  - Die Chips stehen vorn in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Am Ende steht „+ Neu“.
-  - Ein Tap trägt alle Zutaten als Gruppe zur vorgeschlagenen Mahlzeit ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
-  - Langes Drücken (500 ms) oder das Kontextmenü öffnet das Blatt zum Anpassen: Zutaten mit −/+ 10 g und getippten Gramm (5–1.500 g), „tauschen“, ✕, „+ Zutat suchen“, Mahlzeit-Chips und Kennzahlen live.
+  - Die Chips stehen nach „+ Neu“ in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
+  - Ein Tap trägt alle Zutaten als Gruppe ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
+  - Langes Drücken (500 ms) oder das Kontextmenü öffnet das Blatt zum Anpassen: Zutaten mit −/+ und getippten Gramm (1–1.500 g), „tauschen“, ✕, „+ Zutat suchen“ und Kennzahlen live.
   - „Eintragen · X kcal“ trägt die angepassten Zutaten ein. Die Vorlage bleibt. Nur „Als Vorlage speichern“ ändert Name und Zutaten der Vorlage.
   - „Löschen“ fragt im Blatt nach, erst „Ja, löschen“ entfernt die Vorlage. Eingetragene Gruppen bleiben.
   - „+ Neu“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
-  - Mahlzeit-Chip: vorbelegt, ein Tap wechselt die Mahlzeit.
-  - Gramm mit ±: Schritt 5 g bis 100 g, darüber 10 g.
+  - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
   - Portions-Chips sowie kcal/E/K/F live.
   - „Eintragen · X kcal“, im Bearbeitungsmodus „Speichern“ und „Entfernen“.
+- **Schritte von − und +** (Mengen-, Teller- und Schnellzugriff-Blatt):
+  - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
+  - + springt zum nächsten Wert des Rasters, − zum vorigen. Hin und zurück ergibt wieder den Ausgangswert, kein Wert wird übersprungen.
+  - Nie unter 1 g. Teller und Schnellzugriff enden bei 1.500 g, ein einzelner Eintrag hat keine Obergrenze.
+- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“.
 - **Live-Werte:** Das Sheet berechnet kcal/E/K/F lokal mit der Formel `Wert je 100 g × Gramm / 100`. Das ist reine Anzeige. Beim Speichern rechnet das Backend verbindlich ([ADR-0003](adr/0003-logic-in-backend.md)).
 - **Lebensmittel-Editor:**
   - Produktfoto (Kamera oder Galerie), Name und Marke.
+  - Symbol: optional eine der Kategorien, ohne Wahl „Sonstiges“.
   - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
@@ -80,11 +89,11 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Der Auslöser „Teller“ schickt das Foto an die Teller-Erkennung („Erkenne Gericht …“) und öffnet das Ergebnis-Sheet. Ohne Kamera öffnet er die Fotoauswahl.
 - **Teller-Ergebnis-Sheet** (E7):
   - Foto, „Erkannt · bitte prüfen“ und der Name des Gerichts als Eingabe.
-  - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ 10 g (mindestens 5 g) und ✕.
+  - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ (mindestens 1 g) und ✕.
   - Der Hinweis „Mengen sind geschätzt. Fehlt etwas?“ und Vorschläge: die Zuletzt-Chips, die noch nicht auf dem Teller liegen. Ein Tap fügt das Lebensmittel mit seiner Standardportion als „manuell“ hinzu.
   - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
   - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“. Eingetragen wird ein Gericht (`POST /entries/group`) mit dem Toast „Rückgängig“.
-- **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Mahlzeit. Die Gruppe klappt auf und zeigt ihre Einträge, deren Menge sich wie bisher ändern lässt. Die Mahlzeit gilt für das ganze Gericht. „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
+- **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Liste, zur Uhrzeit des Gerichts. Die Gruppe klappt auf und zeigt ihre Einträge, deren Menge sich wie bisher ändern lässt. „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
 - **Als Schnellzugriff merken:** Jede Gruppe im Tagebuch, zu der es keinen Schnellzugriff gleichen Namens gibt, zeigt „als Schnellzugriff merken“. Ein Tap legt die Vorlage mit Name, Lebensmitteln und Gramm der Gruppe an.
 
 ## 4. Domänenmodell
@@ -93,7 +102,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 
 | Tabelle | Wesentliche Felder |
 |---|---|
-| `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
+| `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `category` (Symbolgruppe, nullable), `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
 | `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
 | `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Tellers (Abschnitt 7a) |
@@ -105,9 +114,15 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 Regeln:
 
 - **Tag und Mahlzeit:** Zeitzone `Europe/Berlin`. Ein Eintrag bis 04:00 Uhr zählt zum Vortag. Ohne Angabe schlägt das Backend die Mahlzeit nach Uhrzeit vor: < 10:30 Frühstück, < 14:30 Mittag, < 17:30 Snack, sonst Abend.
+- **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
 - **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
 - **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
+- **Kategorie:** Eine feste Liste von 16 Symbolgruppen (`bread`, `grains`, `fruit`, `vegetables`, `legumes`, `potatoes`, `dairy`, `eggs`, `meat`, `sausage`, `fish`, `fats`, `sweets`, `drinks`, `dishes`, `other`).
+  - BLS: aus dem ersten Buchstaben des BLS-Codes (Hauptgruppe), bei E und K aus den ersten zwei Zeichen (Eier, Pilze).
+  - Open Food Facts: aus `categories_tags` mit einer kleinen Zuordnung, sonst `other`.
+  - Eigene Lebensmittel: aus dem Editor, ohne Wahl leer.
+  - Die Zuordnung liegt im Backend (`app/domain/category.py`, [ADR-0003](adr/0003-logic-in-backend.md)). Eine geänderte Kategorie eines BLS- oder OFF-Lebensmittels steht im Overlay.
 - **Flüssigkeiten:** `basis = ml`. Gramm werden über `density` umgerechnet, eingetragen wird immer in Gramm.
 - **Schnellzugriff:** Eine Vorlage ist kein Eintrag. Eintragen legt eine Gruppe wie beim Teller an, mit `group_name` = Name der Vorlage und eigenem Snapshot je Eintrag. Angepasste Zutaten ändern die Vorlage nicht.
 
@@ -117,7 +132,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/days/{date}` | Tagesbilanz, Ziele, Einträge nach Mahlzeit mit ihren Gerichten und deren Summen, `suggested_meal` |
+| GET | `/days/{date}` | Tagesbilanz, Ziele, `rows` (das Tagebuch: Einträge und Gerichte neueste zuerst, Gerichte mit Summe), dazu `meals` (Einträge nach Mahlzeit für andere Clients) und `suggested_meal` |
 | POST | `/entries` | Eintrag anlegen. Ohne `grams` gilt die Standardportion, ohne `meal` der Vorschlag |
 | PATCH / DELETE | `/entries/{id}` | Menge oder Mahlzeit ändern, entfernen (auch für „Rückgängig“) |
 | POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` (E7) |
@@ -127,7 +142,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
-| GET | `/foods/search?q=` | föderierte Suche (Abschnitt 6) |
+| GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
+| GET | `/foods/search/off?q=` | Open-Food-Facts-Textsuche, Produkte ohne die lokalen Treffer; bei Fehler leere `hits` mit `reason` ([ADR-0011](adr/0011-off-text-search.md)) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
 | PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
@@ -141,8 +157,13 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 ## 6. Suche
 
 **Quellen:**
-- Das MVP durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
-- Alle Quellen liegen in Postgres, darum läuft die Suche lokal, ohne Föderation und ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt (Markennachschlag, gefilterter und ungefilterter Lauf). Föderiert wird erst, wenn eine Live-Quelle für Text hinzukommt.
+- Die lokale Suche durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
+- Diese Quellen liegen in Postgres, darum läuft die lokale Suche ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt (Markennachschlag, gefilterter und ungefilterter Lauf).
+- **Open Food Facts live** ([ADR-0011](adr/0011-off-text-search.md)): Hat die lokale Suche weniger als 5 Treffer bei mindestens 3 Zeichen, setzt sie `off_more`. Die App fragt dann `/foods/search/off` und hängt die Treffer unten an, mit „Suche bei Open Food Facts …“ und dem Hinweis „Daten von Open Food Facts (ODbL)“.
+  - Gefragt wird Search-a-licious mit Sprache Deutsch und Land Deutschland, Timeout 3 s.
+  - Höchstens 6 Anfragen pro Minute (Open Food Facts erlaubt 10). Dieselbe Suche gilt 24 h aus dem Speicher.
+  - Jedes Produkt geht in den OFF-Cache und wird über seine GTIN eingetragen.
+  - Treffer der lokalen Suche kommen nicht doppelt. Ein Produkt mit der GTIN eines Lebensmittels ist dieses Lebensmittel.
 
 **Normalisierung**, in Python und als generierte Spalte:
 - Kleinschreibung und `unaccent`.
@@ -213,7 +234,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 - `POST /entries/group` legt je Zutat einen Eintrag an. Alle Einträge teilen `group_id`, `group_name`, Mahlzeit und Zeitpunkt.
 - Die Snapshot-Regel gilt je Eintrag (Abschnitt 4). Eine geänderte Menge (`PATCH /entries/{id}`) ändert nur den Snapshot dieses Eintrags.
 - `PATCH /entries/group/{id}` ändert Mahlzeit oder Name aller Einträge. `DELETE /entries/group/{id}` entfernt sie, auch für „Rückgängig“.
-- `/days` führt je Mahlzeit alle Einträge und dazu `groups` mit `group_id`, `group_name`, `totals` und `entry_ids`. Die Summen rechnet das Backend.
+- `/days` führt in `rows` jedes Gericht als eine Zeile mit `group_id`, `group_name`, `meal`, `eaten_at`, `totals` und seinen Einträgen. Je Mahlzeit stehen zusätzlich alle Einträge und `groups` mit `entry_ids`. Die Summen rechnet das Backend.
 
 ## 8. Tests
 
@@ -225,7 +246,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Dublettenrate in den Top 10 = 0.
   - p95 lokal < 300 ms.
   - Die Suite schlägt fehl, wenn eine Schwelle reißt.
-- **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall.
+- **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall. Für die Textsuche auch Limit, Query-Cache, Dubletten und das Schreiben in den OFF-Cache.
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
   - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)).
@@ -235,7 +256,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
-- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf und der Schnellzugriff zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf und der Schnellzugriff zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1.
 
 ## 9. Betrieb
 

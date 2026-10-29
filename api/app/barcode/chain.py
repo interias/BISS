@@ -36,12 +36,19 @@ def lookup(session: Session, code: str, source: OpenFoodFacts, now: datetime) ->
     food = _own(session, gtin)
     if food is not None:
         return food
-    cached = _cached(session, gtin, now)
+    cached = cached_product(session, gtin, now)
     if cached is not None and (found := off.draft(gtin, cached.payload)) is not None:
         return found
     payload = source.product(gtin)
     if payload is None or (found := off.draft(gtin, payload)) is None:
         raise NotFound(gtin)
+    cache_product(session, gtin, payload, now)
+    session.commit()
+    return found
+
+
+def cache_product(session: Session, gtin: str, payload: dict, now: datetime) -> None:
+    """Store or refresh a product shown from Open Food Facts; not committed."""
     statement = insert(OffCache).values(gtin=gtin, payload=payload, fetched_at=now)
     session.execute(
         statement.on_conflict_do_update(
@@ -49,8 +56,6 @@ def lookup(session: Session, code: str, source: OpenFoodFacts, now: datetime) ->
             set_={"payload": statement.excluded.payload, "fetched_at": now},
         )
     )
-    session.commit()
-    return found
 
 
 def food_for_entry(session: Session, code: str, now: datetime) -> Food:
@@ -66,7 +71,7 @@ def food_for_entry(session: Session, code: str, now: datetime) -> Food:
     food = _own(session, gtin)
     if food is not None:
         return food
-    cached = _cached(session, gtin, now)
+    cached = cached_product(session, gtin, now)
     found = None if cached is None else off.draft(gtin, cached.payload)
     if found is None:
         raise NotFound(gtin)
@@ -77,6 +82,7 @@ def food_for_entry(session: Session, code: str, now: datetime) -> Food:
         basis=found.basis,
         source=off.SOURCE,
         source_id=found.source_id,
+        category=found.category,
         fetched_at=cached.fetched_at,
         **found.values,
     )
@@ -109,7 +115,7 @@ def _own(session: Session, gtin: str) -> Food | None:
     return session.scalar(select(Food).where(Food.gtin == gtin))
 
 
-def _cached(session: Session, gtin: str, now: datetime) -> OffCache | None:
+def cached_product(session: Session, gtin: str, now: datetime) -> OffCache | None:
     """The cache row of the GTIN while it is younger than 30 days."""
     return session.scalar(
         select(OffCache).where(

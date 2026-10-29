@@ -118,7 +118,9 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
     add_food(session, "Bananenchips frittiert, gesüßt", source="bls", kcal=490)
     add_food(session, "Gurke roh", source="bls", kcal=16)
 
-    results = client.get("/api/v1/foods/search", params={"q": "Banane"}).json()
+    body = client.get("/api/v1/foods/search", params={"q": "Banane"}).json()
+    results = body["hits"]
+    assert body["off_more"] is True  # 2 hits: fewer than 5
 
     assert [r["name"] for r in results] == ["Banane roh", "Bananenchips frittiert, gesüßt"]
     assert results[0] == {
@@ -127,6 +129,8 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
         "brand": None,
         "source": "bls",
         "basis": "g",
+        "density": 1.0,
+        "category": None,
         "per_100": {"kcal": 79, "protein": 10, "carbs": 10, "fat": 1},
         "standard_serving": {"label": "1 Banane", "grams": 120, "origin": "estimated"},
         "gtin": None,
@@ -138,7 +142,10 @@ def test_search_validates_its_parameters(client: TestClient) -> None:
     assert client.get("/api/v1/foods/search").status_code == 422
     assert client.get("/api/v1/foods/search", params={"q": ""}).status_code == 422
     assert client.get("/api/v1/foods/search", params={"q": "a", "limit": 0}).status_code == 422
-    assert client.get("/api/v1/foods/search", params={"q": "500 g"}).json() == []
+    assert client.get("/api/v1/foods/search", params={"q": "500 g"}).json() == {
+        "hits": [],
+        "off_more": False,
+    }
 
 
 def test_openapi_documents_the_endpoints(client: TestClient) -> None:
@@ -149,6 +156,7 @@ def test_openapi_documents_the_endpoints(client: TestClient) -> None:
         "/api/v1/entries/{entry_id}",
         "/api/v1/recent",
         "/api/v1/foods/search",
+        "/api/v1/foods/search/off",
         "/api/v1/foods/{food_id}",
         "/api/v1/foods",
         "/api/v1/foods/validate",

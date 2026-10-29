@@ -13,47 +13,58 @@ const inDialog = (node: ReactNode) =>
     </Dialog.Root>,
   );
 
-const amount = () => screen.getByRole("status", { name: "Menge" });
+const amount = () => screen.getByRole("spinbutton", { name: "Menge" });
 const preview = () => screen.getByTestId("preview");
 
-test("starts with the standard serving and the suggested meal", () => {
-  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} />);
+test("starts with the standard serving and shows no meal", () => {
+  inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} />);
   expect(screen.getByRole("heading", { name: "Banane roh" })).toBeInTheDocument();
   expect(screen.getByText("BLS")).toBeInTheDocument();
   expect(screen.getByText("generisch · BLS")).toBeInTheDocument();
-  expect(amount()).toHaveTextContent("120g");
-  expect(screen.getByRole("button", { name: "Mahlzeit: Snack" })).toBeInTheDocument();
+  expect(amount()).toHaveValue(120);
+  expect(screen.queryByRole("button", { name: /Mahlzeit/ })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /1 Banane/ })).toHaveAttribute("aria-pressed", "true");
   expect(preview()).toHaveTextContent("112kcal1Eiweiß24KH0Fett");
   expect(screen.getByRole("button", { name: "Eintragen · 112 kcal" })).toBeInTheDocument();
 });
 
 test("± changes the grams and the preview follows live", () => {
-  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} />);
+  inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} />);
   const minus = screen.getByRole("button", { name: "weniger" });
   fireEvent.click(minus); // 110
   fireEvent.click(minus); // 100
   fireEvent.click(minus); // 95
   fireEvent.click(minus); // 90
-  expect(amount()).toHaveTextContent("90g");
+  expect(amount()).toHaveValue(90);
   expect(preview()).toHaveTextContent("84kcal");
   expect(screen.getByRole("button", { name: /1 Banane/ })).toHaveAttribute("aria-pressed", "false");
   fireEvent.click(screen.getByRole("button", { name: "mehr" }));
-  expect(amount()).toHaveTextContent("95g");
+  expect(amount()).toHaveValue(95);
   fireEvent.click(screen.getByRole("button", { name: /1 Banane/ }));
-  expect(amount()).toHaveTextContent("120g");
+  expect(amount()).toHaveValue(120);
 });
 
-test("a tap on the meal chip cycles the meal and Eintragen sends grams and meal", () => {
+test("the grams can be typed, at least 1 g, and Eintragen sends them", () => {
   const onSubmit = vi.fn();
-  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={onSubmit} />);
-  const chip = screen.getByRole("button", { name: /Mahlzeit/ });
-  fireEvent.click(chip);
-  expect(chip).toHaveTextContent("Abend");
-  fireEvent.click(chip);
-  expect(chip).toHaveTextContent("Frühstück");
+  inDialog(<AmountForm food={bananaDetail} onSubmit={onSubmit} />);
+  fireEvent.change(amount(), { target: { value: "37" } });
+  expect(preview()).toHaveTextContent("34kcal");
   fireEvent.click(screen.getByRole("button", { name: /Eintragen/ }));
-  expect(onSubmit).toHaveBeenCalledWith(120, "breakfast");
+  expect(onSubmit).toHaveBeenCalledWith(37);
+  fireEvent.change(amount(), { target: { value: "0" } });
+  fireEvent.blur(amount());
+  expect(amount()).toHaveValue(1);
+  fireEvent.click(screen.getByRole("button", { name: "weniger" }));
+  expect(amount()).toHaveValue(1);
+  fireEvent.click(screen.getByRole("button", { name: "mehr" }));
+  expect(amount()).toHaveValue(2);
+});
+
+test("a typed amount above 1500 g stays for a single entry", () => {
+  inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} />);
+  fireEvent.change(amount(), { target: { value: "2000" } });
+  fireEvent.blur(amount());
+  expect(amount()).toHaveValue(2000);
 });
 
 test("ml foods convert the grams through the density for the preview", () => {
@@ -64,7 +75,7 @@ test("ml foods convert the grams through the density for the preview", () => {
     per_100: { ...bananaDetail.per_100, kcal: 64 },
     standard_serving: { label: "1 Glas", grams: 206, origin: "estimated" as const },
   };
-  inDialog(<AmountForm food={milk} initialMeal="breakfast" onSubmit={() => {}} />);
+  inDialog(<AmountForm food={milk} onSubmit={() => {}} />);
   expect(preview()).toHaveTextContent("128kcal");
 });
 
@@ -75,49 +86,46 @@ test("an entry opens in edit mode with Speichern and Entfernen", () => {
     <AmountForm
       food={bananaDetail}
       entry={{ ...bananaEntry, grams: 90, meal: "lunch" }}
-      initialMeal="snack"
+     
       onSubmit={onSubmit}
       onRemove={onRemove}
     />,
   );
-  expect(amount()).toHaveTextContent("90g");
-  expect(screen.getByRole("button", { name: "Mahlzeit: Mittag" })).toBeInTheDocument();
+  expect(amount()).toHaveValue(90);
   fireEvent.click(screen.getByRole("button", { name: "Speichern · 84 kcal" }));
-  expect(onSubmit).toHaveBeenCalledWith(90, "lunch");
+  expect(onSubmit).toHaveBeenCalledWith(90);
   fireEvent.click(screen.getByRole("button", { name: "Entfernen" }));
   expect(onRemove).toHaveBeenCalledOnce();
 });
 
-test("Bearbeiten hands over the current grams and meal", () => {
+test("Bearbeiten hands over the current grams", () => {
   const onEdit = vi.fn();
-  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} onEdit={onEdit} />);
+  inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} onEdit={onEdit} />);
   fireEvent.click(screen.getByRole("button", { name: "mehr" }));
-  fireEvent.click(screen.getByRole("button", { name: /Mahlzeit/ }));
   fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
-  expect(onEdit).toHaveBeenCalledWith(130, "dinner");
+  expect(onEdit).toHaveBeenCalledWith(130);
 });
 
-test("without onEdit there is no Bearbeiten, and initial grams and meal win over the entry", () => {
+test("without onEdit there is no Bearbeiten, and initial grams win over the entry", () => {
   inDialog(
     <AmountForm
       food={bananaDetail}
       entry={bananaEntry}
-      initial={{ grams: 75, meal: "lunch" }}
-      initialMeal="snack"
+      initial={{ grams: 75 }}
+     
       onSubmit={() => {}}
     />,
   );
   expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
-  expect(amount()).toHaveTextContent("75g");
-  expect(screen.getByRole("button", { name: "Mahlzeit: Mittag" })).toBeInTheDocument();
+  expect(amount()).toHaveValue(75);
 });
 
 test("data from Open Food Facts carry the source note (ADR-0002), other foods do not", () => {
-  const { unmount } = inDialog(<AmountForm food={puddingDraft} initialMeal="snack" onSubmit={() => {}} />);
+  const { unmount } = inDialog(<AmountForm food={puddingDraft} onSubmit={() => {}} />);
   expect(screen.getByText("Open Food Facts")).toBeInTheDocument();
   expect(screen.getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /1 Becher/ })).toHaveAttribute("aria-pressed", "true");
   unmount();
-  inDialog(<AmountForm food={bananaDetail} initialMeal="snack" onSubmit={() => {}} />);
+  inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} />);
   expect(screen.queryByText(/ODbL/)).not.toBeInTheDocument();
 });

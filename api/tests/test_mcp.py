@@ -103,7 +103,7 @@ def test_search_food_finds_like_the_rest_search(
     food = add_food(session, "Banane roh", kcal=93, protein=1.2, carbs=20, fat=0.2)
     add_serving(session, food, "1 Banane", 120)
     hits = call(server, "search_food", query="banane")
-    assert hits == client.get("/api/v1/foods/search", params={"q": "banane"}).json()
+    assert hits == client.get("/api/v1/foods/search", params={"q": "banane"}).json()["hits"]
     assert hits[0]["id"] == food.id
     assert hits[0]["standard_serving"] == {"label": "1 Banane", "grams": 120, "origin": "estimated"}
 
@@ -215,7 +215,7 @@ def test_search_food_returns_a_cached_product_with_its_gtin(
 ) -> None:
     add_cached(session, CODE, datetime.now(UTC) - timedelta(days=1))
     hits = call(server, "search_food", query="testriegel")
-    assert hits == client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    assert hits == client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()["hits"]
     assert [(h["id"], h["gtin"], h["source"]) for h in hits] == [(None, GTIN, "off")]
 
 

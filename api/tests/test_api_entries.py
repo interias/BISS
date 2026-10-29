@@ -19,7 +19,13 @@ def test_entry_with_amount_meal_and_time(client: TestClient, session: Session) -
     )
     assert response.status_code == 201
     entry = response.json()
-    assert entry["food"] == {"id": food.id, "name": "Haferflocken", "brand": None, "source": "own"}
+    assert entry["food"] == {
+        "id": food.id,
+        "name": "Haferflocken",
+        "brand": None,
+        "source": "own",
+        "category": None,
+    }
     assert (entry["grams"], entry["meal"], entry["day"]) == (60, "breakfast", "2026-10-28")
     assert entry["macros"] == {"kcal": 222.0, "protein": 8.1, "carbs": 35.2, "fat": 4.2}
 
@@ -131,7 +137,7 @@ def test_delete_removes_the_entry(client: TestClient, session: Session) -> None:
 
 def test_cached_search_hit_is_logged_by_its_gtin(client: TestClient, session: Session) -> None:
     add_cached(session, "2000000021072", datetime.now(UTC) - timedelta(days=3))
-    (hit,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    (hit,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()["hits"]
     assert (hit["id"], hit["gtin"], hit["source"]) == (None, "02000000021072", "off")
     assert hit["standard_serving"] == {"label": "1 Riegel (40 g)", "grams": 40, "origin": "package"}
 
@@ -144,5 +150,5 @@ def test_cached_search_hit_is_logged_by_its_gtin(client: TestClient, session: Se
         hit["name"],
         hit["brand"],
     )
-    (again,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()
+    (again,) = client.get("/api/v1/foods/search", params={"q": "testriegel"}).json()["hits"]
     assert (again["id"], again["gtin"], again["source"]) == (food.id, "02000000021072", "off")

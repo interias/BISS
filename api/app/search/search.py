@@ -23,9 +23,9 @@ from app.search.weights import (
 from app.sources import off
 from app.sources.off import FoodDraft
 
-# Cache rows `o` the search sees: the window of chain._cached (:cache_since, computed in
-# Python like there), a name (off.draft() rejects a product without one), and no food has
-# the GTIN (a branded product of the same GTIN is merged into the food, SPEC 6).
+# Cache rows `o` the search sees: the window of chain.cached_product (:cache_since,
+# computed in Python like there), a name (off.draft() rejects a product without one), and
+# no food has the GTIN (a branded product of the same GTIN is merged into the food, SPEC 6).
 _CACHED = """
     o.fetched_at > :cache_since AND o.name_norm IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM food f WHERE f.gtin = o.gtin)
@@ -145,6 +145,7 @@ _SEARCH = text(
         SELECT * FROM scored ORDER BY score DESC, id, gtin LIMIT :candidates
     )
     SELECT c.ref, c.id, c.gtin, c.payload, f.name, f.brand, c.source, f.basis, f.density,
+           f.category,
            c.kcal, c.protein, c.carbs, c.fat, c.score,
            c.usage > 0 AS used,
            s.label AS serving_label, s.grams AS serving_grams, s.origin AS serving_origin,
@@ -180,6 +181,7 @@ class Hit:
     serving_grams: float | None
     serving_origin: str | None
     score: float
+    category: str | None = None
 
 
 def _flat(value: str) -> str:
@@ -206,7 +208,7 @@ def _order(row) -> tuple:
 
 
 def _cache_since(now: datetime) -> datetime:
-    """Cache rows fetched after this moment count, as in chain._cached."""
+    """Cache rows fetched after this moment count, as in chain.cached_product."""
     return now - timedelta(days=CACHE_DAYS)
 
 
@@ -315,15 +317,20 @@ def _hit(row) -> Hit:
         serving_grams=row.serving_grams,
         serving_origin=row.serving_origin,
         score=round(row.score, 4),
+        category=row.category,
     )
 
 
 def _cache_hit(row, found: FoodDraft) -> Hit:
+    return draft_hit(found, row.score)
+
+
+def draft_hit(found: FoodDraft, score: float = 0.0) -> Hit:
     """The product as chain.food_for_entry() would store it, with its package serving."""
     serving = found.serving
     return Hit(
         id=None,
-        gtin=row.gtin,
+        gtin=found.gtin,
         name=found.name,
         brand=found.brand,
         source=off.SOURCE,
@@ -336,5 +343,6 @@ def _cache_hit(row, found: FoodDraft) -> Hit:
         serving_label=None if serving is None else serving.label,
         serving_grams=None if serving is None else serving.grams,
         serving_origin=None if serving is None else "package",
-        score=round(row.score, 4),
+        score=round(score, 4),
+        category=found.category,
     )

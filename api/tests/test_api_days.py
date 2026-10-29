@@ -87,3 +87,41 @@ def test_today_before_four_is_the_previous_day(client: TestClient, session: Sess
 
 def test_other_words_than_today_are_rejected(client: TestClient) -> None:
     assert client.get("/api/v1/days/yesterday").status_code == 422
+
+
+def test_day_rows_are_newest_first_with_plates_as_groups(
+    client: TestClient, session: Session
+) -> None:
+    oats = add_food(session, "Haferflocken", kcal=368, protein=13.5, carbs=58.7, fat=6.7)
+    rice = add_food(session, "Reis gekocht", kcal=130, protein=2.7, carbs=28, fat=0.3)
+    log(client, oats.id, 60, "breakfast", "2026-10-28T07:12:00+01:00")
+    plate = {
+        "group_name": "Reis mit Hafer",
+        "items": [{"food_id": rice.id, "grams": 200}, {"food_id": oats.id, "grams": 10}],
+        "meal": "lunch",
+        "eaten_at": "2026-10-28T12:30:00+01:00",
+    }
+    group = client.post("/api/v1/entries/group", json=plate).json()
+    log(client, rice.id, 100, "dinner", "2026-10-28T19:00:00+01:00")
+
+    rows = client.get("/api/v1/days/2026-10-28").json()["rows"]
+
+    assert [row["kind"] for row in rows] == ["entry", "group", "entry"]
+    assert rows[0]["entry"]["grams"] == 100
+    assert rows[2]["entry"]["grams"] == 60
+    plate_row = rows[1]
+    assert plate_row["group_id"] == group["group_id"]
+    assert plate_row["group_name"] == "Reis mit Hafer"
+    assert plate_row["meal"] == "lunch"
+    assert [e["grams"] for e in plate_row["entries"]] == [200, 10]
+    assert plate_row["totals"] == group["totals"]
+
+
+def test_day_rows_on_equal_times_put_the_later_entry_first(
+    client: TestClient, session: Session
+) -> None:
+    food = add_food(session, "Reis gekocht")
+    log(client, food.id, 10, "lunch", "2026-10-28T12:00:00+01:00")
+    log(client, food.id, 20, "lunch", "2026-10-28T12:00:00+01:00")
+    rows = client.get("/api/v1/days/2026-10-28").json()["rows"]
+    assert [row["entry"]["grams"] for row in rows] == [20, 10]

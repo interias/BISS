@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { coffeeCombo, fakeApi, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
+import { coffeeCombo, fakeApi, muesliDraft, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Home } from "./home";
 
 // No camera in jsdom: the overlay takes a photo, and ZXing "reads" this code from it.
@@ -14,15 +14,15 @@ vi.mock("@/components/camera/scanner", () => ({
 
 afterEach(() => vi.unstubAllGlobals());
 
-test("shows the header date of the backend's day and the four meals", async () => {
+test("shows the header date of the backend's day and one diary without meals", async () => {
   fakeApi();
   render(<Home />);
   expect(await screen.findByText("Heute · Mi 28. Okt")).toBeInTheDocument();
   const diary = screen.getByRole("region", { name: "Tagebuch" });
   for (const meal of ["Frühstück", "Mittag", "Snack", "Abend"]) {
-    expect(within(diary).getByText(meal)).toBeInTheDocument();
+    expect(within(diary).queryByText(meal)).not.toBeInTheDocument();
   }
-  expect(within(diary).getAllByText("Noch nichts eingetragen")).toHaveLength(4);
+  expect(within(diary).getAllByText("Noch nichts eingetragen")).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Lebensmittel suchen" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Kamera/ })).toBeInTheDocument();
 });
@@ -54,20 +54,32 @@ async function openAmountOfBanana() {
   await screen.findByRole("heading", { name: "Banane roh" });
 }
 
-test("Bearbeiten opens the editor and Abbrechen returns with the same grams and meal", async () => {
+test("Bearbeiten opens the editor and Abbrechen returns with the same grams", async () => {
   fakeApi();
   render(<Home />);
   await openAmountOfBanana();
   fireEvent.click(screen.getByRole("button", { name: "mehr" })); // 130 g
-  fireEvent.click(screen.getByRole("button", { name: /^Mahlzeit/ })); // snack → Abend
   fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
 
   expect(await screen.findByLabelText("Name")).toHaveValue("Banane roh");
-  expect(screen.queryByRole("status", { name: "Menge" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("spinbutton", { name: "Menge" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
 
-  expect(await screen.findByRole("status", { name: "Menge" })).toHaveTextContent("130g");
-  expect(screen.getByRole("button", { name: "Mahlzeit: Abend" })).toBeInTheDocument();
+  expect(await screen.findByRole("spinbutton", { name: "Menge" })).toHaveValue(130);
+});
+
+test("the diary lists entries and groups newest first, each with its time", async () => {
+  fakeApi({ combos: [coffeeCombo()] });
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: /Banane roh\s*120 g/ }));
+  await screen.findByText("Banane roh eingetragen");
+  fireEvent.click(await comboChip());
+  await screen.findByText("Kaffee eingetragen · 24 kcal");
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const rows = within(diary).getAllByRole("button", { name: /Banane roh|^Kaffee/ });
+  // Both at the fake's time; the later one, the combo, stands first.
+  expect(rows.map((row) => row.textContent?.slice(0, 6))).toEqual(["Kaffee", "Banane"]);
+  expect(rows[1]).toHaveTextContent("10:05");
 });
 
 test("saving in the editor returns to the amount sheet with the new name", async () => {
@@ -79,7 +91,7 @@ test("saving in the editor returns to the amount sheet with the new name", async
   fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
   expect(await screen.findByRole("heading", { name: "Banane, reif" })).toBeInTheDocument();
-  expect(screen.getByRole("status", { name: "Menge" })).toHaveTextContent("120g");
+  expect(screen.getByRole("spinbutton", { name: "Menge" })).toHaveValue(120);
   expect(await screen.findByText("Lebensmittel gespeichert")).toBeInTheDocument();
   expect(calls.some((c) => c.method === "PATCH" && c.url === "/api/v1/foods/7")).toBe(true);
 });
@@ -112,7 +124,7 @@ test("a scanned draft opens the amount sheet with the source note and is logged 
   expect(await screen.findByRole("heading", { name: "Testpudding Schoko" })).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
   expect(screen.getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
-  expect(screen.getByRole("status", { name: "Menge" })).toHaveTextContent("200g");
+  expect(screen.getByRole("spinbutton", { name: "Menge" })).toHaveValue(200);
   expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 148 kcal" }));
@@ -120,7 +132,7 @@ test("a scanned draft opens the amount sheet with the source note and is logged 
   expect(calls.find((c) => c.method === "POST")).toEqual({
     method: "POST",
     url: "/api/v1/entries",
-    body: { gtin: "0" + PUDDING_CODE, grams: 200, meal: "snack" },
+    body: { gtin: "0" + PUDDING_CODE, grams: 200 },
   });
 });
 
@@ -135,16 +147,30 @@ test("a cached product in the search opens the amount sheet and is logged by GTI
   expect(await screen.findByRole("heading", { name: "Testpudding Schoko" })).toBeInTheDocument();
   expect(calls.some((c) => c.url === `/api/v1/foods/barcode/${puddingDraft.gtin}`)).toBe(true);
   expect(screen.getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
-  expect(screen.getByRole("status", { name: "Menge" })).toHaveTextContent("200g");
+  expect(screen.getByRole("spinbutton", { name: "Menge" })).toHaveValue(200);
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 148 kcal" }));
   await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
   expect(calls.find((c) => c.method === "POST")).toEqual({
     method: "POST",
     url: "/api/v1/entries",
-    body: { gtin: puddingDraft.gtin, grams: 200, meal: "snack" },
+    body: { gtin: puddingDraft.gtin, grams: 200 },
   });
   expect(calls.some((c) => /^\/api\/v1\/foods\/\d+$/.test(c.url))).toBe(false); // no food was loaded
+});
+
+test("an unknown product from Open Food Facts opens the amount sheet and is logged by GTIN", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Lebensmittel suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "Zippelmo" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Zippelmo Beerenmüsli/ }));
+
+  expect(await screen.findByRole("heading", { name: "Zippelmo Beerenmüsli" })).toBeInTheDocument();
+  expect(screen.getByRole("spinbutton", { name: "Menge" })).toHaveValue(50);
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 186 kcal" }));
+  await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+  expect(calls.find((c) => c.method === "POST")?.body).toEqual({ gtin: muesliDraft.gtin, grams: 50 });
 });
 
 async function photographLabel() {
@@ -302,7 +328,7 @@ test("Gericht entfernen deletes the group; Rückgängig logs it again with name,
   expect(screen.getByTestId("kcal-total")).toHaveTextContent("399");
 });
 
-test("an entry of a Gericht opens the amount sheet, but its meal is fixed to the group", async () => {
+test("an entry of a Gericht opens the amount sheet without a meal", async () => {
   const { calls } = fakeApi();
   render(<Home />);
   await logPlate();
@@ -311,7 +337,7 @@ test("an entry of a Gericht opens the amount sheet, but its meal is fixed to the
   fireEvent.click(within(diary).getByText("Reis gekocht"));
 
   expect(await screen.findByRole("heading", { name: "Reis gekocht" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Mahlzeit: Snack" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: /Mahlzeit/ })).not.toBeInTheDocument();
   expect(calls.some((c) => c.method === "PATCH")).toBe(false);
 });
 
@@ -347,21 +373,18 @@ test("a long press opens the combo; Eintragen logs the adjusted items, the templ
 
   expect(await screen.findByRole("dialog", { name: "Schnellzugriff anpassen" })).toBeInTheDocument();
   expect(calls.some((c) => c.method === "POST")).toBe(false);
-  expect(screen.getByRole("button", { name: "Snack" })).toHaveAttribute("aria-pressed", "true"); // suggested
-  fireEvent.click(screen.getByRole("button", { name: "Zucker mehr" }));
-  fireEvent.click(screen.getByRole("button", { name: "Abend" }));
-  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 64 kcal" }));
+  fireEvent.click(screen.getByRole("button", { name: "Zucker mehr" })); // 6 g
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 28 kcal" }));
 
-  await screen.findByText("Kaffee eingetragen · 64 kcal");
+  await screen.findByText("Kaffee eingetragen · 28 kcal");
   expect(calls.find((c) => c.method === "POST")).toEqual({
     method: "POST",
     url: "/api/v1/combos/1/log",
     body: {
       items: [
         { food_id: 12, grams: 200 },
-        { food_id: 11, grams: 15 },
+        { food_id: 11, grams: 6 },
       ],
-      meal: "dinner",
     },
   });
   expect(calls.some((c) => c.method === "PATCH")).toBe(false);
@@ -398,7 +421,7 @@ test("Als Vorlage speichern and Löschen change the combo of the dock", async ()
   expect(screen.queryByRole("button", { name: /^Schnellzugriff/ })).not.toBeInTheDocument();
 });
 
-test("+ Neu creates a combo from searched foods; its chip stands first", async () => {
+test("+ Neu creates a combo from searched foods; its chip stands first after + Neu", async () => {
   const { calls } = fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Neuer Schnellzugriff" }));
@@ -415,7 +438,8 @@ test("+ Neu creates a combo from searched foods; its chip stands first", async (
     items: [{ food_id: 7, grams: 120 }],
   });
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
-  expect(chips[0]).toHaveAccessibleName("Schnellzugriff Bananenpause");
+  expect(chips[0]).toHaveAccessibleName("Neuer Schnellzugriff");
+  expect(chips[1]).toHaveAccessibleName("Schnellzugriff Bananenpause");
   expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);
 });
 

@@ -3,6 +3,7 @@ import type {
   BarcodeFood,
   Combo,
   Day,
+  DayRow,
   Entry,
   FoodDetail,
   FoodSummary,
@@ -21,6 +22,8 @@ export const banana: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "g",
+  density: 1,
+  category: "fruit",
   per_100: { kcal: 93, protein: 1.1, carbs: 20, fat: 0.2 },
   standard_serving: { label: "1 Banane", grams: 120, origin: "estimated" },
 };
@@ -46,6 +49,7 @@ export const puddingDraft: BarcodeFood = {
   basis: "g",
   density: 1,
   image_path: null,
+  category: "other",
   per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4, fiber: null, sugar: null, sat_fat: null, salt: null },
   servings: [{ label: "1 Becher (200 g)", grams: 200, origin: "package", is_default: true }],
   standard_serving: { label: "1 Becher (200 g)", grams: 200, origin: "package" },
@@ -59,8 +63,35 @@ export const puddingHit: SearchHit = {
   brand: puddingDraft.brand,
   source: "off",
   basis: "g",
+  density: 1,
+  category: null,
   per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4 },
   standard_serving: puddingDraft.standard_serving,
+};
+
+/** An invented product only the Open Food Facts text search knows (ADR-0011). */
+export const muesliDraft: BarcodeFood = {
+  ...puddingDraft,
+  gtin: "02000000014012",
+  name: "Zippelmo Beerenmüsli",
+  brand: "Testmühle",
+  category: "grains",
+  per_100: { kcal: 372, protein: 9.5, carbs: 61, fat: 7.8, fiber: null, sugar: 18, sat_fat: null, salt: null },
+  servings: [{ label: "1 Schale (50 g)", grams: 50, origin: "package", is_default: true }],
+  standard_serving: { label: "1 Schale (50 g)", grams: 50, origin: "package" },
+};
+
+export const muesliHit: SearchHit = {
+  id: null,
+  gtin: muesliDraft.gtin,
+  name: muesliDraft.name,
+  brand: muesliDraft.brand,
+  source: "off",
+  basis: "g",
+  density: 1,
+  category: "grains",
+  per_100: { kcal: 372, protein: 9.5, carbs: 61, fat: 7.8 },
+  standard_serving: muesliDraft.standard_serving,
 };
 
 /** The fake extractor's draft (api/app/labels/extractor.py, FAKE_DRAFT) for a scanned GTIN. */
@@ -94,7 +125,7 @@ export const biscuitLabel = (gtin: string | null): LabelExtraction => ({
 
 export const bananaEntry: Entry = {
   id: 42,
-  food: { id: 7, name: "Banane roh", brand: null, source: "bls" },
+  food: { id: 7, name: "Banane roh", brand: null, source: "bls", category: "fruit" },
   grams: 120,
   meal: "snack",
   eaten_at: "2026-10-28T10:05:00+01:00",
@@ -110,6 +141,8 @@ export const riceDetail: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "g",
+  density: 1,
+  category: null,
   per_100: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 },
   standard_serving: { label: "1 Portion", grams: 150, origin: "estimated" },
 };
@@ -120,11 +153,19 @@ const chicken: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "g",
+  density: 1,
+  category: null,
   per_100: { kcal: 150, protein: 30, carbs: 0, fat: 3 },
   standard_serving: { label: "1 Filet", grams: 120, origin: "estimated" },
 };
 
-const ref = (food: FoodSummary) => ({ id: food.id, name: food.name, brand: food.brand, source: food.source });
+const ref = (food: FoodSummary) => ({
+  id: food.id,
+  name: food.name,
+  brand: food.brand,
+  source: food.source,
+  category: food.category,
+});
 const scale = (per100: Macros, grams: number): Macros => ({
   kcal: Math.round(per100.kcal * grams) / 100,
   protein: Math.round(per100.protein * grams) / 100,
@@ -183,6 +224,8 @@ export const broccoli: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "g",
+  density: 1,
+  category: null,
   per_100: { kcal: 30, protein: 3, carbs: 2.5, fat: 0.4 },
   standard_serving: { label: "1 Portion", grams: 100, origin: "estimated" },
 };
@@ -193,6 +236,8 @@ export const sugar: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "g",
+  density: 1,
+  category: null,
   per_100: { kcal: 400, protein: 0, carbs: 100, fat: 0 },
   standard_serving: { label: "1 TL", grams: 5, origin: "estimated" },
 };
@@ -203,6 +248,8 @@ export const coffee: FoodSummary = {
   brand: null,
   source: "bls",
   basis: "ml",
+  density: 1,
+  category: null,
   per_100: { kcal: 2, protein: 0.1, carbs: 0.3, fat: 0 },
   standard_serving: { label: "1 Tasse", grams: 200, origin: "estimated" },
 };
@@ -224,6 +271,29 @@ const sum = (list: Macros[]) =>
     (a, m) => ({ kcal: a.kcal + m.kcal, protein: a.protein + m.protein, carbs: a.carbs + m.carbs, fat: a.fat + m.fat }),
     ZERO,
   );
+
+/** The diary rows as the backend orders them: newest first, a group at its first entry. */
+function dayRows(entries: Entry[], sum: (list: Entry[]) => Macros): DayRow[] {
+  const byTime = [...entries].sort((a, b) => a.eaten_at.localeCompare(b.eaten_at) || a.id - b.id);
+  return byTime
+    .flatMap((entry): DayRow[] => {
+      if (!entry.group_id) return [{ kind: "entry", entry }];
+      const members = byTime.filter((e) => e.group_id === entry.group_id);
+      if (members[0] !== entry) return [];
+      return [
+        {
+          kind: "group",
+          group_id: entry.group_id,
+          group_name: entry.group_name!,
+          meal: entry.meal,
+          eaten_at: entry.eaten_at,
+          totals: sum(members),
+          entries: members,
+        },
+      ];
+    })
+    .reverse();
+}
 
 export function makeDay(entries: Entry[] = []): Day {
   const sum = (list: Entry[]) =>
@@ -249,6 +319,7 @@ export function makeDay(entries: Entry[] = []): Day {
       });
       return { meal, totals: sum(own), entries: own, groups };
     }),
+    rows: dayRows(entries, sum),
     suggested_meal: "snack",
   };
 }
@@ -262,7 +333,8 @@ const json = (body: unknown, status = 200) =>
 /**
  * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
  * banana for GET and PATCH /foods/7 and a search that finds only "banane" and the cached
- * pudding ("pudding"); POST /foods
+ * pudding ("pudding"), with off_more below 5 hits; the Open Food Facts search finds the
+ * muesli ("zippelmo") and fails for "offline"; POST /foods
  * creates food 55 with the given name; /foods/validate always finds the values plausible.
  * The barcode chain knows only the pudding draft, by any form of its code; any other code is
  * a miss. The label
@@ -321,16 +393,21 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
+    if (url.startsWith("/api/v1/foods/search/off")) {
+      if (url.includes("offline")) return json({ hits: [], reason: "timeout" });
+      return json({ hits: url.toLowerCase().includes("zippelmo") ? [muesliHit] : [], reason: null });
+    }
     if (url.startsWith("/api/v1/foods/search")) {
-      return json(
-        url.includes("banane")
-          ? [banana]
-          : url.includes("pudding")
-            ? [puddingHit]
-            : url.includes("brok")
-              ? [broccoli, puddingHit]
-              : [],
-      );
+      const hits = url.includes("banane")
+        ? [banana]
+        : url.includes("pudding")
+          ? [puddingHit]
+          : url.includes("brok")
+            ? [broccoli, puddingHit]
+            : [];
+      // Like the backend: Open Food Facts is worth asking below 5 hits from 3 characters.
+      const q = decodeURIComponent(url.split("q=")[1] ?? "");
+      return json({ hits, off_more: q.length >= 3 && hits.length < 5 });
     }
     if (url === "/api/v1/plates/extract" && method === "POST") return json(plate);
     if (url === "/api/v1/entries/group" && method === "POST") {
@@ -368,6 +445,7 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     }
     const barcode = url.match(/^\/api\/v1\/foods\/barcode\/(\d+)$/);
     if (barcode && barcode[1].padStart(14, "0") === puddingDraft.gtin) return json(puddingDraft);
+    if (barcode && barcode[1].padStart(14, "0") === muesliDraft.gtin) return json(muesliDraft);
     const own = barcode && Object.values(foods).find((f) => f.gtin === barcode[1].padStart(14, "0"));
     if (own) return json(own);
     if (barcode) return json({ detail: "no product", gtin: barcode[1].padStart(14, "0") }, 404);

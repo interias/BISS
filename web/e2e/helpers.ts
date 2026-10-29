@@ -6,7 +6,7 @@ type Entry = { id: number; grams: number; macros: { kcal: number } };
 export async function findFood(request: APIRequestContext, query: string, name: string) {
   const response = await request.get(`/api/v1/foods/search?q=${encodeURIComponent(query)}`);
   expect(response.ok()).toBe(true);
-  const hits: { id: number; name: string }[] = await response.json();
+  const { hits }: { hits: { id: number; name: string }[] } = await response.json();
   const hit = hits.find((food) => food.name.startsWith(name));
   expect(hit, `search "${query}" finds ${name}`).toBeDefined();
   return hit!.id;

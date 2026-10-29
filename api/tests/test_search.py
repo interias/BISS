@@ -267,7 +267,7 @@ def test_cache_window_is_the_one_of_the_barcode_chain(session: Session) -> None:
     cached = {
         gtin
         for gtin in ("02000000021010", "02000000021027", "02000000021034")
-        if chain._cached(session, gtin, NOW) is not None
+        if chain.cached_product(session, gtin, NOW) is not None
     }
     assert cached == {"02000000021010"}
     assert chain.CACHE_DAYS == 30

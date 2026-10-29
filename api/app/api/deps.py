@@ -39,8 +39,9 @@ NowDep = Annotated[datetime, Depends(get_now)]
 
 @lru_cache
 def get_off() -> OpenFoodFacts:
-    """One client per process, so the local rate limit counts every request."""
-    return OpenFoodFacts(get_settings().off_base_url)
+    """One client per process, so the local rate limits count every request."""
+    settings = get_settings()
+    return OpenFoodFacts(settings.off_base_url, search_url=settings.off_search_url)
 
 
 OffDep = Annotated[OpenFoodFacts, Depends(get_off)]

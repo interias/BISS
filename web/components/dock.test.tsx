@@ -18,16 +18,46 @@ function renderDock() {
   return { ...actions, chip: screen.getByRole("button", { name: "Schnellzugriff Kaffee" }) };
 }
 
-test("the combo chips stand first, + Neu last", () => {
+test("+ Neu stands first, then the combo chips and the recent ones", () => {
   const { onNewCombo } = renderDock();
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
-  expect(chips.map((chip) => chip.getAttribute("aria-label") ?? chip.textContent)).toEqual([
-    "Schnellzugriff Kaffee",
-    "Banane roh120 g",
+  expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
     "Neuer Schnellzugriff",
+    "Schnellzugriff Kaffee",
+    "Banane roh 120 g",
   ]);
-  fireEvent.click(chips[2]);
+  fireEvent.click(chips[0]);
   expect(onNewCombo).toHaveBeenCalled();
+});
+
+test("a chip shows the name above grams and kcal", () => {
+  const { chip } = renderDock();
+  // The combo: 200 g coffee and 5 g sugar, 24 kcal.
+  expect(chip).toHaveTextContent("Kaffee205 g · 24 kcal");
+  const recent = screen.getByRole("button", { name: "Banane roh 120 g" });
+  expect(recent).toHaveTextContent("Banane roh120 g · 112 kcal");
+});
+
+test("long names are cut to about 14 characters, the full name stays in the label", () => {
+  const long = { ...coffeeCombo(), name: "Frühstücksmüsli mit Joghurt" };
+  const food = { ...banana, name: "Vollkornhaferflocken extra zart, roh" };
+  render(
+    <Dock
+      combos={[long]}
+      recent={[food]}
+      onCombo={vi.fn()}
+      onComboHold={vi.fn()}
+      onNewCombo={vi.fn()}
+      onRecent={vi.fn()}
+      onSearch={vi.fn()}
+      onCamera={vi.fn()}
+    />,
+  );
+  const combo = screen.getByRole("button", { name: "Schnellzugriff Frühstücksmüsli mit Joghurt" });
+  expect(combo).toHaveTextContent(/^Frühstücksmüs…\d/);
+  expect(combo).toHaveAttribute("title", "Frühstücksmüsli mit Joghurt");
+  const chip = screen.getByRole("button", { name: "Vollkornhaferflocken extra zart 120 g" });
+  expect(chip).toHaveTextContent(/^Vollkornhafer…\d/);
 });
 
 test("a short press logs the combo", () => {
@@ -74,4 +104,10 @@ test("the context menu opens the combo, moving away cancels a press", () => {
   fireEvent.contextMenu(chip); // a later one opens it again
   expect(onComboHold).toHaveBeenCalledTimes(2);
   expect(onCombo).not.toHaveBeenCalled();
+});
+
+test("a recent chip without a photo shows the symbol of its category", () => {
+  renderDock();
+  const chip = screen.getByRole("button", { name: "Banane roh 120 g" });
+  expect(chip.querySelector('[data-category="fruit"]')).not.toBeNull();
 });

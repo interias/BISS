@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.domain.category import Category
 from app.domain.meal import Meal
 from app.labels.draft import LabelDraft
 from app.labels.validation import Rule
@@ -62,6 +63,10 @@ class FoodSummary(BaseModel):
     brand: str | None
     source: Source
     basis: Basis
+    density: float = Field(description="g/ml, to turn grams into ml for basis ml")
+    category: Category | None = Field(
+        description="symbol group for a food without a photo; null shows the one of other"
+    )
     per_100: Macros
     standard_serving: StandardServing
 
@@ -76,6 +81,27 @@ class SearchHit(FoodSummary):
     gtin: str | None = Field(description="GTIN-14; always set for a cached product")
 
 
+class SearchResult(BaseModel):
+    hits: list[SearchHit] = Field(description="best match first, duplicates merged")
+    off_more: bool = Field(
+        description="fewer than 5 hits for a query of 3 or more characters: "
+        "GET /foods/search/off may find more"
+    )
+
+
+class OffSearchResult(BaseModel):
+    """Products of the Open Food Facts text search the local search did not show."""
+
+    hits: list[SearchHit] = Field(
+        description="in the order of Open Food Facts; a product whose GTIN a food has is "
+        "that food, a new one has id null and is logged with its gtin"
+    )
+    reason: Literal["short", "limit", "timeout", "error"] | None = Field(
+        description="why there are no hits: query under 3 characters, rate limit, timeout "
+        "or error of Open Food Facts; null after an answer"
+    )
+
+
 class FoodDetail(BaseModel):
     id: int
     name: str
@@ -86,6 +112,7 @@ class FoodDetail(BaseModel):
     basis: Basis
     density: float
     image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
+    category: Category | None = Field(description="symbol group; null shows the one of other")
     per_100: Nutrients
     servings: list[Serving]
     standard_serving: StandardServing
@@ -113,6 +140,7 @@ class BarcodeFood(BaseModel):
     basis: Basis
     density: float
     image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
+    category: Category | None = Field(description="symbol group; null shows the one of other")
     per_100: Nutrients
     servings: list[BarcodeServing]
     standard_serving: StandardServing
@@ -178,6 +206,7 @@ class FoodCreate(BaseModel):
     brand: str | None = None
     basis: Basis = "g"
     density: float = Field(default=1.0, gt=0)
+    category: Category | None = Field(default=None, description="symbol group, optional")
     gtin: str | None = Field(
         default=None,
         description="a scanned code, stored as GTIN-14; 409 when another food has it",
@@ -195,6 +224,7 @@ class FoodUpdate(BaseModel):
     brand: str | None = None
     basis: Basis = None
     density: float = Field(default=None, gt=0)
+    category: Category | None = None
     per_100: NutrientsPatch | None = None
     servings: list[ServingIn] | None = Field(
         default=None,
@@ -262,6 +292,7 @@ class FoodRef(BaseModel):
     name: str
     brand: str | None
     source: Source
+    category: Category | None
 
 
 class Entry(BaseModel):
@@ -406,11 +437,39 @@ class MealEntries(BaseModel):
     groups: list[DayGroup] = Field(description="the plates among the entries, by first entry")
 
 
+class DayEntryRow(BaseModel):
+    """A diary row of an entry alone."""
+
+    kind: Literal["entry"] = "entry"
+    entry: Entry
+
+
+class DayGroupRow(BaseModel):
+    """A diary row of a plate or Schnellzugriff; it unfolds to its entries."""
+
+    kind: Literal["group"] = "group"
+    group_id: UUID
+    group_name: str
+    meal: Meal
+    eaten_at: datetime = Field(description="of the first entry; all entries share it")
+    totals: Macros = Field(description="sum of the entries' snapshots")
+    entries: list[Entry] = Field(description="by time")
+
+
+DayRow = Annotated[DayEntryRow | DayGroupRow, Field(discriminator="kind")]
+
+
 class Day(BaseModel):
     date: date
     totals: Macros
     targets: Macros
-    meals: list[MealEntries] = Field(description="breakfast, lunch, snack, dinner")
+    rows: list[DayRow] = Field(
+        description="the diary as the app shows it: entries and plates newest first by "
+        "eaten_at, without meals"
+    )
+    meals: list[MealEntries] = Field(
+        description="breakfast, lunch, snack, dinner; kept for API clients, the app shows rows"
+    )
     suggested_meal: Meal = Field(description="the meal for an entry made now")
 
 

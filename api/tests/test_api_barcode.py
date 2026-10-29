@@ -83,6 +83,7 @@ def test_live_hit_is_a_draft_and_cached(client: TestClient, session: Session, of
         "basis": "g",
         "density": 1.0,
         "image_path": None,
+        "category": "other",
         "per_100": {
             "kcal": 452,
             "protein": 8.2,

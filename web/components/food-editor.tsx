@@ -10,6 +10,7 @@ import {
   uploadFoodImage,
   validateFood,
   type Atwater,
+  type Category,
   type FoodDetail,
   type FoodWrite,
   type LabelExtraction,
@@ -29,7 +30,7 @@ import {
   toInput,
   type NutrientKey,
 } from "@/lib/editor";
-import { fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
+import { CATEGORY_LABELS, fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -105,6 +106,8 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
   const [base, setBase] = useState(food);
   const [name, setName] = useState(food?.name ?? draft?.name ?? "");
   const [brand, setBrand] = useState(food?.brand ?? draft?.brand ?? "");
+  // Optional: without one the symbol of "Sonstiges" shows.
+  const [category, setCategory] = useState<Category | "">(food?.category ?? "");
   const [texts, setTexts] = useState(() => textsOf(food?.per_100 ?? (draft && per100OfLabel(draft.per_100))));
   // Servings from the label are new rows (negative keys).
   const [rows, setRows] = useState(() =>
@@ -189,6 +192,7 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
     const body: FoodWrite = {
       name: name.trim(),
       brand: brand.trim() || null,
+      category: category || null,
       // Only when it creates: the backend normalises the GTIN and refuses a taken one.
       ...(!base && draft && { basis }),
       ...(!base && gtin && { gtin }),
@@ -254,7 +258,7 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
             onClick={() => gallery.current?.click()}
             className="relative"
           >
-            <FoodPic size={96} src={photoSrc} />
+            <FoodPic size={96} src={photoSrc} category={category || null} />
             <span className="absolute bottom-1.5 left-1.5 grid size-[26px] place-items-center rounded-[9px] bg-card text-foreground shadow-[0_2px_6px_var(--biss-shadow)]">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
@@ -285,6 +289,24 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
               Marke
             </label>
             <input id="food-brand" value={brand} onChange={(e) => setBrand(e.target.value)} className={inputClass} />
+          </div>
+          <div className="mb-2.5 grid min-w-0 gap-1">
+            <label htmlFor="food-category" className="text-xs font-bold text-muted-foreground">
+              Symbol
+            </label>
+            <select
+              id="food-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Category | "")}
+              className={inputClass}
+            >
+              <option value="">Keine Angabe</option>
+              {(Object.keys(CATEGORY_LABELS) as Category[]).map((key) => (
+                <option key={key} value={key}>
+                  {CATEGORY_LABELS[key]}
+                </option>
+              ))}
+            </select>
           </div>
           {(gtin || draft) && (
             // Read only: the scanned code, stored with the new food. A label without a

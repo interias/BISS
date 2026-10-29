@@ -47,7 +47,7 @@ function sum(rows: Row[]) {
 
 /**
  * Result sheet of the plate (prototype openPlate): photo, name, ingredients with "erkannt" or
- * "vermutet" (from the backend), grams by ± 10 g or typed, remove, a search that matches an
+ * "vermutet" (from the backend), grams by − and + or typed, remove, a search that matches an
  * unmatched ingredient, swaps a wrong one or adds a new one, suggestions from the recent
  * foods and the local preview of the sum (ADR-0003). An unmatched ingredient has no food and
  * is not logged; "Eintragen" logs the matched ones.
@@ -105,11 +105,10 @@ export function PlateSheet({
         name: food.name,
         grams,
         tag: "manual",
-        food: { id: food.id!, name: food.name, brand: food.brand, source: food.source },
+        food: { id: food.id!, name: food.name, brand: food.brand, source: food.source, category: food.category },
         per100: food.per_100,
         basis: food.basis,
-        // Recent foods and search hits carry no density; 1 is right for every food in g.
-        density: 1,
+        density: food.density,
       },
     ]);
   const suggest = (food: FoodSummary) => add(food, food.standard_serving.grams);
@@ -123,10 +122,10 @@ export function PlateSheet({
     }
     change(matching, {
       tag: "manual",
-      food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source },
+      food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source, category: hit.category },
       per100: hit.per_100,
       basis: hit.basis,
-      density: 1,
+      density: hit.density,
     });
     setMatching(null);
   };

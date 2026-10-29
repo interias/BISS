@@ -16,6 +16,7 @@ from sqlalchemy import any_, case, exists, func, literal, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.domain.category import bls_category
 from app.models import Food, FoodSourceData, Serving
 
 SOURCE = "bls"
@@ -53,6 +54,7 @@ def _food(row: dict[str, str], fetched_at: datetime) -> dict:
         "name": row["name"],
         "source": SOURCE,
         "source_id": row["code"],
+        "category": bls_category(row["code"]),
         "fetched_at": fetched_at,
         **values,
     }
@@ -80,7 +82,7 @@ def _upsert_foods(session: Session, rows: list[dict[str, str]], fetched_at: date
         statement.on_conflict_do_update(
             constraint="food_source_source_id",
             set_={
-                **{field: from_source(field) for field in ("name", *CORE, *OPTIONAL)},
+                **{field: from_source(field) for field in ("name", "category", *CORE, *OPTIONAL)},
                 "fetched_at": statement.excluded.fetched_at,
                 "updated_at": func.now(),
             },

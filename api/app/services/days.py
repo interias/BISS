@@ -1,4 +1,4 @@
-"""Day summary: totals against the goals and the entries by meal."""
+"""Day summary: totals against the goals, the diary rows and the entries by meal."""
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -32,10 +32,32 @@ class MealEntries:
 
 
 @dataclass(frozen=True)
+class EntryRow:
+    """A diary row of an entry alone."""
+
+    entry: Entry
+    food: Food
+
+
+@dataclass(frozen=True)
+class GroupRow:
+    """A diary row of a plate or Schnellzugriff with its entries by time."""
+
+    group_id: UUID
+    group_name: str
+    meal: Meal
+    eaten_at: datetime
+    totals: Macros
+    entries: list[tuple[Entry, Food]]
+
+
+@dataclass(frozen=True)
 class DaySummary:
     day: date
     totals: Macros
     targets: Targets
+    # The diary as the app shows it: newest first, without meals.
+    rows: list[EntryRow | GroupRow]
     meals: list[MealEntries]
     suggested_meal: Meal
 
@@ -61,8 +83,36 @@ def _groups(entries: list[Entry]) -> list[DayGroup]:
     ]
 
 
+def _rows(rows: list[tuple[Entry, Food]]) -> list[EntryRow | GroupRow]:
+    """Entries alone and plates, newest first; a plate stands at the time of its first entry.
+
+    `rows` come by time; on equal times the later id counts as newer.
+    """
+    by_group: dict[UUID, list[tuple[Entry, Food]]] = {}
+    for entry, food in rows:
+        if entry.group_id is not None:
+            by_group.setdefault(entry.group_id, []).append((entry, food))
+    found: list[EntryRow | GroupRow] = []
+    for entry, food in rows:
+        if entry.group_id is None:
+            found.append(EntryRow(entry, food))
+        elif (members := by_group[entry.group_id])[0][0] is entry:
+            found.append(
+                GroupRow(
+                    entry.group_id,
+                    entry.group_name,
+                    Meal(entry.meal),
+                    entry.eaten_at,
+                    total(e for e, _ in members),
+                    members,
+                )
+            )
+    return found[::-1]
+
+
 def day_summary(session: Session, day: date, now: datetime | None = None) -> DaySummary:
-    """All four meals in order, each with its entries by time; the meal suggested now."""
+    """The diary rows newest first, all four meals in order with their entries by time,
+    and the meal suggested now. The app shows only the rows; meals stay for the API."""
     rows = session.execute(
         select(Entry, Food)
         .join(Food, Food.id == Entry.food_id)
@@ -78,6 +128,7 @@ def day_summary(session: Session, day: date, now: datetime | None = None) -> Day
         day=day,
         totals=_sum([entry for entry, _ in rows]),
         targets=targets_for(session, day),
+        rows=_rows(rows),
         meals=meals,
         suggested_meal=suggest_meal(now or datetime.now(UTC)),
     )

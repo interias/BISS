@@ -49,6 +49,8 @@ class Food(Base):
     sat_fat: Mapped[float | None] = mapped_column(Double)
     salt: Mapped[float | None] = mapped_column(Double)
     image_path: Mapped[str | None] = mapped_column(Text)
+    # Symbol group for a food without a photo (app.domain.category); null shows "other".
+    category: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(Text)
     source_id: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

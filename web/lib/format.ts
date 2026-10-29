@@ -1,4 +1,4 @@
-import type { Basis, Meal, Serving, Source } from "@/lib/api";
+import type { Basis, Category, Meal, Serving, Source } from "@/lib/api";
 
 export const MEALS: Meal[] = ["breakfast", "lunch", "snack", "dinner"];
 
@@ -15,6 +15,26 @@ export const SOURCE_LABELS: Record<Source, string> = {
   off: "Open Food Facts",
 };
 
+/** The symbol groups as the editor offers them. */
+export const CATEGORY_LABELS: Record<Category, string> = {
+  bread: "Brot & Brötchen",
+  grains: "Getreide & Nudeln",
+  fruit: "Obst",
+  vegetables: "Gemüse & Pilze",
+  legumes: "Hülsenfrüchte, Nüsse & Samen",
+  potatoes: "Kartoffeln",
+  dairy: "Milch & Käse",
+  eggs: "Eier",
+  meat: "Fleisch",
+  sausage: "Wurst & Schinken",
+  fish: "Fisch",
+  fats: "Fette & Öle",
+  sweets: "Süßes & Kuchen",
+  drinks: "Getränke",
+  dishes: "Gerichte",
+  other: "Sonstiges",
+};
+
 export const ORIGIN_LABELS: Record<Serving["origin"], string> = {
   package: "Packung",
   estimated: "geschätzt",
@@ -27,6 +47,10 @@ export const fmt = (n: number, digits = 0) =>
 
 /** "Banane, roh" → "Banane", as on the recent chips of the prototype. */
 export const shortName = (name: string) => name.split(",")[0];
+
+/** A chip label of about `max` characters: longer names end in "…" (full name in aria-label). */
+export const clip = (name: string, max = 14) =>
+  name.length > max ? `${name.slice(0, max - 1).trimEnd()}…` : name;
 
 /** Brand line; generic foods show their source like the prototype ("generisch · BLS"). */
 export const brandLine = (brand: string | null, source: Source) =>

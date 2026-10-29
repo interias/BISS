@@ -1,38 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFood, imageUrl, type Entry, type FoodDetail, type Meal, type Serving } from "@/lib/api";
-import { previewMacros, stepDown, stepUp } from "@/lib/amount";
-import { brandLine, fmt, MEAL_LABELS, MEALS, SOURCE_LABELS } from "@/lib/format";
+import { getFood, imageUrl, type Entry, type FoodDetail, type Serving } from "@/lib/api";
+import { previewMacros } from "@/lib/amount";
+import { brandLine, fmt, SOURCE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
+import { IngredientGrams } from "@/components/ingredient-grams";
 import { SheetTitle } from "@/components/sheet";
 
 type Actions = {
   busy?: boolean;
-  onSubmit: (grams: number, meal: Meal) => void;
+  onSubmit: (grams: number) => void;
   onRemove?: () => void;
-  /** Opens the editor; gets the current grams and meal so the sheet can come back as it was. */
-  onEdit?: (grams: number, meal: Meal) => void;
+  /** Opens the editor; gets the current grams so the sheet can come back as it was. */
+  onEdit?: (grams: number) => void;
 };
 
-/** Grams and meal to start with, e.g. when the sheet comes back from the editor. */
-type Initial = { grams: number; meal: Meal };
+/** Grams to start with, e.g. when the sheet comes back from the editor. */
+type Initial = { grams: number };
 
 /** What the form shows: a stored food or a scanned draft, whose servings have no id yet. */
 export type AmountFood = Pick<
   FoodDetail,
-  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "per_100" | "standard_serving"
+  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "category" | "per_100" | "standard_serving"
 > & { servings: Omit<Serving, "id">[] };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
 export function AmountSheet({
   foodId,
   entry,
-  suggestedMeal,
   initial,
   ...actions
-}: Actions & { foodId: number; entry?: Entry; suggestedMeal: Meal; initial?: Initial }) {
+}: Actions & { foodId: number; entry?: Entry; initial?: Initial }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     let live = true;
@@ -43,7 +43,7 @@ export function AmountSheet({
   }, [foodId]);
 
   if (!food) return <SheetTitle className="sr-only">Menge wählen</SheetTitle>;
-  return <AmountForm food={food} entry={entry} initialMeal={suggestedMeal} initial={initial} {...actions} />;
+  return <AmountForm food={food} entry={entry} initial={initial} {...actions} />;
 }
 
 export const DOTS = [
@@ -53,30 +53,28 @@ export const DOTS = [
 ] as const;
 
 /**
- * Picture, source, name, brand, meal chip, grams with ±, serving chips and the local
- * preview of kcal/E/K/F (ADR-0003). With an entry it edits: "Speichern" and "Entfernen".
+ * Picture, source, name, brand, grams with ± or typed, serving chips and the local preview
+ * of kcal/E/K/F (ADR-0003). With an entry it edits: "Speichern" and "Entfernen". There is no
+ * meal: the backend suggests it by the time of day and the diary does not show it.
  */
 export function AmountForm({
   food,
   entry,
-  initialMeal,
   initial,
   busy,
   onSubmit,
   onRemove,
   onEdit,
-}: Actions & { food: AmountFood; entry?: Entry; initialMeal: Meal; initial?: Initial }) {
+}: Actions & { food: AmountFood; entry?: Entry; initial?: Initial }) {
   const [grams, setGrams] = useState(
     initial?.grams ?? entry?.grams ?? food.standard_serving.grams,
   );
-  const [meal, setMeal] = useState<Meal>(initial?.meal ?? entry?.meal ?? initialMeal);
   const preview = previewMacros(food.per_100, grams, food.basis, food.density);
-  const nextMeal = () => setMeal(MEALS[(MEALS.indexOf(meal) + 1) % MEALS.length]);
 
   return (
     <>
       <div className="mb-3.5 grid grid-cols-[auto_1fr_auto] items-center gap-3.5">
-        <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} />
+        <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} category={food.category} />
         <div className="min-w-0">
           <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
             {SOURCE_LABELS[food.source]}
@@ -89,21 +87,10 @@ export function AmountForm({
           </p>
         </div>
         <div className="grid justify-items-end gap-1.5">
-          <button
-            type="button"
-            title={entry?.group_id ? "Die Mahlzeit gilt für das ganze Gericht" : "Mahlzeit wechseln"}
-            aria-label={`Mahlzeit: ${MEAL_LABELS[meal]}`}
-            // An entry of a Gericht keeps the meal of its group: it only changes for all of them.
-            disabled={!!entry?.group_id}
-            onClick={nextMeal}
-            className="rounded-[10px] border bg-surface-2 px-[11px] py-[7px] text-[12.5px] font-bold disabled:cursor-default"
-          >
-            {MEAL_LABELS[meal]}
-          </button>
           {onEdit && (
             <button
               type="button"
-              onClick={() => onEdit(grams, meal)}
+              onClick={() => onEdit(grams)}
               className="inline-flex items-center gap-1 text-[12.5px] font-bold text-primary"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
@@ -120,31 +107,7 @@ export function AmountForm({
         <p className="-mt-1 mb-3 text-[12px] text-muted-foreground">Daten von Open Food Facts (ODbL)</p>
       )}
 
-      <div className="mt-1 mb-3.5 flex items-center justify-center gap-[18px]">
-        <button
-          type="button"
-          aria-label="weniger"
-          onClick={() => setGrams(stepDown(grams))}
-          className="size-12 rounded-[14px] border bg-surface-2 text-[22px] font-semibold"
-        >
-          −
-        </button>
-        <output
-          aria-label="Menge"
-          className="min-w-[150px] text-center font-heading text-[44px] font-extrabold tabular-nums"
-        >
-          {fmt(grams)}
-          <small className="ml-0.5 text-xl font-bold text-muted-foreground">g</small>
-        </output>
-        <button
-          type="button"
-          aria-label="mehr"
-          onClick={() => setGrams(stepUp(grams))}
-          className="size-12 rounded-[14px] border bg-surface-2 text-[22px] font-semibold"
-        >
-          +
-        </button>
-      </div>
+      <IngredientGrams large grams={grams} max={Infinity} onChange={setGrams} />
 
       {food.servings.length > 0 && (
         <div className="mb-[18px] flex flex-wrap justify-center gap-2">
@@ -201,7 +164,7 @@ export function AmountForm({
         <button
           type="button"
           disabled={busy}
-          onClick={() => onSubmit(grams, meal)}
+          onClick={() => onSubmit(grams)}
           className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
         >
           {entry ? "Speichern" : "Eintragen"} · {fmt(preview.kcal)} kcal

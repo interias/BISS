@@ -11,6 +11,7 @@ from app.barcode import chain
 from app.barcode.gtin import InvalidGtin
 from app.domain.atwater import atwater
 from app.models import Food
+from app.search.off_search import search_off, wants_off
 from app.search.search import search_foods
 from app.services import foods
 from app.services.foods import (
@@ -34,12 +35,32 @@ def search(
     session: SessionDep,
     q: str = Query(min_length=1, max_length=200),
     limit: int = Query(default=20, ge=1, le=50),
-) -> list[schemas.SearchHit]:
+) -> schemas.SearchResult:
     """Search own foods, BLS and cached products; best match first, duplicates merged.
 
-    A cached product of Open Food Facts has id null and is logged with its gtin.
+    A cached product of Open Food Facts has id null and is logged with its gtin. With
+    off_more the client may ask GET /foods/search/off as well.
     """
-    return [convert.search_hit(hit) for hit in search_foods(session, q, limit=limit)]
+    hits = search_foods(session, q, limit=limit)
+    return schemas.SearchResult(
+        hits=[convert.search_hit(hit) for hit in hits], off_more=wants_off(q, len(hits), limit)
+    )
+
+
+@router.get("/search/off")
+def search_open_food_facts(
+    session: SessionDep, off: OffDep, now: NowDep, q: str = Query(min_length=1, max_length=200)
+) -> schemas.OffSearchResult:
+    """Text search of Open Food Facts (ADR-0011): products of Germany for the query.
+
+    Each product is cached for 30 days and logged with its gtin like a scanned one. Hits of
+    the local search are left out. A failure of Open Food Facts is an empty list with a
+    reason, never an error. Data from Open Food Facts are under ODbL.
+    """
+    found = search_off(session, q, off, now)
+    return schemas.OffSearchResult(
+        hits=[convert.search_hit(hit) for hit in found.hits], reason=found.reason
+    )
 
 
 @router.get(
@@ -174,6 +195,7 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
             basis=found.basis,
             density=found.density,
             image_path=found.image_path,
+            category=found.category,
             per_100=schemas.Nutrients.model_validate(found),
             servings=[
                 schemas.BarcodeServing.model_validate(s)
@@ -193,6 +215,7 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
         basis=found.basis,
         density=1.0,
         image_path=None,
+        category=found.category,
         per_100=schemas.Nutrients(**found.values),
         servings=[]
         if serving is None

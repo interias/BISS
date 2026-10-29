@@ -21,6 +21,8 @@ class Settings:
     images_dir: Path
     # Open Food Facts API (ADR-0002); another base URL points it at a stub.
     off_base_url: str
+    # Its text search, Search-a-licious (ADR-0011); the stub answers it in tests too.
+    off_search_url: str
     # Label extraction (ADR-0004): the fast model first, the strong one as fallback.
     llm_model_fast: str
     llm_model_strong: str
@@ -42,6 +44,7 @@ def get_settings() -> Settings:
         goal_fat=_float("GOAL_FAT", 75),
         images_dir=Path(os.environ.get("IMAGES_DIR", "/images")),
         off_base_url=os.environ.get("OFF_BASE_URL", "https://world.openfoodfacts.org"),
+        off_search_url=os.environ.get("OFF_SEARCH_URL", "https://search.openfoodfacts.org"),
         llm_model_fast=os.environ.get("LLM_MODEL_FAST") or "claude-haiku-5-5",
         llm_model_strong=os.environ.get("LLM_MODEL_STRONG") or "claude-sonnet-5-5",
         label_extractor=os.environ.get("LABEL_EXTRACTOR") or "agent",

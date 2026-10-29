@@ -82,6 +82,7 @@ def test_plate_with_matched_and_unmatched_items_and_totals(
             "name": "Hähnchen Brustfilet, gegrillt",
             "brand": None,
             "source": "bls",
+            "category": None,
         },
         "basis": "g",
         "density": 1.0,
