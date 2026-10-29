@@ -46,7 +46,8 @@ export function SearchSheet({
   return (
     <>
       <SheetTitle className="sr-only">Lebensmittel suchen</SheetTitle>
-      <div className="mb-2.5 grid gap-1">
+      {/* The field stays at the top of the sheet while the hits scroll below it. */}
+      <div className="sticky top-0 z-10 -mx-5 mb-2.5 grid gap-1 bg-card px-5 pb-1">
         <input
           autoFocus
           value={query}
