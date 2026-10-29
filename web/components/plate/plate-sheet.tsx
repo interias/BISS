@@ -9,9 +9,11 @@ import { DOTS } from "@/components/amount-sheet";
 import { SearchSheet } from "@/components/search-sheet";
 import { SheetTitle } from "@/components/sheet";
 
-/** The − and + buttons: 10 g, never below 5 g (prototype). */
+/** The − and + buttons: 10 g, never below 5 g (prototype); typed grams stay within the rules. */
 const STEP = 10;
 const MIN_GRAMS = 5;
+const MAX_GRAMS = 1500;
+const clampGrams = (grams: number) => Math.min(MAX_GRAMS, Math.max(MIN_GRAMS, Math.round(grams) || MIN_GRAMS));
 
 /** "manual": added from the suggestions or matched by hand; the others come from the backend. */
 type Tag = "recognized" | "guessed" | "manual";
@@ -50,9 +52,10 @@ function sum(rows: Row[]) {
 
 /**
  * Result sheet of the plate (prototype openPlate): photo, name, ingredients with "erkannt" or
- * "vermutet" (from the backend), ± 10 g and remove, a search for unmatched ones, suggestions
- * from the recent foods and the local preview of the sum (ADR-0003). An unmatched ingredient
- * has no food and is not logged; "Eintragen" logs the matched ones.
+ * "vermutet" (from the backend), grams by ± 10 g or typed, remove, a search that matches an
+ * unmatched ingredient, swaps a wrong one or adds a new one, suggestions from the recent
+ * foods and the local preview of the sum (ADR-0003). An unmatched ingredient has no food and
+ * is not logged; "Eintragen" logs the matched ones.
  */
 export function PlateSheet({
   plate,
@@ -82,8 +85,8 @@ export function PlateSheet({
       density: item.density ?? 1,
     })),
   );
-  // The row whose food is being searched for.
-  const [matching, setMatching] = useState<number | null>(null);
+  // The row whose food is being searched for, or "new" for an ingredient to add.
+  const [matching, setMatching] = useState<number | "new" | null>(null);
   // The photo is only shown here; the URL is released once the picture is loaded.
   const [photoUrl] = useState(() =>
     photo && typeof URL.createObjectURL === "function" ? URL.createObjectURL(photo) : null,
@@ -99,24 +102,30 @@ export function PlateSheet({
   const suggestions = recent.filter((food) => !rows.some((row) => row.food?.id === food.id));
   const ready = name.trim() !== "" && logged.length > 0;
 
-  const suggest = (food: FoodSummary) =>
+  const add = (food: FoodSummary | SearchHit, grams: number) =>
     setRows((current) => [
       ...current,
       {
         key: rowKeys++,
         name: food.name,
-        grams: food.standard_serving.grams,
+        grams,
         tag: "manual",
-        food: { id: food.id, name: food.name, brand: food.brand, source: food.source },
+        food: { id: food.id!, name: food.name, brand: food.brand, source: food.source },
         per100: food.per_100,
         basis: food.basis,
         // Recent foods and search hits carry no density; 1 is right for every food in g.
         density: 1,
       },
     ]);
+  const suggest = (food: FoodSummary) => add(food, food.standard_serving.grams);
 
   const match = (hit: SearchHit) => {
     if (hit.id === null || matching === null) return;
+    if (matching === "new") {
+      add(hit, hit.standard_serving.grams);
+      setMatching(null);
+      return;
+    }
     change(matching, {
       tag: "manual",
       food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source },
@@ -183,7 +192,18 @@ export function PlateSheet({
               {row.food?.name ?? row.name}
               <small className="block text-xs font-medium text-muted-foreground">
                 {row.food ? (
-                  TAGS[row.tag]
+                  <>
+                    <span>{TAGS[row.tag]}</span>
+                    {" · "}
+                    <button
+                      type="button"
+                      aria-label={`${row.name} tauschen`}
+                      onClick={() => setMatching(row.key)}
+                      className="font-bold text-primary"
+                    >
+                      tauschen
+                    </button>
+                  </>
                 ) : (
                   <>
                     <span className="font-bold text-destructive">nicht zugeordnet</span>
@@ -209,7 +229,20 @@ export function PlateSheet({
               >
                 −
               </button>
-              <span className="min-w-[50px] text-center font-bold tabular-nums">{fmt(row.grams)} g</span>
+              <label className="flex min-w-[50px] items-baseline justify-center font-bold tabular-nums">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_GRAMS}
+                  max={MAX_GRAMS}
+                  aria-label={`${row.name} Gramm`}
+                  value={row.grams || ""}
+                  onChange={(event) => change(row.key, { grams: Number(event.target.value) || 0 })}
+                  onBlur={() => change(row.key, { grams: clampGrams(row.grams) })}
+                  className="w-[3.2ch] [appearance:textfield] border-0 bg-transparent p-0 text-right font-bold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                &nbsp;g
+              </label>
               <button
                 type="button"
                 aria-label={`${row.name} mehr`}
@@ -238,20 +271,25 @@ export function PlateSheet({
         </p>
       )}
 
-      {suggestions.length > 0 && (
-        <div role="group" aria-label="Vorschläge" className="mb-[18px] flex flex-wrap gap-2">
-          {suggestions.map((food) => (
-            <button
-              key={food.id}
-              type="button"
-              onClick={() => suggest(food)}
-              className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap"
-            >
-              + {shortName(food.name)}
-            </button>
-          ))}
-        </div>
-      )}
+      <div role="group" aria-label="Vorschläge" className="mb-[18px] flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setMatching("new")}
+          className="inline-flex flex-none items-center gap-1.5 rounded-full border border-primary px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap text-primary"
+        >
+          + Zutat suchen
+        </button>
+        {suggestions.map((food) => (
+          <button
+            key={food.id}
+            type="button"
+            onClick={() => suggest(food)}
+            className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap"
+          >
+            + {shortName(food.name)}
+          </button>
+        ))}
+      </div>
 
       <div data-testid="preview" className="mb-[18px] grid grid-cols-4 rounded-[14px] border tabular-nums">
         <div className="px-1.5 py-2.5 text-center">
@@ -283,7 +321,7 @@ export function PlateSheet({
           onClick={() =>
             onSubmit(
               name.trim(),
-              logged.map((row) => ({ food_id: row.food!.id, grams: row.grams })),
+              logged.map((row) => ({ food_id: row.food!.id, grams: clampGrams(row.grams) })),
             )
           }
           className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
