@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { fakeApi, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
+import { coffeeCombo, fakeApi, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Home } from "./home";
 
 // No camera in jsdom: the overlay takes a photo, and ZXing "reads" this code from it.
@@ -313,4 +313,123 @@ test("an entry of a Gericht opens the amount sheet, but its meal is fixed to the
   expect(await screen.findByRole("heading", { name: "Reis gekocht" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Mahlzeit: Snack" })).toBeDisabled();
   expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+});
+
+const comboChip = () => screen.findByRole("button", { name: "Schnellzugriff Kaffee" });
+
+test("a Schnellzugriff chip logs the combo in one call; Rückgängig removes the whole group", async () => {
+  const { calls } = fakeApi({ combos: [coffeeCombo()] });
+  render(<Home />);
+  fireEvent.click(await comboChip());
+
+  await screen.findByText("Kaffee eingetragen · 24 kcal");
+  // Only the combo: the backend takes its items and suggests the meal (ADR-0003).
+  expect(calls.filter((c) => c.method === "POST")).toEqual([
+    { method: "POST", url: "/api/v1/combos/1/log", body: {} },
+  ]);
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const group = within(diary).getByRole("button", { name: /^Kaffee/ });
+  expect(group).toHaveTextContent("2 Zutaten");
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("24");
+  // A group with the name of a combo offers no second one.
+  expect(within(diary).queryByRole("button", { name: "als Schnellzugriff merken" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
+  await waitFor(() => expect(within(diary).queryByText(/2 Zutaten/)).not.toBeInTheDocument());
+  expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/api/v1/entries/group/group-200"]);
+  expect(screen.getByTestId("kcal-total")).toHaveTextContent("0");
+});
+
+test("a long press opens the combo; Eintragen logs the adjusted items, the template stays", async () => {
+  const { calls } = fakeApi({ combos: [coffeeCombo()] });
+  render(<Home />);
+  fireEvent.contextMenu(await comboChip());
+
+  expect(await screen.findByRole("dialog", { name: "Schnellzugriff anpassen" })).toBeInTheDocument();
+  expect(calls.some((c) => c.method === "POST")).toBe(false);
+  expect(screen.getByRole("button", { name: "Snack" })).toHaveAttribute("aria-pressed", "true"); // suggested
+  fireEvent.click(screen.getByRole("button", { name: "Zucker mehr" }));
+  fireEvent.click(screen.getByRole("button", { name: "Abend" }));
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 64 kcal" }));
+
+  await screen.findByText("Kaffee eingetragen · 64 kcal");
+  expect(calls.find((c) => c.method === "POST")).toEqual({
+    method: "POST",
+    url: "/api/v1/combos/1/log",
+    body: {
+      items: [
+        { food_id: 12, grams: 200 },
+        { food_id: 11, grams: 15 },
+      ],
+      meal: "dinner",
+    },
+  });
+  expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("Als Vorlage speichern and Löschen change the combo of the dock", async () => {
+  const { calls } = fakeApi({ combos: [coffeeCombo()] });
+  render(<Home />);
+  fireEvent.contextMenu(await comboChip());
+  fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), { target: { value: "Kaffee süß" } });
+  fireEvent.click(screen.getByRole("button", { name: "Als Vorlage speichern" }));
+
+  await screen.findByText("Kaffee süß als Schnellzugriff gespeichert");
+  expect(calls.find((c) => c.method === "PATCH")).toEqual({
+    method: "PATCH",
+    url: "/api/v1/combos/1",
+    body: {
+      name: "Kaffee süß",
+      items: [
+        { food_id: 12, grams: 200 },
+        { food_id: 11, grams: 5 },
+      ],
+    },
+  });
+  const chip = await screen.findByRole("button", { name: "Schnellzugriff Kaffee süß" });
+  expect(calls.some((c) => c.method === "POST")).toBe(false); // nothing logged
+
+  fireEvent.contextMenu(chip);
+  fireEvent.click(await screen.findByRole("button", { name: "Löschen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ja, löschen" }));
+  await screen.findByText("Kaffee süß gelöscht");
+  expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/v1/combos/1")).toBe(true);
+  expect(screen.queryByRole("button", { name: /^Schnellzugriff/ })).not.toBeInTheDocument();
+});
+
+test("+ Neu creates a combo from searched foods; its chip stands first", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Neuer Schnellzugriff" }));
+  expect(await screen.findByRole("dialog", { name: "Schnellzugriff anlegen" })).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Bananenpause" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+  await screen.findByText("Bananenpause als Schnellzugriff gespeichert");
+  expect(calls.find((c) => c.method === "POST" && c.url === "/api/v1/combos")?.body).toEqual({
+    name: "Bananenpause",
+    items: [{ food_id: 7, grams: 120 }],
+  });
+  const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
+  expect(chips[0]).toHaveAccessibleName("Schnellzugriff Bananenpause");
+  expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);
+});
+
+test("als Schnellzugriff merken creates a combo from a diary group", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await logPlate();
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  fireEvent.click(within(diary).getByRole("button", { name: "als Schnellzugriff merken" }));
+
+  await screen.findByText("Hähnchen mit Reis und Brokkoli als Schnellzugriff gespeichert");
+  expect(calls.find((c) => c.method === "POST" && c.url === "/api/v1/combos")?.body).toEqual({
+    group_id: "group-200",
+  });
+  expect(screen.getByRole("button", { name: "Schnellzugriff Hähnchen mit Reis und Brokkoli" })).toBeInTheDocument();
+  expect(within(diary).queryByRole("button", { name: "als Schnellzugriff merken" })).not.toBeInTheDocument();
 });

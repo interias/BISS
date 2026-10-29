@@ -7,6 +7,7 @@ from app.models import Entry, Food
 from app.plates.match import Plate
 from app.search.search import Hit
 from app.services import foods
+from app.services.combos import ComboView
 from app.services.days import DaySummary
 from app.services.entries import EntryGroup
 from app.services.foods import FALLBACK_SERVING, StandardServing, standard_serving
@@ -109,6 +110,23 @@ def entry_group(group: EntryGroup) -> schemas.EntryGroup:
         day=group.day,
         totals=schemas.Macros.model_validate(group.totals),
         entries=[entry(e, food) for e, food in group.entries],
+    )
+
+
+def combo(view: ComboView) -> schemas.Combo:
+    return schemas.Combo(
+        id=view.id,
+        name=view.name,
+        items=[
+            schemas.ComboItem(
+                food=food_summary(item.food, item.serving),
+                grams=item.grams,
+                density=item.food.density,
+                macros=schemas.Macros.model_validate(item.macros),
+            )
+            for item in view.items
+        ],
+        totals=schemas.Macros.model_validate(view.totals),
     )
 
 

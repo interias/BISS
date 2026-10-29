@@ -6,14 +6,9 @@ import type { Basis, FoodRef, FoodSummary, Macros, PlateExtraction, SearchHit } 
 import { previewMacros } from "@/lib/amount";
 import { fmt, shortName } from "@/lib/format";
 import { DOTS } from "@/components/amount-sheet";
+import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
 import { SheetTitle } from "@/components/sheet";
-
-/** The − and + buttons: 10 g, never below 5 g (prototype); typed grams stay within the rules. */
-const STEP = 10;
-const MIN_GRAMS = 5;
-const MAX_GRAMS = 1500;
-const clampGrams = (grams: number) => Math.min(MAX_GRAMS, Math.max(MIN_GRAMS, Math.round(grams) || MIN_GRAMS));
 
 /** "manual": added from the suggestions or matched by hand; the others come from the backend. */
 type Tag = "recognized" | "guessed" | "manual";
@@ -220,38 +215,7 @@ export function PlateSheet({
                 )}
               </small>
             </span>
-            <span className="flex items-center gap-1.5">
-              <button
-                type="button"
-                aria-label={`${row.name} weniger`}
-                onClick={() => change(row.key, { grams: Math.max(MIN_GRAMS, row.grams - STEP) })}
-                className="size-[30px] rounded-[9px] border bg-surface-2 font-bold"
-              >
-                −
-              </button>
-              <label className="flex min-w-[50px] items-baseline justify-center font-bold tabular-nums">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_GRAMS}
-                  max={MAX_GRAMS}
-                  aria-label={`${row.name} Gramm`}
-                  value={row.grams || ""}
-                  onChange={(event) => change(row.key, { grams: Number(event.target.value) || 0 })}
-                  onBlur={() => change(row.key, { grams: clampGrams(row.grams) })}
-                  className="w-[3.2ch] [appearance:textfield] border-0 bg-transparent p-0 text-right font-bold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                &nbsp;g
-              </label>
-              <button
-                type="button"
-                aria-label={`${row.name} mehr`}
-                onClick={() => change(row.key, { grams: row.grams + STEP })}
-                className="size-[30px] rounded-[9px] border bg-surface-2 font-bold"
-              >
-                +
-              </button>
-            </span>
+            <IngredientGrams name={row.name} grams={row.grams} onChange={(grams) => change(row.key, { grams })} />
             <button
               type="button"
               aria-label={`${row.name} entfernen`}

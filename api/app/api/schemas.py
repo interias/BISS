@@ -334,6 +334,62 @@ class EntryGroup(BaseModel):
     entries: list[Entry]
 
 
+class ComboItemIn(BaseModel):
+    food_id: int
+    grams: float = Field(gt=0, le=1500)
+
+
+class ComboItem(BaseModel):
+    food: FoodSummary
+    grams: float
+    density: float = Field(description="g/ml of the food, to turn grams into ml for basis ml")
+    macros: Macros = Field(description="values for grams, as an entry would store them now")
+
+
+class Combo(BaseModel):
+    """Schnellzugriff: a saved template, logged as an entry group (POST /combos/{id}/log)."""
+
+    id: int
+    name: str
+    items: list[ComboItem]
+    totals: Macros = Field(description="sum over the items")
+
+
+class ComboCreate(BaseModel):
+    """Exactly one of items and group_id; with items the name is required."""
+
+    name: str | None = Field(default=None, min_length=1, description="default: the group's name")
+    items: list[ComboItemIn] | None = Field(default=None, min_length=1)
+    group_id: UUID | None = Field(
+        default=None, description="copy foods and grams of this entry group from the diary"
+    )
+
+    @model_validator(mode="after")
+    def _one_source(self) -> "ComboCreate":
+        if (self.items is None) == (self.group_id is None):
+            raise ValueError("give exactly one of items and group_id")
+        if self.items is not None and self.name is None:
+            raise ValueError("a combo with items needs a name")
+        return self
+
+
+class ComboUpdate(BaseModel):
+    """Only the fields sent change; items, when sent, replace all items."""
+
+    name: str | None = Field(default=None, min_length=1)
+    items: list[ComboItemIn] | None = Field(default=None, min_length=1)
+
+
+class ComboLog(BaseModel):
+    """Log the combo as an entry group; items change this entry only, never the template."""
+
+    meal: Meal | None = Field(default=None, description="default: suggested by eaten_at")
+    eaten_at: AwareDatetime | None = Field(default=None, description="default: now")
+    items: list[ComboItemIn] | None = Field(
+        default=None, min_length=1, description="default: the combo's items"
+    )
+
+
 class DayGroup(BaseModel):
     """A plate within a meal: its entries are those of the meal with this group_id."""
 

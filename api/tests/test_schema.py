@@ -3,10 +3,11 @@ from datetime import UTC, datetime
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, inspect, select, text
+from sqlalchemy import Engine, func, inspect, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Base, Food, OffCache
+from app.models import Base, Combo, ComboItem, Food, OffCache
 from app.search.normalize import normalize
 from app.sources import off
 from tests.conftest import API_DIR
@@ -163,3 +164,38 @@ def test_migration_0004_adds_nullable_group_columns_and_keeps_entries(engine: En
                 )
             )
             connection.execute(text("DELETE FROM food WHERE name = 'Migrationstest'"))
+
+
+def test_migration_0005_creates_and_drops_the_combo_tables(engine: Engine) -> None:
+    config = Config(API_DIR / "alembic.ini")
+    config.attributes["database_url"] = engine.url.render_as_string(hide_password=False)
+    try:
+        command.downgrade(config, "0004")
+        schema = inspect(engine)
+        schema.clear_cache()
+        assert not {"combo", "combo_item"} & set(schema.get_table_names())
+    finally:
+        command.upgrade(config, "head")
+    schema = inspect(engine)
+    schema.clear_cache()
+    assert {"combo", "combo_item"} <= set(schema.get_table_names())
+    checks = {c["name"]: c["sqltext"] for c in schema.get_check_constraints("combo_item")}
+    assert "1500" in checks["combo_item_grams"]
+    [key] = [k for k in schema.get_foreign_keys("combo_item") if k["referred_table"] == "combo"]
+    assert key["options"]["ondelete"] == "CASCADE"
+
+
+def test_combo_item_grams_are_checked_and_follow_their_combo(session: Session) -> None:
+    food = Food(name="Zucker", kcal=400, protein=0, carbs=100, fat=0, source="own")
+    combo = Combo(name="Kaffee")
+    session.add_all([food, combo])
+    session.flush()
+    for grams in (0, 1500.5):
+        with session.begin_nested(), pytest.raises(IntegrityError):
+            session.add(ComboItem(combo_id=combo.id, food_id=food.id, grams=grams))
+            session.flush()
+    session.add(ComboItem(combo_id=combo.id, food_id=food.id, grams=1500))
+    session.flush()
+    session.delete(combo)
+    session.flush()
+    assert session.scalar(select(func.count()).select_from(ComboItem)) == 0
