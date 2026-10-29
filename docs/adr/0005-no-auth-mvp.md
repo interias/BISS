@@ -11,4 +11,5 @@ API, Web und MCP laufen ohne Login und ohne Token. Authentifizierung ist das let
 ## Folgen
 - Jeder im lokalen Netz kann lesen und schreiben. Das ist für den privaten Betrieb akzeptiert.
 - Die Kamera braucht HTTPS außer auf `localhost`. Bis Tailscale steht, wird die Kamera am Rechner oder per Dateiupload getestet.
+- Nachtrag 29.10.2026: HTTPS kommt über den Compose-Dienst `tailscale` (Image `tailscale/tailscale`, vom Menschen freigegeben). Er bleibt im eigenen Tailnet, das nur eigene Geräte erreichen; das gilt nicht als Betrieb außerhalb des eigenen Netzes. Tailscale Funnel ist ausgeschlossen, solange dieses ADR gilt.
 - Vor dem Betrieb außerhalb des eigenen Netzes muss dieses ADR abgelöst werden.

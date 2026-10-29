@@ -27,6 +27,14 @@ docker compose up -d --wait
 
 Web läuft auf <http://localhost:2477>, die API auf <http://localhost:2478> (OpenAPI unter `/docs`, Health unter `/api/v1/health`). Beim Start der API laufen die Migrationen und, solange noch keine BLS-Lebensmittel in der Datenbank sind, der BLS-Import. Der Quellcode aus `api/` und `web/` ist in die Container gemountet. Ohne gesetzte `OFF_BASE_URL` fragt ein Scan im Entwicklungsstack das echte Open Food Facts; die Tests nutzen den erfundenen Stub aus `compose.test.yaml`.
 
+Vom Handy aus braucht die Kamera HTTPS ([ADR-0005](docs/adr/0005-no-auth-mvp.md)), über `http://<rechner>:2477` gibt es nur die Fotoauswahl. HTTPS kommt über den Dienst `tailscale` im Profil `tailscale`: Er tritt dem eigenen Tailnet als `biss` bei und leitet `https://biss.<tailnet>.ts.net` an Web weiter (`ops/tailscale/serve.json`). Einmalig in der [Tailscale-Konsole](https://login.tailscale.com/admin) unter *DNS* MagicDNS und *HTTPS Certificates* einschalten, unter *Settings → Keys* einen Auth-Key erzeugen und als `TS_AUTHKEY` in `.env` eintragen, dann
+
+```bash
+docker compose --profile tailscale up -d --wait
+```
+
+Die Anmeldung liegt danach im Volume `tailscale-state`, der Key wird nur für den ersten Start gebraucht. Das Handy braucht die Tailscale-App im selben Tailnet. Die API muss nicht freigegeben werden, Web leitet `/api/v1` selbst weiter. Der Dienst bleibt im eigenen Tailnet; Tailscale Funnel würde BISS ohne Login ins Internet stellen und ist ausgeschlossen.
+
 Der Dienst `backup` sichert jede Nacht um 03:00 Uhr Datenbank und Produktfotos nach `BACKUP_DIR` (Standard `./backups`) und behält die letzten 14 Sicherungen. Wiederherstellung und Skripttest: [`docs/backup.md`](docs/backup.md).
 
 Die Etikett-Extraktion (`POST /api/v1/labels/extract`, [ADR-0004](docs/adr/0004-llm-extraction.md)) braucht in `.env` den Token aus `claude setup-token` als `CLAUDE_CODE_OAUTH_TOKEN` oder einen `ANTHROPIC_API_KEY`. Die Modelle stehen in `LLM_MODEL_FAST` und `LLM_MODEL_STRONG`. Die Claude-Code-CLI kommt mit dem Python-Paket `claude-agent-sdk` ins Image, Node ist nicht nötig. Das Etikett-Foto wird nicht gespeichert.
