@@ -8,6 +8,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 // The sheet's title needs the dialog around it, as in the app.
 
+/** The grams field of an ingredient, labelled by its name from the backend. */
+const grams = (name: string) => screen.getByRole("spinbutton", { name: `${name} Gramm` });
+
 function renderSheet(plate = fakePlate(), recent = [banana, riceDetail]) {
   const onSubmit = vi.fn();
   const onDiscard = vi.fn();
@@ -29,7 +32,7 @@ test("shows the dish, each ingredient with erkannt or vermutet and the sum as th
   expect(within(rows[0]).getByText("erkannt")).toBeInTheDocument();
   expect(within(rows[1]).getByText("erkannt")).toBeInTheDocument();
   expect(within(rows[2]).getByText("vermutet")).toBeInTheDocument(); // confidence 0.6, from the backend
-  expect(within(rows[0]).getByText("120 g")).toBeInTheDocument();
+  expect(within(rows[0]).getByRole("spinbutton")).toHaveValue(120);
   expect(screen.getByText("Mengen sind geschätzt. Fehlt etwas?")).toBeInTheDocument();
   // 150 · 1.2 + 130 · 1.5 + 30 · 0.8 = 180 + 195 + 24
   expect(screen.getByRole("button", { name: "Eintragen · 399 kcal" })).toBeInTheDocument();
@@ -64,14 +67,14 @@ test("the sheet opens without focus on the name, so no keyboard comes up on the 
 test("plus and minus change an amount by 10 g, never below 5 g, and the sum follows", () => {
   renderSheet();
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht mehr" }));
-  expect(screen.getByText("160 g")).toBeInTheDocument();
+  expect(grams("Reis gekocht")).toHaveValue(160);
   expect(screen.getByRole("button", { name: "Eintragen · 412 kcal" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht weniger" }));
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht weniger" }));
-  expect(screen.getByText("140 g")).toBeInTheDocument();
+  expect(grams("Reis gekocht")).toHaveValue(140);
 
   for (let i = 0; i < 9; i++) fireEvent.click(screen.getByRole("button", { name: "Broccoli gekocht weniger" }));
-  expect(screen.getByText("5 g")).toBeInTheDocument(); // 80 → 5, not below
+  expect(grams("Broccoli gekocht")).toHaveValue(5); // 80 → 5, not below
 });
 
 test("the name is editable and an ingredient can be removed", () => {
@@ -94,9 +97,10 @@ test("suggestions are the recent foods not yet on the plate; a tap adds one with
   fireEvent.click(within(suggestions).getByRole("button", { name: "+ Banane roh" }));
 
   const added = screen.getByRole("button", { name: "Banane roh entfernen" }).closest("li")!;
-  expect(within(added).getByText("120 g")).toBeInTheDocument();
+  expect(within(added).getByRole("spinbutton")).toHaveValue(120);
   expect(within(added).getByText("manuell")).toBeInTheDocument();
-  expect(screen.queryByRole("group", { name: "Vorschläge" })).not.toBeInTheDocument(); // nothing left
+  // No recent food is left, the search stays.
+  expect(within(suggestions).getAllByRole("button").map((button) => button.textContent)).toEqual(["+ Zutat suchen"]);
   expect(screen.getByRole("button", { name: "Eintragen · 511 kcal" })).toBeInTheDocument(); // + 93 · 1.2
 });
 
@@ -145,7 +149,7 @@ test("zuordnen searches foods and the hit takes the row, the grams stay", async 
   fireEvent.click(hit);
 
   const row = await screen.findByRole("button", { name: "Broccoli gekocht entfernen" });
-  expect(within(row.closest("li")!).getByText("80 g")).toBeInTheDocument();
+  expect(within(row.closest("li")!).getByRole("spinbutton")).toHaveValue(80);
   expect(within(row.closest("li")!).getByText("manuell")).toBeInTheDocument();
   expect(screen.queryByText("nicht zugeordnet")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Eintragen · 399 kcal" })).toBeInTheDocument();
@@ -163,4 +167,44 @@ test("Eintragen is off without a name or without a matched ingredient", () => {
   fireEvent.click(screen.getByRole("button", { name: "Hähnchen Brustfilet, gegrillt entfernen" }));
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht entfernen" }));
   expect(screen.getByRole("button", { name: /^Eintragen/ })).toBeDisabled();
+});
+
+test("grams can be typed; on leaving the field they stay between 5 and 1500 g", () => {
+  const { onSubmit } = renderSheet();
+  fireEvent.change(grams("Reis gekocht"), { target: { value: "200" } });
+  // 150 · 1.2 + 200 · 1.3 + 30 · 0.8 = 180 + 260 + 24
+  expect(screen.getByRole("button", { name: "Eintragen · 464 kcal" })).toBeInTheDocument();
+  fireEvent.change(grams("Broccoli gekocht"), { target: { value: "" } });
+  expect(grams("Broccoli gekocht")).toHaveValue(null);
+  fireEvent.blur(grams("Broccoli gekocht"));
+  expect(grams("Broccoli gekocht")).toHaveValue(5);
+  fireEvent.change(grams("Hähnchen Brustfilet, gegrillt"), { target: { value: "4000" } });
+  fireEvent.click(screen.getByRole("button", { name: /^Eintragen/ }));
+  expect(onSubmit.mock.calls[0][1]).toContainEqual({ food_id: 9, grams: 1500 });
+});
+
+test("tauschen replaces a recognised ingredient with a search hit, the grams stay", async () => {
+  fakeApi();
+  renderSheet();
+  fireEvent.click(screen.getByRole("button", { name: "Reis gekocht tauschen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "brokkoli" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Broccoli gekocht/ }));
+
+  const row = (await screen.findByRole("button", { name: "Reis gekocht entfernen" })).closest("li")!;
+  expect(within(row).getByText("Broccoli gekocht")).toBeInTheDocument();
+  expect(within(row).getByText("manuell")).toBeInTheDocument();
+  expect(within(row).getByRole("spinbutton")).toHaveValue(150);
+});
+
+test("Zutat suchen adds a search hit with its standard serving", async () => {
+  fakeApi();
+  renderSheet(fakePlate(), []);
+  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
+
+  const rows = within(await screen.findByRole("list", { name: "Zutaten" })).getAllByRole("listitem");
+  expect(rows).toHaveLength(4);
+  expect(within(rows[3]).getByText("Banane roh")).toBeInTheDocument();
+  expect(within(rows[3]).getByRole("spinbutton")).toHaveValue(banana.standard_serving.grams);
 });
