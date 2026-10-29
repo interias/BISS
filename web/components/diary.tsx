@@ -19,7 +19,7 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       )}
     >
       <span className="row-span-2">
-        <FoodPic size={nested ? 36 : 44} />
+        <FoodPic size={nested ? 36 : 44} category={entry.food.category} />
       </span>
       <span className="min-w-0 self-end truncate font-semibold">{entry.food.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(entry.macros.kcal)}</span>
@@ -58,7 +58,7 @@ function GroupRow({
         className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px py-[9px] text-left"
       >
         <span className="row-span-2">
-          <FoodPic size={44} />
+          <FoodPic size={44} category="dishes" />
         </span>
         <span className="min-w-0 self-end truncate font-semibold">{group.group_name}</span>
         <span className="self-end text-right font-bold tabular-nums">{fmt(group.totals.kcal)}</span>

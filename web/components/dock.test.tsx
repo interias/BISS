@@ -105,3 +105,9 @@ test("the context menu opens the combo, moving away cancels a press", () => {
   expect(onComboHold).toHaveBeenCalledTimes(2);
   expect(onCombo).not.toHaveBeenCalled();
 });
+
+test("a recent chip without a photo shows the symbol of its category", () => {
+  renderDock();
+  const chip = screen.getByRole("button", { name: "Banane roh 120 g" });
+  expect(chip.querySelector('[data-category="fruit"]')).not.toBeNull();
+});

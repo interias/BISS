@@ -23,7 +23,7 @@ type Initial = { grams: number };
 /** What the form shows: a stored food or a scanned draft, whose servings have no id yet. */
 export type AmountFood = Pick<
   FoodDetail,
-  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "per_100" | "standard_serving"
+  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "category" | "per_100" | "standard_serving"
 > & { servings: Omit<Serving, "id">[] };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
@@ -74,7 +74,7 @@ export function AmountForm({
   return (
     <>
       <div className="mb-3.5 grid grid-cols-[auto_1fr_auto] items-center gap-3.5">
-        <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} />
+        <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} category={food.category} />
         <div className="min-w-0">
           <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
             {SOURCE_LABELS[food.source]}

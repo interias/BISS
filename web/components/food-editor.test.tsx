@@ -142,6 +142,7 @@ test("Speichern sends the complete servings list; a blank new row is dropped", a
   expect(patch?.body).toEqual({
     name: "Banane roh",
     brand: "Chiquita",
+    category: "fruit",
     per_100: { kcal: 93, protein: 1.1, carbs: 20, fat: 0.2, fiber: 2, sugar: 17, sat_fat: 0.1, salt: 0 },
     servings: [
       { id: 1, label: "1 Banane", grams: 130.5, is_default: true },
@@ -178,6 +179,7 @@ test("a new food needs a name, is created with its servings and the photo follow
   expect(post?.body).toEqual({
     name: "Skyr",
     brand: null,
+    category: null,
     per_100: { kcal: 63, protein: 11, carbs: 4, fat: 0.2, fiber: null, sugar: null, sat_fat: null, salt: null },
     servings: [
       { label: "1 Becher", grams: 150, is_default: false },
@@ -297,6 +299,7 @@ test("Speichern & eintragen creates the food with the GTIN, basis and servings o
   expect(post?.body).toEqual({
     name: "Haferkeks Dinkel",
     brand: "Testmühle",
+    category: null,
     basis: "g",
     gtin: GTIN,
     per_100: { kcal: 460, protein: 8, carbs: 64, fat: 18, fiber: 5, sugar: 22, sat_fat: 7.5, salt: 0.6 },
@@ -381,4 +384,18 @@ test("the editor opens in its sheet without focus on the name, so no keyboard co
   );
   expect(field("Name")).not.toHaveFocus();
   expect(screen.getByRole("dialog")).toHaveFocus();
+});
+
+test("the symbol is optional; a chosen one is sent and shows without a photo", async () => {
+  const calls = fakeBackend({ ...bananaDetail, id: 99, name: "Skyr" });
+  const onSaved = vi.fn();
+  inDialog(<EditorForm onSaved={onSaved} onCancel={noop} />);
+  expect(field("Symbol")).toHaveValue("");
+  expect(document.querySelector('[data-category="other"]')).not.toBeNull();
+  type("Name", "Skyr");
+  type("Symbol", "dairy");
+  expect(document.querySelector('[data-category="dairy"]')).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({ name: "Skyr", category: "dairy" });
 });

@@ -17,6 +17,7 @@ import httpx
 
 from app import VERSION
 from app.barcode.gtin import off_code
+from app.domain.category import Category, off_category
 
 SOURCE = "off"
 USER_AGENT = f"BISS/{VERSION} (github.com/interias/BISS)"
@@ -46,6 +47,7 @@ FIELDS = (
     "serving_size",
     "serving_quantity",
     "nutriments",
+    "categories_tags",
 )
 
 log = logging.getLogger(__name__)
@@ -135,6 +137,8 @@ class FoodDraft:
     values: dict[str, float | None]
     # serving_size of the package, the standard serving (ADR-0002).
     serving: ServingDraft | None
+    # From categories_tags; other without a known tag.
+    category: Category = Category.OTHER
 
 
 def draft(gtin: str, payload: dict[str, Any]) -> FoodDraft | None:
@@ -161,6 +165,7 @@ def draft(gtin: str, payload: dict[str, Any]) -> FoodDraft | None:
         basis="ml" if product.get("product_quantity_unit") == "ml" else "g",
         values=values,
         serving=_serving(product),
+        category=off_category(_tags(product.get("categories_tags"))),
     )
 
 
@@ -181,6 +186,10 @@ def _serving(product: dict[str, Any]) -> ServingDraft | None:
     if not grams:
         return None
     return ServingDraft(label=label, grams=grams)
+
+
+def _tags(value: Any) -> list[str]:
+    return [tag for tag in value if isinstance(tag, str)] if isinstance(value, list) else []
 
 
 def _text(value: Any) -> str | None:

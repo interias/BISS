@@ -138,7 +138,7 @@ export function Dock({
               onClick={() => onRecent(food)}
               className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 py-[4px] pr-3 pl-[4px] text-left whitespace-nowrap"
             >
-              <FoodPic size={26} round />
+              <FoodPic size={26} round category={food.category} />
               <ChipText
                 name={clip(name)}
                 grams={grams}

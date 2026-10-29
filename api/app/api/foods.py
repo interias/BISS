@@ -174,6 +174,7 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
             basis=found.basis,
             density=found.density,
             image_path=found.image_path,
+            category=found.category,
             per_100=schemas.Nutrients.model_validate(found),
             servings=[
                 schemas.BarcodeServing.model_validate(s)
@@ -193,6 +194,7 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
         basis=found.basis,
         density=1.0,
         image_path=None,
+        category=found.category,
         per_100=schemas.Nutrients(**found.values),
         servings=[]
         if serving is None

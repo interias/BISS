@@ -21,6 +21,7 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
 | Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |
 | Gericht | `group` | Die Einträge eines Tellers oder Schnellzugriffs mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
+| Kategorie | `category` | Symbolgruppe eines Lebensmittels, z. B. Obst oder Wurst. Ein Lebensmittel ohne Foto zeigt ihr Symbol |
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |
 

@@ -1,25 +1,24 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
+import type { Category } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { FoodSymbol } from "@/components/food-symbols";
 
-/* Placeholder from the prototype (ART.plate) for foods without a product photo. */
-const PLATE = (
-  <svg viewBox="0 0 48 48">
-    <circle cx="24" cy="24" r="18" fill="#F2F2EE" stroke="#BDBDB4" strokeWidth="1.2" />
-    <circle cx="24" cy="24" r="11" fill="none" stroke="#D8D8D0" />
-  </svg>
-);
-
-/** Picture frame with the bite mark (CSS mask); round for the recent chips. */
+/**
+ * Picture frame with the bite mark (CSS mask); round for the recent chips. Without a photo
+ * it shows the symbol of the food's category, the one of "other" without a category.
+ */
 export function FoodPic({
   size = 44,
   round = false,
   src,
+  category = null,
 }: {
   size?: number;
   round?: boolean;
-  /** URL of the product photo; without it the plate shows. */
+  /** URL of the product photo. */
   src?: string | null;
+  category?: Category | null;
 }) {
   return (
     <span
@@ -27,7 +26,7 @@ export function FoodPic({
       style={{ "--s": `${size}px` } as CSSProperties}
       aria-hidden="true"
     >
-      {src ? <Image src={src} alt="" fill unoptimized sizes={`${size}px`} className="object-cover" /> : PLATE}
+      {src ? <Image src={src} alt="" fill unoptimized sizes={`${size}px`} className="object-cover" /> : <FoodSymbol category={category} />}
     </span>
   );
 }

@@ -4,6 +4,24 @@
 export type Meal = "breakfast" | "lunch" | "snack" | "dinner";
 export type Source = "own" | "bls" | "off";
 export type Basis = "g" | "ml";
+/** Symbol group of a food without a photo; the backend derives it (ADR-0003). */
+export type Category =
+  | "bread"
+  | "grains"
+  | "fruit"
+  | "vegetables"
+  | "legumes"
+  | "potatoes"
+  | "dairy"
+  | "eggs"
+  | "meat"
+  | "sausage"
+  | "fish"
+  | "fats"
+  | "sweets"
+  | "drinks"
+  | "dishes"
+  | "other";
 
 export type Macros = { kcal: number; protein: number; carbs: number; fat: number };
 
@@ -21,6 +39,8 @@ export type FoodSummary = {
   basis: Basis;
   /** g/ml; the preview turns grams into ml with it for basis ml. */
   density: number;
+  /** null: no group known, the symbol of "other" shows. */
+  category: Category | null;
   per_100: Macros;
   standard_serving: StandardServing;
 };
@@ -74,6 +94,7 @@ export type FoodWrite = {
   brand: string | null;
   basis?: Basis;
   gtin?: string;
+  category?: Category | null;
   per_100: Per100;
   servings: {
     id?: number;
@@ -123,7 +144,7 @@ export type LabelExtraction = {
 
 export type Entry = {
   id: number;
-  food: { id: number; name: string; brand: string | null; source: Source };
+  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null };
   grams: number;
   meal: Meal;
   eaten_at: string;

@@ -47,6 +47,7 @@ def test_food_values_and_normalised_name(session: Session) -> None:
     )
     assert food.name_norm == "testbrot hell"
     assert food.basis == "g"
+    assert food.category == "fish"  # from the code: T is the BLS group of fish
     assert food.fetched_at is not None
 
 

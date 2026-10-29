@@ -145,6 +145,7 @@ _SEARCH = text(
         SELECT * FROM scored ORDER BY score DESC, id, gtin LIMIT :candidates
     )
     SELECT c.ref, c.id, c.gtin, c.payload, f.name, f.brand, c.source, f.basis, f.density,
+           f.category,
            c.kcal, c.protein, c.carbs, c.fat, c.score,
            c.usage > 0 AS used,
            s.label AS serving_label, s.grams AS serving_grams, s.origin AS serving_origin,
@@ -180,6 +181,7 @@ class Hit:
     serving_grams: float | None
     serving_origin: str | None
     score: float
+    category: str | None = None
 
 
 def _flat(value: str) -> str:
@@ -315,6 +317,7 @@ def _hit(row) -> Hit:
         serving_grams=row.serving_grams,
         serving_origin=row.serving_origin,
         score=round(row.score, 4),
+        category=row.category,
     )
 
 
@@ -337,4 +340,5 @@ def _cache_hit(row, found: FoodDraft) -> Hit:
         serving_grams=None if serving is None else serving.grams,
         serving_origin=None if serving is None else "package",
         score=round(row.score, 4),
+        category=found.category,
     )

@@ -77,6 +77,7 @@ def food_for_entry(session: Session, code: str, now: datetime) -> Food:
         basis=found.basis,
         source=off.SOURCE,
         source_id=found.source_id,
+        category=found.category,
         fetched_at=cached.fetched_at,
         **found.values,
     )

@@ -28,6 +28,7 @@ EDITABLE = (
     "sugar",
     "sat_fat",
     "salt",
+    "category",
 )
 
 

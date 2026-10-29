@@ -71,9 +71,11 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
   - + springt zum nächsten Wert des Rasters, − zum vorigen. Hin und zurück ergibt wieder den Ausgangswert, kein Wert wird übersprungen.
   - Nie unter 1 g. Teller und Schnellzugriff enden bei 1.500 g, ein einzelner Eintrag hat keine Obergrenze.
+- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“.
 - **Live-Werte:** Das Sheet berechnet kcal/E/K/F lokal mit der Formel `Wert je 100 g × Gramm / 100`. Das ist reine Anzeige. Beim Speichern rechnet das Backend verbindlich ([ADR-0003](adr/0003-logic-in-backend.md)).
 - **Lebensmittel-Editor:**
   - Produktfoto (Kamera oder Galerie), Name und Marke.
+  - Symbol: optional eine der Kategorien, ohne Wahl „Sonstiges“.
   - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
@@ -100,7 +102,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 
 | Tabelle | Wesentliche Felder |
 |---|---|
-| `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
+| `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `category` (Symbolgruppe, nullable), `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
 | `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
 | `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Tellers (Abschnitt 7a) |
@@ -116,6 +118,11 @@ Regeln:
 - **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
 - **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
+- **Kategorie:** Eine feste Liste von 16 Symbolgruppen (`bread`, `grains`, `fruit`, `vegetables`, `legumes`, `potatoes`, `dairy`, `eggs`, `meat`, `sausage`, `fish`, `fats`, `sweets`, `drinks`, `dishes`, `other`).
+  - BLS: aus dem ersten Buchstaben des BLS-Codes (Hauptgruppe), bei E und K aus den ersten zwei Zeichen (Eier, Pilze).
+  - Open Food Facts: aus `categories_tags` mit einer kleinen Zuordnung, sonst `other`.
+  - Eigene Lebensmittel: aus dem Editor, ohne Wahl leer.
+  - Die Zuordnung liegt im Backend (`app/domain/category.py`, [ADR-0003](adr/0003-logic-in-backend.md)). Eine geänderte Kategorie eines BLS- oder OFF-Lebensmittels steht im Overlay.
 - **Flüssigkeiten:** `basis = ml`. Gramm werden über `density` umgerechnet, eingetragen wird immer in Gramm.
 - **Schnellzugriff:** Eine Vorlage ist kein Eintrag. Eintragen legt eine Gruppe wie beim Teller an, mit `group_name` = Name der Vorlage und eigenem Snapshot je Eintrag. Angepasste Zutaten ändern die Vorlage nicht.
 

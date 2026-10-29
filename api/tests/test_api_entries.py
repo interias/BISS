@@ -19,7 +19,13 @@ def test_entry_with_amount_meal_and_time(client: TestClient, session: Session) -
     )
     assert response.status_code == 201
     entry = response.json()
-    assert entry["food"] == {"id": food.id, "name": "Haferflocken", "brand": None, "source": "own"}
+    assert entry["food"] == {
+        "id": food.id,
+        "name": "Haferflocken",
+        "brand": None,
+        "source": "own",
+        "category": None,
+    }
     assert (entry["grams"], entry["meal"], entry["day"]) == (60, "breakfast", "2026-10-28")
     assert entry["macros"] == {"kcal": 222.0, "protein": 8.1, "carbs": 35.2, "fat": 4.2}
 

@@ -81,7 +81,7 @@ export function SearchSheet({
             className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px border-b border-dashed py-[9px] text-left last:border-b-0"
           >
             <span className="row-span-2">
-              <FoodPic size={40} />
+              <FoodPic size={40} category={food.category} />
             </span>
             <span className="min-w-0 self-end truncate font-semibold">{food.name}</span>
             <span className="self-end text-right font-bold tabular-nums">{fmt(food.per_100.kcal)}</span>

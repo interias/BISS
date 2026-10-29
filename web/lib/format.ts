@@ -1,4 +1,4 @@
-import type { Basis, Meal, Serving, Source } from "@/lib/api";
+import type { Basis, Category, Meal, Serving, Source } from "@/lib/api";
 
 export const MEALS: Meal[] = ["breakfast", "lunch", "snack", "dinner"];
 
@@ -13,6 +13,26 @@ export const SOURCE_LABELS: Record<Source, string> = {
   own: "Eigene DB",
   bls: "BLS",
   off: "Open Food Facts",
+};
+
+/** The symbol groups as the editor offers them. */
+export const CATEGORY_LABELS: Record<Category, string> = {
+  bread: "Brot & Brötchen",
+  grains: "Getreide & Nudeln",
+  fruit: "Obst",
+  vegetables: "Gemüse & Pilze",
+  legumes: "Hülsenfrüchte, Nüsse & Samen",
+  potatoes: "Kartoffeln",
+  dairy: "Milch & Käse",
+  eggs: "Eier",
+  meat: "Fleisch",
+  sausage: "Wurst & Schinken",
+  fish: "Fisch",
+  fats: "Fette & Öle",
+  sweets: "Süßes & Kuchen",
+  drinks: "Getränke",
+  dishes: "Gerichte",
+  other: "Sonstiges",
 };
 
 export const ORIGIN_LABELS: Record<Serving["origin"], string> = {

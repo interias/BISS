@@ -128,6 +128,7 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
         "source": "bls",
         "basis": "g",
         "density": 1.0,
+        "category": None,
         "per_100": {"kcal": 79, "protein": 10, "carbs": 10, "fat": 1},
         "standard_serving": {"label": "1 Banane", "grams": 120, "origin": "estimated"},
         "gtin": None,

@@ -23,6 +23,7 @@ export const banana: FoodSummary = {
   source: "bls",
   basis: "g",
   density: 1,
+  category: "fruit",
   per_100: { kcal: 93, protein: 1.1, carbs: 20, fat: 0.2 },
   standard_serving: { label: "1 Banane", grams: 120, origin: "estimated" },
 };
@@ -48,6 +49,7 @@ export const puddingDraft: BarcodeFood = {
   basis: "g",
   density: 1,
   image_path: null,
+  category: "other",
   per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4, fiber: null, sugar: null, sat_fat: null, salt: null },
   servings: [{ label: "1 Becher (200 g)", grams: 200, origin: "package", is_default: true }],
   standard_serving: { label: "1 Becher (200 g)", grams: 200, origin: "package" },
@@ -62,6 +64,7 @@ export const puddingHit: SearchHit = {
   source: "off",
   basis: "g",
   density: 1,
+  category: null,
   per_100: { kcal: 74, protein: 10, carbs: 5.2, fat: 1.4 },
   standard_serving: puddingDraft.standard_serving,
 };
@@ -97,7 +100,7 @@ export const biscuitLabel = (gtin: string | null): LabelExtraction => ({
 
 export const bananaEntry: Entry = {
   id: 42,
-  food: { id: 7, name: "Banane roh", brand: null, source: "bls" },
+  food: { id: 7, name: "Banane roh", brand: null, source: "bls", category: "fruit" },
   grams: 120,
   meal: "snack",
   eaten_at: "2026-10-28T10:05:00+01:00",
@@ -114,6 +117,7 @@ export const riceDetail: FoodSummary = {
   source: "bls",
   basis: "g",
   density: 1,
+  category: null,
   per_100: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 },
   standard_serving: { label: "1 Portion", grams: 150, origin: "estimated" },
 };
@@ -125,11 +129,18 @@ const chicken: FoodSummary = {
   source: "bls",
   basis: "g",
   density: 1,
+  category: null,
   per_100: { kcal: 150, protein: 30, carbs: 0, fat: 3 },
   standard_serving: { label: "1 Filet", grams: 120, origin: "estimated" },
 };
 
-const ref = (food: FoodSummary) => ({ id: food.id, name: food.name, brand: food.brand, source: food.source });
+const ref = (food: FoodSummary) => ({
+  id: food.id,
+  name: food.name,
+  brand: food.brand,
+  source: food.source,
+  category: food.category,
+});
 const scale = (per100: Macros, grams: number): Macros => ({
   kcal: Math.round(per100.kcal * grams) / 100,
   protein: Math.round(per100.protein * grams) / 100,
@@ -189,6 +200,7 @@ export const broccoli: FoodSummary = {
   source: "bls",
   basis: "g",
   density: 1,
+  category: null,
   per_100: { kcal: 30, protein: 3, carbs: 2.5, fat: 0.4 },
   standard_serving: { label: "1 Portion", grams: 100, origin: "estimated" },
 };
@@ -200,6 +212,7 @@ export const sugar: FoodSummary = {
   source: "bls",
   basis: "g",
   density: 1,
+  category: null,
   per_100: { kcal: 400, protein: 0, carbs: 100, fat: 0 },
   standard_serving: { label: "1 TL", grams: 5, origin: "estimated" },
 };
@@ -211,6 +224,7 @@ export const coffee: FoodSummary = {
   source: "bls",
   basis: "ml",
   density: 1,
+  category: null,
   per_100: { kcal: 2, protein: 0.1, carbs: 0.3, fat: 0 },
   standard_serving: { label: "1 Tasse", grams: 200, origin: "estimated" },
 };

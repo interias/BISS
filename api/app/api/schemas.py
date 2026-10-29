@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.domain.category import Category
 from app.domain.meal import Meal
 from app.labels.draft import LabelDraft
 from app.labels.validation import Rule
@@ -63,6 +64,9 @@ class FoodSummary(BaseModel):
     source: Source
     basis: Basis
     density: float = Field(description="g/ml, to turn grams into ml for basis ml")
+    category: Category | None = Field(
+        description="symbol group for a food without a photo; null shows the one of other"
+    )
     per_100: Macros
     standard_serving: StandardServing
 
@@ -87,6 +91,7 @@ class FoodDetail(BaseModel):
     basis: Basis
     density: float
     image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
+    category: Category | None = Field(description="symbol group; null shows the one of other")
     per_100: Nutrients
     servings: list[Serving]
     standard_serving: StandardServing
@@ -114,6 +119,7 @@ class BarcodeFood(BaseModel):
     basis: Basis
     density: float
     image_path: str | None = Field(description="file name, served at /api/v1/images/{name}")
+    category: Category | None = Field(description="symbol group; null shows the one of other")
     per_100: Nutrients
     servings: list[BarcodeServing]
     standard_serving: StandardServing
@@ -179,6 +185,7 @@ class FoodCreate(BaseModel):
     brand: str | None = None
     basis: Basis = "g"
     density: float = Field(default=1.0, gt=0)
+    category: Category | None = Field(default=None, description="symbol group, optional")
     gtin: str | None = Field(
         default=None,
         description="a scanned code, stored as GTIN-14; 409 when another food has it",
@@ -196,6 +203,7 @@ class FoodUpdate(BaseModel):
     brand: str | None = None
     basis: Basis = None
     density: float = Field(default=None, gt=0)
+    category: Category | None = None
     per_100: NutrientsPatch | None = None
     servings: list[ServingIn] | None = Field(
         default=None,
@@ -263,6 +271,7 @@ class FoodRef(BaseModel):
     name: str
     brand: str | None
     source: Source
+    category: Category | None
 
 
 class Entry(BaseModel):

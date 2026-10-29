@@ -105,7 +105,7 @@ export function PlateSheet({
         name: food.name,
         grams,
         tag: "manual",
-        food: { id: food.id!, name: food.name, brand: food.brand, source: food.source },
+        food: { id: food.id!, name: food.name, brand: food.brand, source: food.source, category: food.category },
         per100: food.per_100,
         basis: food.basis,
         density: food.density,
@@ -122,7 +122,7 @@ export function PlateSheet({
     }
     change(matching, {
       tag: "manual",
-      food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source },
+      food: { id: hit.id, name: hit.name, brand: hit.brand, source: hit.source, category: hit.category },
       per100: hit.per_100,
       basis: hit.basis,
       density: hit.density,
