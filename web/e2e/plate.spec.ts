@@ -74,7 +74,7 @@ test("tap budget: a plate is logged with Kamera + Teller + 1 confirmation", asyn
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(0)).toContainText("Hähnchen Brustfilet, gegrillt");
   await expect(rows.nth(0)).toContainText("erkannt");
-  await expect(rows.nth(0)).toContainText("120 g");
+  await expect(rows.nth(0).getByRole("spinbutton")).toHaveValue("120");
   await expect(rows.nth(1)).toContainText("Reis gekocht");
   await expect(rows.nth(2)).toContainText("Broccoli gekocht");
   await expect(rows.nth(2)).toContainText("vermutet");
