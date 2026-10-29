@@ -247,8 +247,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 /** The current day; the backend resolves "today" with the 04:00 boundary. */
 export const getToday = () => request<Day>("/days/today");
 export const getRecent = () => request<FoodSummary[]>("/recent");
+/** The local search; `off_more` says the backend finds asking Open Food Facts worthwhile. */
 export const searchFoods = (q: string) =>
-  request<SearchHit[]>(`/foods/search?q=${encodeURIComponent(q)}`);
+  request<{ hits: SearchHit[]; off_more: boolean }>(`/foods/search?q=${encodeURIComponent(q)}`);
+
+/**
+ * Open Food Facts text search (ADR-0011): products the local search does not show. A failure
+ * is no error but an empty list with a `reason`.
+ */
+export const searchOff = (q: string) =>
+  request<{ hits: SearchHit[]; reason: "short" | "limit" | "timeout" | "error" | null }>(
+    `/foods/search/off?q=${encodeURIComponent(q)}`,
+  );
 export const getFood = (id: number) => request<FoodDetail>(`/foods/${id}`);
 
 /**

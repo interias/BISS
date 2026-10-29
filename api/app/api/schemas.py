@@ -81,6 +81,27 @@ class SearchHit(FoodSummary):
     gtin: str | None = Field(description="GTIN-14; always set for a cached product")
 
 
+class SearchResult(BaseModel):
+    hits: list[SearchHit] = Field(description="best match first, duplicates merged")
+    off_more: bool = Field(
+        description="fewer than 5 hits for a query of 3 or more characters: "
+        "GET /foods/search/off may find more"
+    )
+
+
+class OffSearchResult(BaseModel):
+    """Products of the Open Food Facts text search the local search did not show."""
+
+    hits: list[SearchHit] = Field(
+        description="in the order of Open Food Facts; a product whose GTIN a food has is "
+        "that food, a new one has id null and is logged with its gtin"
+    )
+    reason: Literal["short", "limit", "timeout", "error"] | None = Field(
+        description="why there are no hits: query under 3 characters, rate limit, timeout "
+        "or error of Open Food Facts; null after an answer"
+    )
+
+
 class FoodDetail(BaseModel):
     id: int
     name: str

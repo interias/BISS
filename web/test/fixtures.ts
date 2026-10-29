@@ -69,6 +69,31 @@ export const puddingHit: SearchHit = {
   standard_serving: puddingDraft.standard_serving,
 };
 
+/** An invented product only the Open Food Facts text search knows (ADR-0011). */
+export const muesliDraft: BarcodeFood = {
+  ...puddingDraft,
+  gtin: "02000000014012",
+  name: "Zippelmo Beerenmüsli",
+  brand: "Testmühle",
+  category: "grains",
+  per_100: { kcal: 372, protein: 9.5, carbs: 61, fat: 7.8, fiber: null, sugar: 18, sat_fat: null, salt: null },
+  servings: [{ label: "1 Schale (50 g)", grams: 50, origin: "package", is_default: true }],
+  standard_serving: { label: "1 Schale (50 g)", grams: 50, origin: "package" },
+};
+
+export const muesliHit: SearchHit = {
+  id: null,
+  gtin: muesliDraft.gtin,
+  name: muesliDraft.name,
+  brand: muesliDraft.brand,
+  source: "off",
+  basis: "g",
+  density: 1,
+  category: "grains",
+  per_100: { kcal: 372, protein: 9.5, carbs: 61, fat: 7.8 },
+  standard_serving: muesliDraft.standard_serving,
+};
+
 /** The fake extractor's draft (api/app/labels/extractor.py, FAKE_DRAFT) for a scanned GTIN. */
 export const biscuitLabel = (gtin: string | null): LabelExtraction => ({
   draft: {
@@ -308,7 +333,8 @@ const json = (body: unknown, status = 200) =>
 /**
  * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
  * banana for GET and PATCH /foods/7 and a search that finds only "banane" and the cached
- * pudding ("pudding"); POST /foods
+ * pudding ("pudding"), with off_more below 5 hits; the Open Food Facts search finds the
+ * muesli ("zippelmo") and fails for "offline"; POST /foods
  * creates food 55 with the given name; /foods/validate always finds the values plausible.
  * The barcode chain knows only the pudding draft, by any form of its code; any other code is
  * a miss. The label
@@ -367,16 +393,21 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
+    if (url.startsWith("/api/v1/foods/search/off")) {
+      if (url.includes("offline")) return json({ hits: [], reason: "timeout" });
+      return json({ hits: url.toLowerCase().includes("zippelmo") ? [muesliHit] : [], reason: null });
+    }
     if (url.startsWith("/api/v1/foods/search")) {
-      return json(
-        url.includes("banane")
-          ? [banana]
-          : url.includes("pudding")
-            ? [puddingHit]
-            : url.includes("brok")
-              ? [broccoli, puddingHit]
-              : [],
-      );
+      const hits = url.includes("banane")
+        ? [banana]
+        : url.includes("pudding")
+          ? [puddingHit]
+          : url.includes("brok")
+            ? [broccoli, puddingHit]
+            : [];
+      // Like the backend: Open Food Facts is worth asking below 5 hits from 3 characters.
+      const q = decodeURIComponent(url.split("q=")[1] ?? "");
+      return json({ hits, off_more: q.length >= 3 && hits.length < 5 });
     }
     if (url === "/api/v1/plates/extract" && method === "POST") return json(plate);
     if (url === "/api/v1/entries/group" && method === "POST") {
@@ -414,6 +445,7 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     }
     const barcode = url.match(/^\/api\/v1\/foods\/barcode\/(\d+)$/);
     if (barcode && barcode[1].padStart(14, "0") === puddingDraft.gtin) return json(puddingDraft);
+    if (barcode && barcode[1].padStart(14, "0") === muesliDraft.gtin) return json(muesliDraft);
     const own = barcode && Object.values(foods).find((f) => f.gtin === barcode[1].padStart(14, "0"));
     if (own) return json(own);
     if (barcode) return json({ detail: "no product", gtin: barcode[1].padStart(14, "0") }, 404);

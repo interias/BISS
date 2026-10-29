@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { coffeeCombo, fakeApi, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
+import { coffeeCombo, fakeApi, muesliDraft, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Home } from "./home";
 
 // No camera in jsdom: the overlay takes a photo, and ZXing "reads" this code from it.
@@ -157,6 +157,20 @@ test("a cached product in the search opens the amount sheet and is logged by GTI
     body: { gtin: puddingDraft.gtin, grams: 200 },
   });
   expect(calls.some((c) => /^\/api\/v1\/foods\/\d+$/.test(c.url))).toBe(false); // no food was loaded
+});
+
+test("an unknown product from Open Food Facts opens the amount sheet and is logged by GTIN", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Lebensmittel suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "Zippelmo" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Zippelmo Beerenmüsli/ }));
+
+  expect(await screen.findByRole("heading", { name: "Zippelmo Beerenmüsli" })).toBeInTheDocument();
+  expect(screen.getByRole("spinbutton", { name: "Menge" })).toHaveValue(50);
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 186 kcal" }));
+  await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+  expect(calls.find((c) => c.method === "POST")?.body).toEqual({ gtin: muesliDraft.gtin, grams: 50 });
 });
 
 async function photographLabel() {

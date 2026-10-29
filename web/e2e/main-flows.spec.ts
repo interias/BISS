@@ -69,6 +69,28 @@ test("searching banane and logging 120 g shows the entry on top of the diary", a
   await expect(entry).toContainText("120 g");
 });
 
+test("an unknown product comes from Open Food Facts, opens the amount sheet and is logged", async ({ page, request }) => {
+  // The stub's invented product (web/e2e/off-stub); after a first run it is a food already.
+  const local = await (await request.get(`/api/v1/foods/search?q=${encodeURIComponent("Zippelmo")}`)).json();
+  const known = local.hits.some((hit: { name: string }) => hit.name === "Zippelmo Beerenmüsli");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("textbox", { name: "Suchen" }).fill("Zippelmo");
+  const scope = known ? sheet : sheet.getByRole("group", { name: "Open Food Facts" });
+  if (!known) await expect(scope.getByText("Daten von Open Food Facts (ODbL)")).toBeVisible();
+  await scope.getByRole("button", { name: /^Zippelmo Beerenmüsli/ }).click();
+
+  await expect(sheet.getByRole("heading", { name: "Zippelmo Beerenmüsli" })).toBeVisible();
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("50");
+  const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  );
+  entries.track(created.id);
+  expect(created.grams).toBe(50);
+  await expect(page.locator(`[data-entry-id="${created.id}"]`)).toContainText("Zippelmo Beerenmüsli");
+});
+
 test("opening an entry and saving 90 g updates its values", async ({ page }) => {
   const seeded = await entries.create(bananaId, 120, "snack");
   await page.goto("/");

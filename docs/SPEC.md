@@ -39,7 +39,7 @@ Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht ei
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Spracheingabe, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Spracheingabe, Statistiken jeder Art.
 
 ## 3. Abläufe
 
@@ -142,7 +142,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
-| GET | `/foods/search?q=` | föderierte Suche (Abschnitt 6) |
+| GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
+| GET | `/foods/search/off?q=` | Open-Food-Facts-Textsuche, Produkte ohne die lokalen Treffer; bei Fehler leere `hits` mit `reason` ([ADR-0011](adr/0011-off-text-search.md)) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
 | PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
@@ -156,8 +157,13 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 ## 6. Suche
 
 **Quellen:**
-- Das MVP durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
-- Alle Quellen liegen in Postgres, darum läuft die Suche lokal, ohne Föderation und ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt (Markennachschlag, gefilterter und ungefilterter Lauf). Föderiert wird erst, wenn eine Live-Quelle für Text hinzukommt.
+- Die lokale Suche durchsucht die eigene DB, die importierten BLS-Lebensmittel und den OFF-Cache ([ADR-0002](adr/0002-data-sources.md)).
+- Diese Quellen liegen in Postgres, darum läuft die lokale Suche ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt (Markennachschlag, gefilterter und ungefilterter Lauf).
+- **Open Food Facts live** ([ADR-0011](adr/0011-off-text-search.md)): Hat die lokale Suche weniger als 5 Treffer bei mindestens 3 Zeichen, setzt sie `off_more`. Die App fragt dann `/foods/search/off` und hängt die Treffer unten an, mit „Suche bei Open Food Facts …“ und dem Hinweis „Daten von Open Food Facts (ODbL)“.
+  - Gefragt wird Search-a-licious mit Sprache Deutsch und Land Deutschland, Timeout 3 s.
+  - Höchstens 6 Anfragen pro Minute (Open Food Facts erlaubt 10). Dieselbe Suche gilt 24 h aus dem Speicher.
+  - Jedes Produkt geht in den OFF-Cache und wird über seine GTIN eingetragen.
+  - Treffer der lokalen Suche kommen nicht doppelt. Ein Produkt mit der GTIN eines Lebensmittels ist dieses Lebensmittel.
 
 **Normalisierung**, in Python und als generierte Spalte:
 - Kleinschreibung und `unaccent`.
@@ -240,7 +246,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Dublettenrate in den Top 10 = 0.
   - p95 lokal < 300 ms.
   - Die Suite schlägt fehl, wenn eine Schwelle reißt.
-- **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall.
+- **Adapter-Tests** mit OFF-Antworten in der Form echter Antworten, ohne OFF-Daten (`respx`), inklusive Timeout und Ausfall. Für die Textsuche auch Limit, Query-Cache, Dubletten und das Schreiben in den OFF-Cache.
 - **Extraktion:**
   - Validierungsregeln als Unit-Tests.
   - Etiketten-Fixtures mit erwarteten Werten, als markierter Test, der nur mit gesetztem Token läuft: erzeugte Etiketten erfundener Produkte mit bekannten Werten ([ADR-0002](adr/0002-data-sources.md)).
@@ -250,7 +256,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf und der Schnellzugriff zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf und der Schnellzugriff zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1.
 
 ## 9. Betrieb
 

@@ -26,5 +26,22 @@
       "fat_100g": 3,
       "sugars_100g": 5
     }
+  },
+  "2000000014012": {
+    "product_name": "Zippelmo Beerenmüsli",
+    "brands": "Testmühle",
+    "categories_tags": [
+      "en:breakfast-cereals"
+    ],
+    "product_quantity_unit": "g",
+    "serving_size": "1 Schale (50 g)",
+    "serving_quantity": 50,
+    "nutriments": {
+      "energy-kcal_100g": 372,
+      "proteins_100g": 9.5,
+      "carbohydrates_100g": 61,
+      "fat_100g": 7.8,
+      "sugars_100g": 18
+    }
   }
 }

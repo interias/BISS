@@ -79,7 +79,7 @@ def test_off_draft_and_stored_food_carry_the_category(session: Session) -> None:
 def test_category_in_summaries_and_details(client: TestClient, session: Session) -> None:
     banana = add_food(session, "Banane roh", source="bls", source_id="F503100", category="fruit")
     add_food(session, "Bananenbrot", category=None)
-    hits = client.get("/api/v1/foods/search", params={"q": "banane"}).json()
+    hits = client.get("/api/v1/foods/search", params={"q": "banane"}).json()["hits"]
     assert {hit["name"]: hit["category"] for hit in hits} == {
         "Banane roh": "fruit",
         "Bananenbrot": None,

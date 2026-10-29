@@ -7,6 +7,8 @@ services:
     environment:
       # The barcode chain asks the stub, never the real Open Food Facts.
       OFF_BASE_URL: http://off-stub:8080
+      # Its text search as well (ADR-0011).
+      OFF_SEARCH_URL: http://off-stub:8080
       # The label photo goes to the fake extractor (FAKE_DRAFT), never to a model.
       LABEL_EXTRACTOR: fake
       # The plate photo likewise goes to the fake (FAKE_PLATE, ADR-0009).

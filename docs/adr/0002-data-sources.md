@@ -15,5 +15,8 @@ Bei 50–100 Lebensmitteln im Jahr lohnt keine föderierte Suche über vier Quel
 - Alle durchsuchbaren Daten liegen lokal in Postgres. Die Suche läuft lokal, ohne Föderation und ohne Netz-Timeouts, auch wenn sie mehrere lokale Abfragen stellt.
 - Eine OFF-Textsuche oder weitere Quellen brauchen ein neues ADR.
 
+## Nachtrag 29.10.2026
+Die Textsuche bei Open Food Facts regelt [ADR-0011](0011-off-text-search.md). Sie ergänzt den Barcode, die lokale Suche bleibt wie hier beschrieben.
+
 ## Nachtrag 28.10.2026
 Die erste Folge sprach von „einer einzigen Abfrage“. Gemeint war: lokal in Postgres, keine Föderation, kein Netz. Seit E2 (#10) stellt die Suche bis zu drei lokale Abfragen (Markennachschlag, gefilterter und ungefilterter Lauf). Die Entscheidung bleibt, nur der Wortlaut ist präzisiert (Entscheidung des Menschen: https://github.com/interias/BISS/issues/2#issuecomment-6466452148).
