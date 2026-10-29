@@ -87,7 +87,7 @@ test("a new food with two portions and a photo is saved and logged", async ({ pa
 
   // The editor leads into the amount sheet of the new food: standard portion, photo.
   await expect(sheet.getByRole("heading", { name })).toBeVisible();
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("20g");
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("20");
   await expect(sheet.locator("img[src^='/api/v1/images/']")).toBeVisible();
 
   const saved: Food = await (await request.get(`/api/v1/foods/${food.id}`)).json();
@@ -128,7 +128,7 @@ test("editing a BLS food keeps the value after a reload and shows eigene at once
     await sheet.getByRole("button", { name: "Speichern" }).click();
     await expect(page.getByText("Lebensmittel gespeichert")).toBeVisible();
     await expect(sheet.getByRole("heading", { name: "Banane roh" })).toBeVisible();
-    await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("120g"); // grams stay as they were
+    await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("120"); // grams stay as they were
 
     await page.reload();
     const again = await openBananaEditor(page);
@@ -168,20 +168,19 @@ test("the Atwater warning appears for implausible values and goes when they fit"
   await expect(hint).toContainText("Unplausibel");
 });
 
-test("Bearbeiten and Abbrechen return to the entry with its grams and meal", async ({ page }) => {
+test("Bearbeiten and Abbrechen return to the entry with its grams", async ({ page }) => {
   const seeded = await entries.create(bananaId, 120, "lunch");
   await page.goto("/");
   await page.locator(`[data-entry-id="${seeded.id}"]`).click();
   const sheet = page.getByRole("dialog");
   for (let i = 0; i < 2; i++) await sheet.getByRole("button", { name: "mehr" }).click(); // 130, 140
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("140g");
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("140");
 
   await sheet.getByRole("button", { name: "Bearbeiten" }).click();
   await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("Banane roh");
   await sheet.getByRole("button", { name: "Abbrechen" }).click();
 
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("140g");
-  await expect(sheet.getByRole("button", { name: "Mahlzeit: Mittag" })).toBeVisible();
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("140");
   await expect(sheet.getByRole("button", { name: /^Speichern · \d+ kcal$/ })).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Entfernen" })).toBeVisible();
 });

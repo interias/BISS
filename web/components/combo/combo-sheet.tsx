@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { Basis, Combo, ComboItemWrite, FoodSummary, Macros, Meal, SearchHit, Source } from "@/lib/api";
+import type { Basis, Combo, ComboItemWrite, FoodSummary, Macros, SearchHit, Source } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { fmt, MEAL_LABELS, MEALS, shortName } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { fmt, shortName } from "@/lib/format";
 import { DOTS } from "@/components/amount-sheet";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
@@ -45,11 +44,10 @@ const foodOf = (food: FoodSummary | SearchHit): Row["food"] => ({
   per_100: food.per_100,
 });
 
-// Recent foods and search hits carry no density; 1 is right for every food in g.
-const rowOf = (food: FoodSummary | SearchHit, grams: number, density = 1): Row => ({
+const rowOf = (food: FoodSummary | SearchHit, grams: number): Row => ({
   key: rowKeys++,
   food: foodOf(food),
-  density,
+  density: food.density,
   grams,
 });
 
@@ -58,13 +56,12 @@ const written = (rows: Row[]): ComboItemWrite[] =>
 
 /**
  * Schnellzugriff sheet (ADR-0010). With a combo it adjusts one entry: items with ± and typed
- * grams, tauschen, ✕, "+ Zutat suchen", meal chips and "Eintragen · X kcal"; the template only
+ * grams, tauschen, ✕, "+ Zutat suchen" and "Eintragen · X kcal"; the template only
  * changes with "Als Vorlage speichern". "Löschen" asks inline before it deletes. Without a combo
  * it creates one: name and items, "Speichern".
  */
 export function ComboSheet({
   combo,
-  suggestedMeal,
   recent,
   busy,
   onLog,
@@ -73,19 +70,17 @@ export function ComboSheet({
   onCancel,
 }: {
   combo?: Combo;
-  suggestedMeal: Meal;
   recent: FoodSummary[];
   busy?: boolean;
-  onLog?: (items: ComboItemWrite[], meal: Meal) => void;
+  onLog?: (items: ComboItemWrite[]) => void;
   onSave: (name: string, items: ComboItemWrite[]) => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(combo?.name ?? "");
   const [rows, setRows] = useState<Row[]>(
-    () => combo?.items.map((item) => rowOf(item.food, item.grams, item.density)) ?? [],
+    () => combo?.items.map((item) => rowOf(item.food, item.grams)) ?? [],
   );
-  const [meal, setMeal] = useState<Meal>(suggestedMeal);
   // The row whose food is being swapped, or "new" for an item to add.
   const [searching, setSearching] = useState<number | "new" | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -103,7 +98,7 @@ export function ComboSheet({
   const pick = (hit: SearchHit) => {
     if (hit.id === null || searching === null) return;
     if (searching === "new") add(hit);
-    else change(searching, { food: foodOf(hit), density: 1 });
+    else change(searching, { food: foodOf(hit), density: hit.density });
     setSearching(null);
   };
 
@@ -140,25 +135,6 @@ export function ComboSheet({
           ? "Gilt nur für diesen Eintrag. Die Vorlage bleibt, außer du speicherst sie."
           : "Name und Zutaten mit Menge. Ein Tap trägt später alles ein."}
       </p>
-
-      {combo && (
-        <div role="group" aria-label="Mahlzeit" className="mb-2 flex flex-wrap gap-1.5">
-          {MEALS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={option === meal}
-              onClick={() => setMeal(option)}
-              className={cn(
-                "rounded-full border bg-surface-2 px-3 py-[5px] text-[12.5px] font-semibold",
-                option === meal && "border-primary bg-accent",
-              )}
-            >
-              {MEAL_LABELS[option]}
-            </button>
-          ))}
-        </div>
-      )}
 
       <ul aria-label="Zutaten">
         {rows.map((row) => {
@@ -252,7 +228,7 @@ export function ComboSheet({
             <button
               type="button"
               disabled={busy || rows.length === 0}
-              onClick={() => onLog?.(written(rows), meal)}
+              onClick={() => onLog?.(written(rows))}
               className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
             >
               Eintragen · {fmt(total.kcal)} kcal

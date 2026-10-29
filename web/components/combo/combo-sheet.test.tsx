@@ -16,7 +16,6 @@ function renderSheet(combo?: Combo, recent = [banana, riceDetail]) {
     <Sheet onClose={() => {}}>
       <ComboSheet
         combo={combo}
-        suggestedMeal="breakfast"
         recent={recent}
         {...actions}
         onLog={combo && actions.onLog}
@@ -27,7 +26,7 @@ function renderSheet(combo?: Combo, recent = [banana, riceDetail]) {
   return actions;
 }
 
-test("adjust shows the items with grams, the suggested meal and the sum as the button", () => {
+test("adjust shows the items with grams and the sum as the button, no meal", () => {
   renderSheet(coffeeCombo());
   expect(screen.getByRole("dialog", { name: "Schnellzugriff anpassen" })).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Kaffee");
@@ -36,27 +35,22 @@ test("adjust shows the items with grams, the suggested meal and the sum as the b
   expect(within(rows()[0]).getByText("Kaffee, Filter")).toBeInTheDocument();
   expect(within(rows()[0]).getByText("4 kcal")).toBeInTheDocument();
   expect(grams("Zucker")).toHaveValue(5);
-  expect(screen.getByRole("button", { name: "Frühstück" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.queryByRole("group", { name: "Mahlzeit" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Eintragen · 24 kcal" })).toBeInTheDocument();
 });
 
-test("Eintragen logs the adjusted items with the chosen meal, never the template", () => {
+test("Eintragen logs the adjusted items, never the template", () => {
   const { onLog, onSave } = renderSheet(coffeeCombo());
-  fireEvent.click(screen.getByRole("button", { name: "Zucker mehr" })); // 15 g: +40 kcal
-  fireEvent.click(screen.getByRole("button", { name: "Snack" }));
-  expect(screen.getByRole("button", { name: "Snack" })).toHaveAttribute("aria-pressed", "true");
-  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 64 kcal" }));
-  expect(onLog).toHaveBeenCalledWith(
-    [
-      { food_id: 12, grams: 200 },
-      { food_id: 11, grams: 15 },
-    ],
-    "snack",
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Zucker mehr" })); // 6 g: +4 kcal
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 28 kcal" }));
+  expect(onLog).toHaveBeenCalledWith([
+    { food_id: 12, grams: 200 },
+    { food_id: 11, grams: 6 },
+  ]);
   expect(onSave).not.toHaveBeenCalled();
 });
 
-test("typed grams stay within 5 to 1500 g, ✕ removes an item", () => {
+test("typed grams stay within 1 to 1500 g, ✕ removes an item", () => {
   const { onLog } = renderSheet(coffeeCombo());
   fireEvent.change(grams("Zucker"), { target: { value: "2000" } });
   fireEvent.blur(grams("Zucker"));
@@ -64,7 +58,7 @@ test("typed grams stay within 5 to 1500 g, ✕ removes an item", () => {
   fireEvent.click(screen.getByRole("button", { name: "Kaffee, Filter entfernen" }));
   expect(rows()).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: /^Eintragen · / }));
-  expect(onLog).toHaveBeenCalledWith([{ food_id: 11, grams: 1500 }], "breakfast");
+  expect(onLog).toHaveBeenCalledWith([{ food_id: 11, grams: 1500 }]);
 });
 
 test("tauschen and + Zutat suchen pick a food from the search", async () => {
@@ -90,7 +84,7 @@ test("Als Vorlage speichern sends the name and the current items", () => {
   fireEvent.click(screen.getByRole("button", { name: "Als Vorlage speichern" }));
   expect(onSave).toHaveBeenCalledWith("Kaffee süß", [
     { food_id: 12, grams: 200 },
-    { food_id: 11, grams: 15 },
+    { food_id: 11, grams: 6 },
   ]);
   expect(onLog).not.toHaveBeenCalled();
 });

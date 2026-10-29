@@ -8,7 +8,7 @@ from app.plates.match import Plate
 from app.search.search import Hit
 from app.services import foods
 from app.services.combos import ComboView
-from app.services.days import DaySummary
+from app.services.days import DaySummary, EntryRow
 from app.services.entries import EntryGroup
 from app.services.foods import FALLBACK_SERVING, StandardServing, standard_serving
 
@@ -27,6 +27,7 @@ def food_summary(
         brand=food.brand,
         source=food.source,
         basis=food.basis,
+        density=food.density,
         per_100=schemas.Macros.model_validate(food),
         standard_serving=schemas.StandardServing.model_validate(serving),
         **fields,
@@ -67,6 +68,19 @@ def day(summary: DaySummary) -> schemas.Day:
         date=summary.day,
         totals=schemas.Macros.model_validate(summary.totals),
         targets=schemas.Macros.model_validate(summary.targets),
+        rows=[
+            schemas.DayEntryRow(entry=entry(row.entry, row.food))
+            if isinstance(row, EntryRow)
+            else schemas.DayGroupRow(
+                group_id=row.group_id,
+                group_name=row.group_name,
+                meal=row.meal,
+                eaten_at=row.eaten_at,
+                totals=schemas.Macros.model_validate(row.totals),
+                entries=[entry(e, food) for e, food in row.entries],
+            )
+            for row in summary.rows
+        ],
         meals=[
             schemas.MealEntries(
                 meal=meal.meal,

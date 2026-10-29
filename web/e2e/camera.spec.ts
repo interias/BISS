@@ -45,7 +45,7 @@ test("a barcode in the live picture opens the amount sheet with the OFF note", a
   await expect(camera).toHaveCount(0);
   await expect(sheet.getByText("Testmarke", { exact: true })).toBeVisible();
   await expect(sheet.getByText("Daten von Open Food Facts (ODbL)")).toBeVisible();
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("200g");
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("200");
 
   const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
     sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),

@@ -1,10 +1,22 @@
 import type { Basis, Macros } from "@/lib/api";
 
-/** The − button: 10 g above 100 g, else 5 g, never below 5 g (prototype). */
-export const stepDown = (grams: number) => Math.max(5, grams - (grams > 100 ? 10 : 5));
+/** The smallest amount anywhere; the backend only rejects 0 g and less. */
+export const MIN_GRAMS = 1;
 
-/** The + button: 10 g from 100 g upwards, else 5 g (prototype). */
-export const stepUp = (grams: number) => grams + (grams >= 100 ? 10 : 5);
+/**
+ * The − and + buttons walk one grid: 1 g steps below 20 g, 5 g steps up to 100 g, 10 g
+ * steps above. + goes to the next grid value, − to the previous one, so both are inverse on
+ * the grid and a typed value off the grid (58 g) snaps to its neighbours (55 g, 60 g).
+ */
+export const stepUp = (grams: number, max = Infinity) => {
+  const step = grams < 20 ? 1 : grams < 100 ? 5 : 10;
+  return Math.min(max, Math.floor(grams / step) * step + step);
+};
+
+export const stepDown = (grams: number) => {
+  const step = grams <= 20 ? 1 : grams <= 100 ? 5 : 10;
+  return Math.max(MIN_GRAMS, Math.ceil(grams / step) * step - step);
+};
 
 /**
  * Local preview in the amount sheet: value per 100 × amount / 100 (ADR-0003). For

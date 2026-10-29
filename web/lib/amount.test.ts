@@ -1,28 +1,47 @@
 import { describe, expect, test } from "vitest";
 import { previewMacros, stepDown, stepUp } from "./amount";
 
-describe("gram steps: 5 g up to 100 g, 10 g above", () => {
+describe("gram steps: 1 g below 20 g, 5 g up to 100 g, 10 g above", () => {
   test.each([
-    [5, 10],
+    [1, 2],
+    [19, 20],
+    [20, 25],
     [95, 100],
     [100, 110],
     [110, 120],
-    [58, 63],
-  ])("+ from %i g gives %i g", (from, to) => expect(stepUp(from)).toBe(to));
+    [58, 60],
+    [7.5, 8],
+    [1495, 1500],
+  ])("+ from %s g gives %s g", (from, to) => expect(stepUp(from)).toBe(to));
 
   test.each([
     [120, 110],
     [110, 100],
     [100, 95],
-    [95, 90],
-    [10, 5],
-    [5, 5],
-    [7, 5],
-  ])("− from %i g gives %i g", (from, to) => expect(stepDown(from)).toBe(to));
+    [25, 20],
+    [20, 19],
+    [2, 1],
+    [1, 1],
+    [58, 55],
+    [103, 100],
+    [0.5, 1],
+  ])("− from %s g gives %s g", (from, to) => expect(stepDown(from)).toBe(to));
 
-  test("− and + are inverse around 100 g", () => {
-    expect(stepDown(stepUp(100))).toBe(100);
-    expect(stepUp(stepDown(100))).toBe(100);
+  test("+ stops at the maximum", () => {
+    expect(stepUp(1500, 1500)).toBe(1500);
+    expect(stepUp(1495, 1500)).toBe(1500);
+  });
+
+  test("on the grid − and + are inverse and never skip a value", () => {
+    const grid: number[] = [];
+    for (let g = 1; g <= 1500; g = stepUp(g)) grid.push(g);
+    expect(grid.slice(0, 21)).toEqual([...Array.from({ length: 20 }, (_, i) => i + 1), 25]);
+    expect(grid).toContain(100);
+    expect(grid).toContain(110);
+    for (let i = 1; i < grid.length; i++) {
+      expect(stepDown(grid[i])).toBe(grid[i - 1]);
+      expect(stepUp(grid[i - 1])).toBe(grid[i]);
+    }
   });
 });
 

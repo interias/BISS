@@ -28,6 +28,10 @@ export const fmt = (n: number, digits = 0) =>
 /** "Banane, roh" → "Banane", as on the recent chips of the prototype. */
 export const shortName = (name: string) => name.split(",")[0];
 
+/** A chip label of about `max` characters: longer names end in "…" (full name in aria-label). */
+export const clip = (name: string, max = 14) =>
+  name.length > max ? `${name.slice(0, max - 1).trimEnd()}…` : name;
+
 /** Brand line; generic foods show their source like the prototype ("generisch · BLS"). */
 export const brandLine = (brand: string | null, source: Source) =>
   brand ?? `generisch · ${SOURCE_LABELS[source]}`;

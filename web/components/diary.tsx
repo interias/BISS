@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { DayGroup, Entry, Macros, Meal, MealEntries } from "@/lib/api";
-import { clockTime, fmt, MEAL_LABELS } from "@/lib/format";
+import type { DayGroupRow, DayRow, Entry, Macros } from "@/lib/api";
+import { clockTime, fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 
-/** The Gericht (group) to remove, with what "Rückgängig" needs to log it again. */
-export type GroupRemoval = { meal: Meal; group: DayGroup; entries: Entry[] };
 
 function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Entry) => void; nested?: boolean }) {
   return (
@@ -41,13 +39,11 @@ const macroLine = (totals: Macros) =>
  */
 function GroupRow({
   group,
-  entries,
   onOpen,
   onRemove,
   onRemember,
 }: {
-  group: DayGroup;
-  entries: Entry[];
+  group: DayGroupRow;
   onOpen: (entry: Entry) => void;
   onRemove: () => void;
   onRemember?: () => void;
@@ -68,7 +64,7 @@ function GroupRow({
         <span className="self-end text-right font-bold tabular-nums">{fmt(group.totals.kcal)}</span>
         <span className="col-[2/-1] flex min-w-0 items-center justify-between gap-2 self-start text-[12.5px] text-muted-foreground tabular-nums">
           <span className="truncate">
-            {`${group.entry_ids.length} Zutaten · ${clockTime(entries[0].eaten_at)} · ${macroLine(group.totals)}`}
+            {`${group.entries.length} Zutaten · ${clockTime(group.eaten_at)} · ${macroLine(group.totals)}`}
           </span>
           <svg
             width="14"
@@ -95,7 +91,7 @@ function GroupRow({
       )}
       {open && (
         <div className="pb-2">
-          {entries.map((entry) => (
+          {group.entries.map((entry) => (
             <EntryRow key={entry.id} entry={entry} onOpen={onOpen} nested />
           ))}
           <button
@@ -112,73 +108,43 @@ function GroupRow({
 }
 
 /**
- * The rows of a meal in time order: the entries of a Gericht stand in their group, at the
- * place of the group's first entry.
- */
-type Row = { entry: Entry } | { group: DayGroup; members: Entry[] };
-
-function mealRows({ entries, groups }: MealEntries): Row[] {
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const grouped = new Set(groups.flatMap((group) => group.entry_ids));
-  return entries.flatMap((entry): Row[] => {
-    if (!grouped.has(entry.id)) return [{ entry }];
-    const group = groups.find((g) => g.entry_ids[0] === entry.id);
-    if (!group) return [];
-    return [{ group, members: group.entry_ids.map((id) => byId.get(id)!) }];
-  });
-}
-
-/**
- * Diary by meal; a tap on an entry opens it for editing, a Gericht shows as a group with its
- * sum that unfolds and can be removed. A group whose name no Schnellzugriff has (`comboNames`)
- * can be remembered as one.
+ * The diary: one list newest first as the backend orders it (ADR-0003), each row with its
+ * clock time. A tap on an entry opens it for editing, a Gericht shows as a group with its sum
+ * that unfolds and can be removed. A group whose name no Schnellzugriff has (`comboNames`)
+ * can be remembered as one. Meals are not shown.
  */
 export function Diary({
-  meals,
+  rows,
   comboNames,
   onOpen,
   onRemoveGroup,
   onRemember,
 }: {
-  meals: MealEntries[];
+  rows: DayRow[];
   comboNames: string[];
   onOpen: (entry: Entry) => void;
-  onRemoveGroup: (removal: GroupRemoval) => void;
-  onRemember: (group: DayGroup) => void;
+  onRemoveGroup: (group: DayGroupRow) => void;
+  onRemember: (group: DayGroupRow) => void;
 }) {
   return (
-    <section aria-label="Tagebuch">
-      {meals.map((mealEntries) => {
-        const { meal, totals, entries } = mealEntries;
-        return (
-          <div key={meal} className="pt-4" data-meal={meal}>
-            <h3 className="mb-1 flex justify-between text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
-              <span>{MEAL_LABELS[meal]}</span>
-              <span className="tabular-nums">{entries.length ? `${fmt(totals.kcal)} kcal` : ""}</span>
-            </h3>
-            {entries.length ? (
-              mealRows(mealEntries).map((row) =>
-                "group" in row ? (
-                  <GroupRow
-                    key={row.group.group_id}
-                    group={row.group}
-                    entries={row.members}
-                    onOpen={onOpen}
-                    onRemove={() => onRemoveGroup({ meal, group: row.group, entries: row.members })}
-                    onRemember={
-                      comboNames.includes(row.group.group_name) ? undefined : () => onRemember(row.group)
-                    }
-                  />
-                ) : (
-                  <EntryRow key={row.entry.id} entry={row.entry} onOpen={onOpen} />
-                ),
-              )
-            ) : (
-              <div className="py-2 text-[13px] text-muted-foreground">Noch nichts eingetragen</div>
-            )}
-          </div>
-        );
-      })}
+    <section aria-label="Tagebuch" className="pt-4">
+      {rows.length ? (
+        rows.map((row) =>
+          row.kind === "group" ? (
+            <GroupRow
+              key={row.group_id}
+              group={row}
+              onOpen={onOpen}
+              onRemove={() => onRemoveGroup(row)}
+              onRemember={comboNames.includes(row.group_name) ? undefined : () => onRemember(row)}
+            />
+          ) : (
+            <EntryRow key={row.entry.id} entry={row.entry} onOpen={onOpen} />
+          ),
+        )
+      ) : (
+        <div className="py-2 text-[13px] text-muted-foreground">Noch nichts eingetragen</div>
+      )}
     </section>
   );
 }

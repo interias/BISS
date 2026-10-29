@@ -62,6 +62,7 @@ class FoodSummary(BaseModel):
     brand: str | None
     source: Source
     basis: Basis
+    density: float = Field(description="g/ml, to turn grams into ml for basis ml")
     per_100: Macros
     standard_serving: StandardServing
 
@@ -406,11 +407,39 @@ class MealEntries(BaseModel):
     groups: list[DayGroup] = Field(description="the plates among the entries, by first entry")
 
 
+class DayEntryRow(BaseModel):
+    """A diary row of an entry alone."""
+
+    kind: Literal["entry"] = "entry"
+    entry: Entry
+
+
+class DayGroupRow(BaseModel):
+    """A diary row of a plate or Schnellzugriff; it unfolds to its entries."""
+
+    kind: Literal["group"] = "group"
+    group_id: UUID
+    group_name: str
+    meal: Meal
+    eaten_at: datetime = Field(description="of the first entry; all entries share it")
+    totals: Macros = Field(description="sum of the entries' snapshots")
+    entries: list[Entry] = Field(description="by time")
+
+
+DayRow = Annotated[DayEntryRow | DayGroupRow, Field(discriminator="kind")]
+
+
 class Day(BaseModel):
     date: date
     totals: Macros
     targets: Macros
-    meals: list[MealEntries] = Field(description="breakfast, lunch, snack, dinner")
+    rows: list[DayRow] = Field(
+        description="the diary as the app shows it: entries and plates newest first by "
+        "eaten_at, without meals"
+    )
+    meals: list[MealEntries] = Field(
+        description="breakfast, lunch, snack, dinner; kept for API clients, the app shows rows"
+    )
     suggested_meal: Meal = Field(description="the meal for an entry made now")
 
 

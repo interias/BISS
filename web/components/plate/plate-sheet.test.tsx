@@ -64,7 +64,7 @@ test("the sheet opens without focus on the name, so no keyboard comes up on the 
   expect(screen.getByRole("dialog")).toHaveFocus();
 });
 
-test("plus and minus change an amount by 10 g, never below 5 g, and the sum follows", () => {
+test("plus and minus walk the step grid, never below 1 g, and the sum follows", () => {
   renderSheet();
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht mehr" }));
   expect(grams("Reis gekocht")).toHaveValue(160);
@@ -73,8 +73,13 @@ test("plus and minus change an amount by 10 g, never below 5 g, and the sum foll
   fireEvent.click(screen.getByRole("button", { name: "Reis gekocht weniger" }));
   expect(grams("Reis gekocht")).toHaveValue(140);
 
-  for (let i = 0; i < 9; i++) fireEvent.click(screen.getByRole("button", { name: "Broccoli gekocht weniger" }));
-  expect(grams("Broccoli gekocht")).toHaveValue(5); // 80 → 5, not below
+  const minus = screen.getByRole("button", { name: "Broccoli gekocht weniger" });
+  for (let i = 0; i < 12; i++) fireEvent.click(minus); // 80 → 20 by 5 g
+  expect(grams("Broccoli gekocht")).toHaveValue(20);
+  fireEvent.click(minus);
+  expect(grams("Broccoli gekocht")).toHaveValue(19); // 1 g steps below 20 g
+  for (let i = 0; i < 25; i++) fireEvent.click(minus);
+  expect(grams("Broccoli gekocht")).toHaveValue(1); // not below
 });
 
 test("the name is editable and an ingredient can be removed", () => {
@@ -169,7 +174,7 @@ test("Eintragen is off without a name or without a matched ingredient", () => {
   expect(screen.getByRole("button", { name: /^Eintragen/ })).toBeDisabled();
 });
 
-test("grams can be typed; on leaving the field they stay between 5 and 1500 g", () => {
+test("grams can be typed; on leaving the field they stay between 1 and 1500 g", () => {
   const { onSubmit } = renderSheet();
   fireEvent.change(grams("Reis gekocht"), { target: { value: "200" } });
   // 150 · 1.2 + 200 · 1.3 + 30 · 0.8 = 180 + 260 + 24
@@ -177,7 +182,7 @@ test("grams can be typed; on leaving the field they stay between 5 and 1500 g", 
   fireEvent.change(grams("Broccoli gekocht"), { target: { value: "" } });
   expect(grams("Broccoli gekocht")).toHaveValue(null);
   fireEvent.blur(grams("Broccoli gekocht"));
-  expect(grams("Broccoli gekocht")).toHaveValue(5);
+  expect(grams("Broccoli gekocht")).toHaveValue(1);
   fireEvent.change(grams("Hähnchen Brustfilet, gegrillt"), { target: { value: "4000" } });
   fireEvent.click(screen.getByRole("button", { name: /^Eintragen/ }));
   expect(onSubmit.mock.calls[0][1]).toContainEqual({ food_id: 9, grams: 1500 });

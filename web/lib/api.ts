@@ -19,6 +19,8 @@ export type FoodSummary = {
   brand: string | null;
   source: Source;
   basis: Basis;
+  /** g/ml; the preview turns grams into ml with it for basis ml. */
+  density: number;
   per_100: Macros;
   standard_serving: StandardServing;
 };
@@ -137,10 +139,26 @@ export type DayGroup = { group_id: string; group_name: string; totals: Macros; e
 
 export type MealEntries = { meal: Meal; totals: Macros; entries: Entry[]; groups: DayGroup[] };
 
+/** A plate or Schnellzugriff in the diary with its entries by time. */
+export type DayGroupRow = {
+  kind: "group";
+  group_id: string;
+  group_name: string;
+  meal: Meal;
+  eaten_at: string;
+  totals: Macros;
+  entries: Entry[];
+};
+
+/** A row of the diary: an entry alone or a group. */
+export type DayRow = { kind: "entry"; entry: Entry } | DayGroupRow;
+
 export type Day = {
   date: string;
   totals: Macros;
   targets: Macros;
+  /** The diary as the app shows it, newest first; `meals` stays for other API clients. */
+  rows: DayRow[];
   meals: MealEntries[];
   suggested_meal: Meal;
 };

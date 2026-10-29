@@ -60,7 +60,7 @@ async function loggedGroup(page: Page, comboId: number, action: () => Promise<vo
   return group;
 }
 
-test("+ Neu creates a combo from searched foods; its chip stands first", async ({ page }) => {
+test("+ Neu creates a combo from searched foods; its chip stands first after + Neu", async ({ page }) => {
   const name = unique("Bananenpause");
   await page.goto("/");
   await page.getByRole("button", { name: "Neuer Schnellzugriff" }).click();
@@ -84,9 +84,10 @@ test("+ Neu creates a combo from searched foods; its chip stands first", async (
 
   await expect(page.getByRole("status")).toContainText(`${name} als Schnellzugriff gespeichert`);
   await expect(chipOf(page, name)).toBeVisible();
-  // Schnellzugriff chips stand before the recent chips.
-  const first = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button").first();
-  await expect(first).toHaveAccessibleName(/^Schnellzugriff /);
+  // "+ Neu" stands first, the Schnellzugriff chips before the recent chips.
+  const chips = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button");
+  await expect(chips.first()).toHaveAccessibleName("Neuer Schnellzugriff");
+  await expect(chips.nth(1)).toHaveAccessibleName(/^Schnellzugriff /);
 });
 
 test("tap budget: a Schnellzugriff is logged with 1 tap as one group", async ({ page, request }) => {
@@ -136,13 +137,12 @@ test("the context menu of a chip adjusts one entry, the template stays", async (
   await chipOf(page, combo.name).click({ button: "right" });
   const sheet = page.getByRole("dialog", { name: "Schnellzugriff anpassen" });
   await sheet.getByRole("button", { name: "Banane roh entfernen" }).click();
-  await sheet.getByRole("button", { name: "Abend" }).click();
 
   const group = await loggedGroup(page, combo.id, () =>
     sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
   );
   expect(group.entries).toHaveLength(1);
-  await expect(page.locator(`[data-meal="dinner"] [data-group-id="${group.group_id}"]`)).toBeVisible();
+  await expect(page.locator(`[data-group-id="${group.group_id}"]`)).toBeVisible();
   const saved: Combo[] = await (await request.get("/api/v1/combos")).json();
   expect(saved.find((c) => c.id === combo.id)).toEqual(combo);
 });

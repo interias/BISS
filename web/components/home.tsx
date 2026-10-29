@@ -20,13 +20,12 @@ import {
   type Combo,
   type ComboItemWrite,
   type Day,
-  type DayGroup,
+  type DayGroupRow,
   type Entry,
   type EntryGroup,
   type FoodDetail,
   type FoodSummary,
   type LabelExtraction,
-  type Meal,
   type PlateExtraction,
   type SearchHit,
 } from "@/lib/api";
@@ -35,7 +34,7 @@ import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera } from "@/components/camera/camera";
 import { ComboSheet } from "@/components/combo/combo-sheet";
 import { DaySummary } from "@/components/day-summary";
-import { Diary, type GroupRemoval } from "@/components/diary";
+import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
 import { PlateSheet } from "@/components/plate/plate-sheet";
@@ -45,8 +44,8 @@ import { Toast, useToast } from "@/components/toast";
 
 const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
 
-/** The amount sheet with the grams and meal it comes back with from the editor. */
-type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number; meal: Meal } };
+/** The amount sheet with the grams it comes back with from the editor. */
+type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number } };
 
 type SheetState =
   | { kind: "search" }
@@ -120,8 +119,8 @@ export function Home() {
   };
 
   /** Logs the adjusted items; the template stays as it is. */
-  const logAdjusted = (combo: Combo) => (items: ComboItemWrite[], meal: Meal) =>
-    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items, meal }))).catch(console.error);
+  const logAdjusted = (combo: Combo) => (items: ComboItemWrite[]) =>
+    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items }))).catch(console.error);
 
   /** "Als Vorlage speichern" changes the template, "Speichern" of a new one creates it. */
   const saveCombo = (combo?: Combo) => (name: string, items: ComboItemWrite[]) =>
@@ -138,24 +137,24 @@ export function Home() {
     }).catch(console.error);
 
   /** "als Schnellzugriff merken": the backend copies foods, grams and name of the group. */
-  const remember = async (group: DayGroup) => {
+  const remember = async (group: DayGroupRow) => {
     const combo = await createCombo({ group_id: group.group_id });
     await reload();
     show(`${combo.name} als Schnellzugriff gespeichert`);
   };
 
-  /** A draft is logged by its GTIN; the backend stores it as food on this first entry. */
+  /**
+   * A draft is logged by its GTIN; the backend stores it as food on this first entry. The
+   * meal is the backend's suggestion; the app does not show meals.
+   */
   const submit =
-    (target: { food_id: number } | { gtin: string }, entry: Entry | undefined) => (grams: number, meal: Meal) =>
+    (target: { food_id: number } | { gtin: string }, entry: Entry | undefined) => (grams: number) =>
     write(async () => {
       if (entry) {
-        await updateEntry(entry.id, {
-          ...(grams !== entry.grams && { grams }),
-          ...(meal !== entry.meal && { meal }),
-        });
+        if (grams !== entry.grams) await updateEntry(entry.id, { grams });
         show("Gespeichert");
       } else {
-        const created = await createEntry({ ...target, grams, meal });
+        const created = await createEntry({ ...target, grams });
         show(`${shortName(created.food.name)} eingetragen`, undo(created.id));
       }
     }).catch(console.error);
@@ -190,15 +189,15 @@ export function Home() {
    * Removes a Gericht. "Rückgängig" logs it again with the same name, meal, time and amounts
    * (a new group with new snapshots), like the undo of a recent chip works after the write.
    */
-  const removeGroup = async ({ meal, group, entries }: GroupRemoval) => {
+  const removeGroup = async (group: DayGroupRow) => {
     await deleteEntryGroup(group.group_id);
     await reload();
     show(`${group.group_name} entfernt`, () => {
       createEntryGroup({
         group_name: group.group_name,
-        meal,
-        eaten_at: entries[0].eaten_at,
-        items: entries.map((entry) => ({ food_id: entry.food.id, grams: entry.grams })),
+        meal: group.meal,
+        eaten_at: group.eaten_at,
+        items: group.entries.map((entry) => ({ food_id: entry.food.id, grams: entry.grams })),
       })
         .then(reload)
         .catch(console.error);
@@ -228,7 +227,7 @@ export function Home() {
           <>
             <DaySummary totals={day.totals} targets={day.targets} />
             <Diary
-              meals={day.meals}
+              rows={day.rows}
               comboNames={combos.map((combo) => combo.name)}
               onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
               onRemoveGroup={(removal) => removeGroup(removal).catch(console.error)}
@@ -281,15 +280,14 @@ export function Home() {
               foodId={sheet.foodId}
               entry={sheet.entry}
               initial={sheet.initial}
-              suggestedMeal={day.suggested_meal}
               busy={busy}
               onSubmit={submit({ food_id: sheet.foodId }, sheet.entry)}
               onRemove={sheet.entry && remove(sheet.entry)}
-              onEdit={(grams, meal) =>
+              onEdit={(grams) =>
                 setSheet({
                   kind: "editor",
                   foodId: sheet.foodId,
-                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams, meal } },
+                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams } },
                 })
               }
             />
@@ -297,7 +295,6 @@ export function Home() {
           {sheet.kind === "draft" && (
             <AmountForm
               food={sheet.food}
-              initialMeal={day.suggested_meal}
               busy={busy}
               onSubmit={submit({ gtin: sheet.food.gtin }, undefined)}
             />
@@ -316,7 +313,6 @@ export function Home() {
             <ComboSheet
               key={sheet.combo?.id ?? "new"}
               combo={sheet.combo}
-              suggestedMeal={day.suggested_meal}
               recent={recent}
               busy={busy}
               onLog={sheet.combo && logAdjusted(sheet.combo)}

@@ -42,7 +42,7 @@ test("a recent chip logs the standard serving, Rückgängig removes it", async (
   await expect.poll(() => totalKcal(page)).toBe(before);
 });
 
-test("searching banane and logging 120 g as snack shows the entry", async ({ page }) => {
+test("searching banane and logging 120 g shows the entry on top of the diary", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
   const sheet = page.getByRole("dialog");
@@ -50,10 +50,8 @@ test("searching banane and logging 120 g as snack shows the entry", async ({ pag
   await sheet.getByRole("button", { name: /^Banane roh/ }).first().click();
 
   await expect(sheet.getByRole("heading", { name: "Banane roh" })).toBeVisible();
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("120g");
-  const mealChip = sheet.getByRole("button", { name: /^Mahlzeit:/ });
-  for (let i = 0; i < 4 && (await mealChip.textContent()) !== "Snack"; i++) await mealChip.click();
-  await expect(mealChip).toHaveText("Snack");
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("120");
+  await expect(sheet.getByRole("button", { name: /^Mahlzeit/ })).toHaveCount(0);
 
   const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
     sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
@@ -61,8 +59,12 @@ test("searching banane and logging 120 g as snack shows the entry", async ({ pag
   entries.track(created.id);
 
   await expect(sheet).toHaveCount(0);
-  const entry = page.locator(`[data-meal="snack"] [data-entry-id="${created.id}"]`);
+  const diary = page.getByRole("region", { name: "Tagebuch" });
+  const entry = diary.locator(`[data-entry-id="${created.id}"]`);
   await expect(entry).toBeVisible();
+  // Newest first, without meal sections.
+  await expect(diary.locator("[data-entry-id], [data-group-id]").first()).toHaveAttribute("data-entry-id", String(created.id));
+  await expect(diary.getByText("Frühstück")).toHaveCount(0);
   await expect(entry).toContainText("Banane roh");
   await expect(entry).toContainText("120 g");
 });
@@ -78,7 +80,7 @@ test("opening an entry and saving 90 g updates its values", async ({ page }) => 
   await expect(sheet.getByRole("button", { name: "Entfernen" })).toBeVisible();
   const minus = sheet.getByRole("button", { name: "weniger" });
   for (let i = 0; i < 4; i++) await minus.click(); // 110, 100, 95, 90
-  await expect(sheet.getByRole("status", { name: "Menge" })).toHaveText("90g");
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("90");
 
   const saved = await entryIdFrom(page, "PATCH", new RegExp(`^/api/v1/entries/${seeded.id}$`), () =>
     sheet.getByRole("button", { name: /^Speichern · \d+ kcal$/ }).click(),

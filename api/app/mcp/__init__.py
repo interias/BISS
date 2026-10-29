@@ -73,7 +73,8 @@ def build_server(sessions: Sessions = get_session) -> MCPServer:
 
     @server.tool(annotations=READ_ONLY)
     def daily_summary(day: date | None = None) -> schemas.Day:
-        """Day summary: totals against the goals, entries by meal. Without day: today."""
+        """Day summary: totals against the goals, entries by meal and the diary rows newest
+        first. Without day: today."""
         now = datetime.now(UTC)
         with sessions() as session:
             return convert.day(day_summary(session, day or day_of(now), now=now))
