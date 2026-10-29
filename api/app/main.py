@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import VERSION, mcp
-from app.api import days, entries, foods, goals, health, images, labels, plates
+from app.api import combos, days, entries, foods, goals, health, images, labels, plates
 
 mcp_http = mcp.StreamableHttp(mcp.build_server())
 
@@ -19,6 +19,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="BISS API", version=VERSION, lifespan=lifespan)
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(combos.router, prefix="/api/v1")
 app.include_router(days.router, prefix="/api/v1")
 app.include_router(entries.router, prefix="/api/v1")
 app.include_router(foods.router, prefix="/api/v1")

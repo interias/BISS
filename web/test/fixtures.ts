@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type {
   BarcodeFood,
+  Combo,
   Day,
   Entry,
   FoodDetail,
@@ -186,6 +187,44 @@ export const broccoli: FoodSummary = {
   standard_serving: { label: "1 Portion", grams: 100, origin: "estimated" },
 };
 
+export const sugar: FoodSummary = {
+  id: 11,
+  name: "Zucker",
+  brand: null,
+  source: "bls",
+  basis: "g",
+  per_100: { kcal: 400, protein: 0, carbs: 100, fat: 0 },
+  standard_serving: { label: "1 TL", grams: 5, origin: "estimated" },
+};
+
+export const coffee: FoodSummary = {
+  id: 12,
+  name: "Kaffee, Filter",
+  brand: null,
+  source: "bls",
+  basis: "ml",
+  per_100: { kcal: 2, protein: 0.1, carbs: 0.3, fat: 0 },
+  standard_serving: { label: "1 Tasse", grams: 200, origin: "estimated" },
+};
+
+const comboOf = (id: number, name: string, items: { food: FoodSummary; grams: number }[]): Combo => {
+  const full = items.map(({ food, grams }) => ({ food, grams, density: 1, macros: scale(food.per_100, grams) }));
+  return { id, name, items: full, totals: sum(full.map((item) => item.macros)) };
+};
+
+/** The Schnellzugriff "Kaffee": 200 ml coffee and 5 g sugar, 24 kcal. */
+export const coffeeCombo = (): Combo =>
+  comboOf(1, "Kaffee", [
+    { food: coffee, grams: 200 },
+    { food: sugar, grams: 5 },
+  ]);
+
+const sum = (list: Macros[]) =>
+  list.reduce(
+    (a, m) => ({ kcal: a.kcal + m.kcal, protein: a.protein + m.protein, carbs: a.carbs + m.carbs, fat: a.fat + m.fat }),
+    ZERO,
+  );
+
 export function makeDay(entries: Entry[] = []): Day {
   const sum = (list: Entry[]) =>
     list.reduce(
@@ -229,12 +268,40 @@ const json = (body: unknown, status = 200) =>
  * a miss. The label
  * extraction answers the fake extractor's draft with the GTIN sent. The plate extraction
  * answers `fakePlate()`; POST /entries/group logs one entry per item in the meal "snack"
- * (kcal from per 100 g) and DELETE /entries/group/{id} removes them.
+ * (kcal from per 100 g) and DELETE /entries/group/{id} removes them. /combos keeps the given
+ * combos: POST from items or a group_id, PATCH, DELETE and POST /combos/{id}/log, which logs
+ * a group named like the combo with its items or the ones sent.
  */
-export function fakeApi({ plate = fakePlate() }: { plate?: PlateExtraction } = {}) {
+export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExtraction; combos?: Combo[] } = {}) {
   let entries: Entry[] = [];
   let nextId = 200;
-  const catalog = [banana, riceDetail, chicken, broccoli];
+  let saved = [...combos];
+  let nextCombo = 50;
+  const catalog = [banana, riceDetail, chicken, broccoli, sugar, coffee];
+  type Item = { food_id: number; grams: number };
+  const byId = (id: number) => catalog.find((f) => f.id === id)!;
+  const template = (id: number, name: string, items: Item[]) =>
+    comboOf(id, name, items.map((item) => ({ food: byId(item.food_id), grams: item.grams })));
+  const logGroup = (group_name: string, items: Item[], meal?: Entry["meal"], eaten_at?: string) => {
+    const group_id = `group-${nextId}`;
+    const created = items.map((item) => {
+      const food = byId(item.food_id);
+      return {
+        ...bananaEntry,
+        id: nextId++,
+        food: ref(food),
+        grams: item.grams,
+        meal: meal ?? "snack",
+        eaten_at: eaten_at ?? bananaEntry.eaten_at,
+        macros: scale(food.per_100, item.grams),
+        group_id,
+        group_name,
+      };
+    });
+    entries = [...entries, ...created];
+    const totals = sum(created.map((e) => e.macros));
+    return json({ group_id, group_name, meal: created[0].meal, day: "2026-10-28", totals, entries: created }, 201);
+  };
   const detail = (food: FoodSummary): FoodDetail => ({
     ...bananaDetail,
     ...food,
@@ -267,23 +334,32 @@ export function fakeApi({ plate = fakePlate() }: { plate?: PlateExtraction } = {
     }
     if (url === "/api/v1/plates/extract" && method === "POST") return json(plate);
     if (url === "/api/v1/entries/group" && method === "POST") {
-      const group_id = `group-${nextId}`;
-      const created = (body.items as { food_id: number; grams: number }[]).map((item) => {
-        const food = catalog.find((f) => f.id === item.food_id)!;
-        return {
-          ...bananaEntry,
-          id: nextId++,
-          food: ref(food),
-          grams: item.grams,
-          meal: body.meal ?? "snack",
-          eaten_at: body.eaten_at ?? bananaEntry.eaten_at,
-          macros: scale(food.per_100, item.grams),
-          group_id,
-          group_name: body.group_name,
-        };
-      });
-      entries = [...entries, ...created];
-      return json({ group_id, group_name: body.group_name, meal: created[0].meal, day: "2026-10-28", totals: ZERO, entries: created }, 201);
+      return logGroup(body.group_name, body.items, body.meal, body.eaten_at);
+    }
+    if (url === "/api/v1/combos" && method === "GET") return json(saved);
+    if (url === "/api/v1/combos" && method === "POST") {
+      const group: Entry[] | undefined = body.group_id && entries.filter((e) => e.group_id === body.group_id);
+      const combo = group
+        ? template(nextCombo++, body.name ?? group[0].group_name, group.map((e) => ({ food_id: e.food.id, grams: e.grams })))
+        : template(nextCombo++, body.name, body.items);
+      saved = [...saved, combo];
+      return json(combo, 201);
+    }
+    const combo = url.match(/^\/api\/v1\/combos\/(\d+)(\/log)?$/);
+    const known = combo && saved.find((c) => c.id === Number(combo[1]));
+    if (known && combo[2] && method === "POST") {
+      const items = body.items ?? known.items.map((i) => ({ food_id: i.food.id, grams: i.grams }));
+      return logGroup(known.name, items, body.meal);
+    }
+    if (known && method === "PATCH") {
+      const items = body.items ?? known.items.map((i) => ({ food_id: i.food.id, grams: i.grams }));
+      const changed = template(known.id, body.name ?? known.name, items);
+      saved = saved.map((c) => (c.id === known.id ? changed : c));
+      return json(changed);
+    }
+    if (known && method === "DELETE") {
+      saved = saved.filter((c) => c.id !== known.id);
+      return json(null, 204);
     }
     const groupPrefix = "/api/v1/entries/group/";
     if (url.startsWith(groupPrefix) && method === "DELETE") {

@@ -18,8 +18,9 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Zuletzt-Chip | `recent` | Lebensmittel im Dock, ein Tap trägt die Standardportion ein |
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird nur ausgelesen und nicht gespeichert |
 | Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
-| Gericht | `group` | Die Einträge eines Tellers mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
+| Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |
+| Gericht | `group` | Die Einträge eines Tellers oder Schnellzugriffs mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |
 
-_Avoid_: „Rezept“ und „Mahlzeit-Vorlage“ (nicht im MVP), „Statistik“ (nicht Teil der App).
+_Avoid_: „Rezept“ (nicht im MVP; ein Schnellzugriff ist kein Lebensmittel), „Kombi“ (es heißt Schnellzugriff), „Statistik“ (nicht Teil der App).

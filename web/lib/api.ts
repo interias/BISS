@@ -286,3 +286,31 @@ export const createEntryGroup = (body: {
 /** Removes every entry of the plate. */
 export const deleteEntryGroup = (groupId: string) =>
   request<void>(`/entries/group/${groupId}`, { method: "DELETE" });
+
+/** An item of a Schnellzugriff; `density` turns grams into ml for the preview of an ml food. */
+export type ComboItem = { food: FoodSummary; grams: number; density: number; macros: Macros };
+
+/** Schnellzugriff (ADR-0010): a saved template, logged as an entry group like a plate. */
+export type Combo = { id: number; name: string; items: ComboItem[]; totals: Macros };
+
+export type ComboItemWrite = { food_id: number; grams: number };
+
+export const getCombos = () => request<Combo[]>("/combos");
+
+/** From items, or from an entry group of the diary (its name unless one is given). */
+export const createCombo = (
+  body: { name: string; items: ComboItemWrite[] } | { name?: string; group_id: string },
+) => request<Combo>("/combos", { method: "POST", body: JSON.stringify(body) });
+
+/** Items, when sent, replace all items of the template. */
+export const updateCombo = (id: number, body: { name?: string; items?: ComboItemWrite[] }) =>
+  request<Combo>(`/combos/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const deleteCombo = (id: number) => request<void>(`/combos/${id}`, { method: "DELETE" });
+
+/**
+ * Logs the combo as an entry group named like it; without meal the backend suggests one.
+ * `items` change this entry only, never the template.
+ */
+export const logCombo = (id: number, body: { meal?: Meal; items?: ComboItemWrite[] } = {}) =>
+  request<EntryGroup>(`/combos/${id}/log`, { method: "POST", body: JSON.stringify(body) });

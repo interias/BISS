@@ -1,7 +1,7 @@
 """MCP server (ADR-0007): Streamable HTTP at /mcp in the api process.
 
 The tools call the same services as the REST API and answer with its response models;
-the server has no logic of its own. Only log_meal writes.
+the server has no logic of its own. Only log_meal and log_combo write.
 """
 
 from collections.abc import AsyncIterator, Callable
@@ -25,7 +25,7 @@ from app.db import get_session
 from app.domain.day import day_of
 from app.domain.meal import Meal
 from app.search.search import search_foods
-from app.services import entries, foods
+from app.services import combos, entries, foods
 from app.services.days import day_summary
 
 PATH = "/mcp"
@@ -35,7 +35,7 @@ READ_ONLY = ToolAnnotations(read_only_hint=True)
 
 
 def build_server(sessions: Sessions = get_session) -> MCPServer:
-    """The server with its five tools; tests pass their rolled-back session."""
+    """The server with its seven tools; tests pass their rolled-back session."""
     server = MCPServer(name="biss", title="BISS", version=VERSION)
 
     @server.tool(annotations=READ_ONLY)
@@ -102,6 +102,39 @@ def build_server(sessions: Sessions = get_session) -> MCPServer:
             except (InvalidGtin, chain.NotFound, entries.NotFound) as error:
                 raise ToolError(str(error)) from error
             return convert.entry(entry, foods.get_food(session, entry.food_id))
+
+    @server.tool(annotations=READ_ONLY)
+    def list_combos() -> list[schemas.Combo]:
+        """Schnellzugriff: saved combinations of foods with grams, e.g. coffee with sugar.
+
+        Each item with the macros an entry would take now, and the sum; log_combo logs one.
+        """
+        with sessions() as session:
+            return [convert.combo(view) for view in combos.list_combos(session)]
+
+    @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False))
+    def log_combo(
+        combo_id: int | None = None,
+        name: str | None = None,
+        meal: Meal | None = None,
+    ) -> schemas.EntryGroup:
+        """Log a combo now: exactly one of combo_id and name, as POST /combos/{id}/log.
+
+        The name matches case-insensitively after the search normalisation ("kaffee" finds
+        "Kaffee"). One entry per item with a shared group named like the combo; without meal
+        the meal suggested by the time of day.
+        """
+        if (combo_id is None) == (name is None):
+            raise ToolError("give exactly one of combo_id and name")
+        now = datetime.now(UTC)
+        with sessions() as session:
+            try:
+                if name is not None:
+                    combo_id = combos.find_by_name(session, name).id
+                group = combos.log_combo(session, combo_id, meal=meal, eaten_at=now)
+            except (combos.NotFound, combos.InvalidCombo) as error:
+                raise ToolError(str(error)) from error
+            return convert.entry_group(group)
 
     return server
 

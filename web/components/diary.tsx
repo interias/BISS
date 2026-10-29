@@ -35,17 +35,22 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
 const macroLine = (totals: Macros) =>
   `E ${fmt(totals.protein)} · K ${fmt(totals.carbs)} · F ${fmt(totals.fat)}`;
 
-/** A plate: one row with the sum from the backend, unfolds to its entries (SPEC 3). */
+/**
+ * A plate: one row with the sum from the backend, unfolds to its entries (SPEC 3). Without a
+ * Schnellzugriff of its name it offers to remember it as one.
+ */
 function GroupRow({
   group,
   entries,
   onOpen,
   onRemove,
+  onRemember,
 }: {
   group: DayGroup;
   entries: Entry[];
   onOpen: (entry: Entry) => void;
   onRemove: () => void;
+  onRemember?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -79,6 +84,15 @@ function GroupRow({
           </svg>
         </span>
       </button>
+      {onRemember && (
+        <button
+          type="button"
+          onClick={onRemember}
+          className="-mt-1.5 mb-2 ml-14 text-[12px] font-bold text-primary"
+        >
+          als Schnellzugriff merken
+        </button>
+      )}
       {open && (
         <div className="pb-2">
           {entries.map((entry) => (
@@ -116,16 +130,21 @@ function mealRows({ entries, groups }: MealEntries): Row[] {
 
 /**
  * Diary by meal; a tap on an entry opens it for editing, a Gericht shows as a group with its
- * sum that unfolds and can be removed.
+ * sum that unfolds and can be removed. A group whose name no Schnellzugriff has (`comboNames`)
+ * can be remembered as one.
  */
 export function Diary({
   meals,
+  comboNames,
   onOpen,
   onRemoveGroup,
+  onRemember,
 }: {
   meals: MealEntries[];
+  comboNames: string[];
   onOpen: (entry: Entry) => void;
   onRemoveGroup: (removal: GroupRemoval) => void;
+  onRemember: (group: DayGroup) => void;
 }) {
   return (
     <section aria-label="Tagebuch">
@@ -146,6 +165,9 @@ export function Diary({
                     entries={row.members}
                     onOpen={onOpen}
                     onRemove={() => onRemoveGroup({ meal, group: row.group, entries: row.members })}
+                    onRemember={
+                      comboNames.includes(row.group.group_name) ? undefined : () => onRemember(row.group)
+                    }
                   />
                 ) : (
                   <EntryRow key={row.entry.id} entry={row.entry} onOpen={onOpen} />

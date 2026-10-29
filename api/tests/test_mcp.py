@@ -22,12 +22,12 @@ def server(session: Session) -> MCPServer:
     return build_server(lambda: nullcontext(session))
 
 
-def call(server: MCPServer, name: str, **arguments):
+def call(server: MCPServer, tool: str, **arguments):
     """Call a tool: its structured result, or the error text of a failed call."""
 
     async def run():
         async with Client(server) as client:
-            return await client.call_tool(name, arguments)
+            return await client.call_tool(tool, arguments)
 
     result = anyio.run(run)
     if result.is_error:
@@ -48,11 +48,19 @@ def entry_count(session: Session) -> int:
     return session.scalar(select(func.count()).select_from(Entry))
 
 
-def test_exactly_five_tools_and_only_log_meal_writes(server: MCPServer) -> None:
+def test_exactly_seven_tools_and_only_log_meal_and_log_combo_write(server: MCPServer) -> None:
     listed = {tool.name: tool for tool in tools(server)}
-    assert set(listed) == {"search_food", "get_food", "list_entries", "daily_summary", "log_meal"}
+    assert set(listed) == {
+        "search_food",
+        "get_food",
+        "list_entries",
+        "daily_summary",
+        "list_combos",
+        "log_meal",
+        "log_combo",
+    }
     read_only = {name for name, tool in listed.items() if tool.annotations.read_only_hint}
-    assert read_only == {"search_food", "get_food", "list_entries", "daily_summary"}
+    assert read_only == {"search_food", "get_food", "list_entries", "daily_summary", "list_combos"}
 
 
 def test_the_api_serves_mcp_at_its_path(client: TestClient) -> None:
@@ -84,6 +92,7 @@ def test_read_tools_change_nothing(server: MCPServer, session: Session) -> None:
     call(server, "get_food", food_id=food.id)
     call(server, "list_entries", first="2026-10-01", last="2026-10-31")
     call(server, "daily_summary", day="2026-10-28")
+    call(server, "list_combos")
     assert entry_count(session) == before
     assert session.scalar(select(func.count()).select_from(Goal)) == 0
 
@@ -234,3 +243,61 @@ def test_log_meal_needs_exactly_one_valid_food(server: MCPServer, session: Sessi
     assert "check digit" in call(server, "log_meal", gtin="2000000021066")["error"]
     assert "error" in call(server, "log_meal", gtin="x")
     assert entry_count(session) == before
+
+
+def add_coffee(client: TestClient, session: Session) -> dict:
+    coffee = add_food(session, "Kaffee, Filter", basis="ml", kcal=2, protein=0.1, carbs=0.3, fat=0)
+    sugar = add_food(session, "Zucker", kcal=400, protein=0, carbs=100, fat=0)
+    body = {
+        "name": "Kaffee süß",
+        "items": [{"food_id": coffee.id, "grams": 200}, {"food_id": sugar.id, "grams": 5}],
+    }
+    response = client.post("/api/v1/combos", json=body)
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_list_combos_is_the_rest_list(
+    server: MCPServer, session: Session, client: TestClient
+) -> None:
+    add_coffee(client, session)
+    listed = call(server, "list_combos")
+    assert listed == client.get("/api/v1/combos").json()
+    assert listed[0]["totals"]["kcal"] == 24.0
+
+
+def test_log_combo_by_id_or_by_name_logs_a_group(
+    server: MCPServer, session: Session, client: TestClient
+) -> None:
+    combo = add_coffee(client, session)
+    group = call(server, "log_combo", combo_id=combo["id"], meal="breakfast")
+    assert (group["group_name"], group["meal"]) == ("Kaffee süß", "breakfast")
+    assert group["day"] == day_of(datetime.now(UTC)).isoformat()
+    assert [e["grams"] for e in group["entries"]] == [200, 5]
+    assert group["totals"]["kcal"] == 24.0
+    # The name matches like the search normalises it: case, umlauts and spaces.
+    by_name = call(server, "log_combo", name="  KAFFEE SUESS ")
+    assert by_name["group_name"] == "Kaffee süß"
+    assert by_name["meal"] in {"breakfast", "lunch", "snack", "dinner"}  # the suggestion
+    assert by_name["group_id"] != group["group_id"]
+    assert entry_count(session) == 4
+
+
+def test_log_combo_needs_exactly_one_known_combo(
+    server: MCPServer, session: Session, client: TestClient
+) -> None:
+    combo = add_coffee(client, session)
+    before = entry_count(session)
+    assert call(server, "log_combo")["error"].endswith("give exactly one of combo_id and name")
+    both = call(server, "log_combo", combo_id=combo["id"], name="Kaffee süß")
+    assert both["error"].endswith("give exactly one of combo_id and name")
+    assert call(server, "log_combo", combo_id=999999)["error"].endswith("combo 999999 not found")
+    assert "no combo named" in call(server, "log_combo", name="Tee")["error"]
+    assert "error" in call(server, "log_combo", combo_id=combo["id"], meal="brunch")
+    client.post("/api/v1/combos", json={"name": "kaffee süß", "items": combo_items(combo)})
+    assert "several combos" in call(server, "log_combo", name="Kaffee süß")["error"]
+    assert entry_count(session) == before
+
+
+def combo_items(combo: dict) -> list[dict]:
+    return [{"food_id": i["food"]["id"], "grams": i["grams"]} for i in combo["items"]]

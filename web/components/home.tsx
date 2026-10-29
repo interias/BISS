@@ -3,17 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
+  createCombo,
   createEntry,
   createEntryGroup,
   deleteEntry,
+  deleteCombo,
   deleteEntryGroup,
+  getCombos,
   getRecent,
   getToday,
+  logCombo,
   scanBarcode,
+  updateCombo,
   updateEntry,
   type BarcodeFood,
+  type Combo,
+  type ComboItemWrite,
   type Day,
+  type DayGroup,
   type Entry,
+  type EntryGroup,
   type FoodDetail,
   type FoodSummary,
   type LabelExtraction,
@@ -21,9 +30,10 @@ import {
   type PlateExtraction,
   type SearchHit,
 } from "@/lib/api";
-import { headerDate, shortName } from "@/lib/format";
+import { fmt, headerDate, shortName } from "@/lib/format";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera } from "@/components/camera/camera";
+import { ComboSheet } from "@/components/combo/combo-sheet";
 import { DaySummary } from "@/components/day-summary";
 import { Diary, type GroupRemoval } from "@/components/diary";
 import { Dock } from "@/components/dock";
@@ -33,7 +43,7 @@ import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
 
-const load = () => Promise.all([getToday(), getRecent()]);
+const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
 
 /** The amount sheet with the grams and meal it comes back with from the editor. */
 type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number; meal: Meal } };
@@ -47,21 +57,25 @@ type SheetState =
   // scanned barcode without a hit, `label` the draft read from its label photo.
   | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; back?: AmountState }
   // The dish read from a plate photo; nothing is logged before "Eintragen" (SPEC 7a).
-  | { kind: "plate"; plate: PlateExtraction; photo: Blob };
+  | { kind: "plate"; plate: PlateExtraction; photo: Blob }
+  // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
+  | { kind: "combo"; combo?: Combo };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
   const [day, setDay] = useState<Day | null>(null);
   const [recent, setRecent] = useState<FoodSummary[]>([]);
+  const [combos, setCombos] = useState<Combo[]>([]);
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast, show, hide } = useToast();
 
   // Every change reloads the day from the backend, which computes all values (ADR-0003).
-  const apply = useCallback(([today, foods]: [Day, FoodSummary[]]) => {
+  const apply = useCallback(([today, foods, saved]: [Day, FoodSummary[], Combo[]]) => {
     setDay(today);
     setRecent(foods);
+    setCombos(saved);
   }, []);
   const reload = useCallback(() => load().then(apply), [apply]);
 
@@ -90,6 +104,44 @@ export function Home() {
     const entry = await createEntry({ food_id: food.id });
     await reload();
     show(`${shortName(food.name)} eingetragen`, undo(entry.id));
+  };
+
+  /** The toast of a logged Schnellzugriff; "Rückgängig" removes the whole group, as for a plate. */
+  const comboLogged = (name: string, group: EntryGroup) =>
+    show(`${name} eingetragen · ${fmt(group.totals.kcal)} kcal`, () => {
+      deleteEntryGroup(group.group_id).then(reload).catch(console.error);
+    });
+
+  /** One tap: the template's items, the meal the backend suggests. */
+  const tapCombo = async (combo: Combo) => {
+    const group = await logCombo(combo.id);
+    await reload();
+    comboLogged(combo.name, group);
+  };
+
+  /** Logs the adjusted items; the template stays as it is. */
+  const logAdjusted = (combo: Combo) => (items: ComboItemWrite[], meal: Meal) =>
+    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items, meal }))).catch(console.error);
+
+  /** "Als Vorlage speichern" changes the template, "Speichern" of a new one creates it. */
+  const saveCombo = (combo?: Combo) => (name: string, items: ComboItemWrite[]) =>
+    write(async () => {
+      if (combo) await updateCombo(combo.id, { name, items });
+      else await createCombo({ name, items });
+      show(`${name} als Schnellzugriff gespeichert`);
+    }).catch(console.error);
+
+  const removeCombo = (combo: Combo) => () =>
+    write(async () => {
+      await deleteCombo(combo.id);
+      show(`${combo.name} gelöscht`);
+    }).catch(console.error);
+
+  /** "als Schnellzugriff merken": the backend copies foods, grams and name of the group. */
+  const remember = async (group: DayGroup) => {
+    const combo = await createCombo({ group_id: group.group_id });
+    await reload();
+    show(`${combo.name} als Schnellzugriff gespeichert`);
   };
 
   /** A draft is logged by its GTIN; the backend stores it as food on this first entry. */
@@ -177,15 +229,21 @@ export function Home() {
             <DaySummary totals={day.totals} targets={day.targets} />
             <Diary
               meals={day.meals}
+              comboNames={combos.map((combo) => combo.name)}
               onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
               onRemoveGroup={(removal) => removeGroup(removal).catch(console.error)}
+              onRemember={(group) => remember(group).catch(console.error)}
             />
           </>
         )}
       </main>
 
       <Dock
+        combos={combos}
         recent={recent}
+        onCombo={(combo) => tapCombo(combo).catch(console.error)}
+        onComboHold={(combo) => setSheet({ kind: "combo", combo })}
+        onNewCombo={() => setSheet({ kind: "combo" })}
         onRecent={(food) => logRecent(food).catch(console.error)}
         onSearch={() => setSheet({ kind: "search" })}
         onCamera={() => {
@@ -252,6 +310,19 @@ export function Home() {
               busy={busy}
               onSubmit={submitPlate}
               onDiscard={() => setSheet(null)}
+            />
+          )}
+          {sheet.kind === "combo" && (
+            <ComboSheet
+              key={sheet.combo?.id ?? "new"}
+              combo={sheet.combo}
+              suggestedMeal={day.suggested_meal}
+              recent={recent}
+              busy={busy}
+              onLog={sheet.combo && logAdjusted(sheet.combo)}
+              onSave={saveCombo(sheet.combo)}
+              onDelete={sheet.combo && removeCombo(sheet.combo)}
+              onCancel={() => setSheet(null)}
             />
           )}
           {sheet.kind === "editor" && (

@@ -1,6 +1,6 @@
 # BISS – Spezifikation
 
-Stand: 28.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+Stand: 29.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
 
 ## 1. Ziel und Leitprinzipien
 
@@ -11,6 +11,7 @@ BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wä
 | Ablauf | Tap-Budget |
 |---|---|
 | Zuletzt-Chip | 1 |
+| Schnellzugriff | 1 |
 | Suche | + 2 |
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
@@ -36,8 +37,9 @@ Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht ei
 | **E5 Anbindung und Betrieb** | MCP-Server, Tagesziele per API, nächtliches Backup | Auswertung extern, Daten gesichert |
 | **E6 Foto-Erkennung mit echten Fotos** | Barcode aus Handyfoto robust lesen, Auslöser „Etikett“ ohne Barcode, Testsätze echter Fotos | Handyfotos funktionieren auch ohne HTTPS |
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
+| **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Mahlzeiten-Kombinationen, Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Spracheingabe, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Open-Food-Facts-Textsuche, Spracheingabe, Statistiken jeder Art.
 
 ## 3. Abläufe
 
@@ -47,8 +49,15 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Header mit Logo, „BISS“ und Datum.
   - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g).
   - Tagebuch nach Mahlzeiten.
-  - Dock mit Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
+  - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
 - **Zuletzt-Chip:** Ein Tap trägt die Standardportion zur vorgeschlagenen Mahlzeit ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
+- **Schnellzugriff** (E8, [ADR-0010](adr/0010-combo-template.md)):
+  - Die Chips stehen vorn in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Am Ende steht „+ Neu“.
+  - Ein Tap trägt alle Zutaten als Gruppe zur vorgeschlagenen Mahlzeit ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
+  - Langes Drücken (500 ms) oder das Kontextmenü öffnet das Blatt zum Anpassen: Zutaten mit −/+ 10 g und getippten Gramm (5–1.500 g), „tauschen“, ✕, „+ Zutat suchen“, Mahlzeit-Chips und Kennzahlen live.
+  - „Eintragen · X kcal“ trägt die angepassten Zutaten ein. Die Vorlage bleibt. Nur „Als Vorlage speichern“ ändert Name und Zutaten der Vorlage.
+  - „Löschen“ fragt im Blatt nach, erst „Ja, löschen“ entfernt die Vorlage. Eingetragene Gruppen bleiben.
+  - „+ Neu“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
   - Mahlzeit-Chip: vorbelegt, ein Tap wechselt die Mahlzeit.
@@ -76,6 +85,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
   - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“. Eingetragen wird ein Gericht (`POST /entries/group`) mit dem Toast „Rückgängig“.
 - **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Mahlzeit. Die Gruppe klappt auf und zeigt ihre Einträge, deren Menge sich wie bisher ändern lässt. Die Mahlzeit gilt für das ganze Gericht. „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
+- **Als Schnellzugriff merken:** Jede Gruppe im Tagebuch, zu der es keinen Schnellzugriff gleichen Namens gibt, zeigt „als Schnellzugriff merken“. Ein Tap legt die Vorlage mit Name, Lebensmitteln und Gramm der Gruppe an.
 
 ## 4. Domänenmodell
 
@@ -88,6 +98,8 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
 | `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Tellers (Abschnitt 7a) |
 | `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
+| `combo` | `id`, `name`, `position` (Reihenfolge im Dock), `created_at`, `updated_at` – Vorlage eines Schnellzugriffs (E8) |
+| `combo_item` | `id`, `combo_id` (löscht mit), `food_id`, `grams` (> 0 und ≤ 1.500), `position` – Zutaten der Vorlage in Reihenfolge |
 | `off_cache` | `gtin`, `payload`, `fetched_at`, `name_norm` und `brand_norm` (aus `payload` normalisiert, Trigram-Index auf `name_norm`) – Kurzzeit-Cache angezeigter Treffer, 30 Tage, durchsuchbar (Abschnitt 6) |
 
 Regeln:
@@ -97,6 +109,7 @@ Regeln:
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
 - **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
 - **Flüssigkeiten:** `basis = ml`. Gramm werden über `density` umgerechnet, eingetragen wird immer in Gramm.
+- **Schnellzugriff:** Eine Vorlage ist kein Eintrag. Eintragen legt eine Gruppe wie beim Teller an, mit `group_name` = Name der Vorlage und eigenem Snapshot je Eintrag. Angepasste Zutaten ändern die Vorlage nicht.
 
 ## 5. API
 
@@ -110,6 +123,10 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` (E7) |
 | PATCH / DELETE | `/entries/group/{id}` | Mahlzeit oder Name aller Einträge des Gerichts ändern, alle entfernen (E7) |
 | GET | `/recent` | Zuletzt-Chips: Lebensmittel nach Nutzung und Aktualität, mit Standardportion |
+| GET | `/combos` | Schnellzugriffe nach `position`, je Zutat Lebensmittel, Gramm und Makros, dazu die Summe (E8) |
+| POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
+| PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
+| POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
 | GET | `/foods/search?q=` | föderierte Suche (Abschnitt 6) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
@@ -119,7 +136,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET / PUT | `/goals/default` | Standardziele (E5) |
 | GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |
 
-**MCP-Server** (E5, [ADR-0007](adr/0007-mcp.md)): Er liegt unter `/mcp` im API-Container und nutzt dieselben Services. Lesend sind `search_food`, `get_food`, `list_entries` und `daily_summary`, schreibend nur `log_meal`.
+**MCP-Server** (E5, [ADR-0007](adr/0007-mcp.md)): Er liegt unter `/mcp` im API-Container und nutzt dieselben Services. Lesend sind `search_food`, `get_food`, `list_entries`, `daily_summary` und `list_combos`, schreibend nur `log_meal` und `log_combo` (per `combo_id` oder Name, E8).
 
 ## 6. Suche
 
@@ -218,7 +235,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
-- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode) und der Teller-Ablauf zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen.
+- **Frontend:** Vitest für Komponenten. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf und der Schnellzugriff zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1.
 
 ## 9. Betrieb
 
