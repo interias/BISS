@@ -31,7 +31,7 @@ Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht ei
 |---|---|---|
 | **E1 Erfassen per Suche** | Compose-Stack, Schema, BLS-Import, Suche, Mengen-Sheet, Tagebuch, Tagesbilanz, Zuletzt-Chips mit Rückgängig, Einträge ändern/entfernen | Lauffähiger Prototyp mit generischen Lebensmitteln |
 | **E2 Eigene Lebensmittel** | Lebensmittel-Editor (Neu und Bearbeiten), Portionen mit Herkunft, Atwater-Check, Produktfoto, Overlay, Ranking nach Nutzung, goldenes Testset | Eigene DB wächst, Suche ist verlässlich |
-| **E3 Barcode** | Live-Scan mit ZXing, GTIN-14, Open Food Facts live mit Cache, Quellenhinweis | Markenprodukte per Scan |
+| **E3 Barcode** | Live-Scan mit ZXing (oder dem `BarcodeDetector` des Browsers, [ADR-0008](adr/0008-real-photo-fixtures.md)), GTIN-14, Open Food Facts live mit Cache, Quellenhinweis | Markenprodukte per Scan |
 | **E4 Etikett-Foto** | Auslösen in der Kamera, Extraktion per LLM, Validierung, Fallback-Modell, Editor vorbelegt | Neues Produkt mit zwei Bestätigungen |
 | **E5 Anbindung und Betrieb** | MCP-Server, Tagesziele per API, nächtliches Backup | Auswertung extern, Daten gesichert |
 | **E6 Foto-Erkennung mit echten Fotos** | Barcode aus Handyfoto robust lesen, Auslöser „Etikett“ ohne Barcode, Testsätze echter Fotos | Handyfotos funktionieren auch ohne HTTPS |
@@ -226,6 +226,6 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 
 - **Plattform:** Docker Compose in Docker Desktop, immer aktuell gehalten. Web auf Port 2477, API auf 2478, Postgres nur intern.
 - **Volumes:** `db-data` und `images`.
-- **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt über den Compose-Dienst `tailscale` im eigenen Tailnet (README, „Starten“), nie über Tailscale Funnel. Ohne Tailscale läuft der Kamera-Test über `localhost`. Der Test mit echter Kamera und echter Packung aus E3 wird nachgeholt, sobald HTTPS über Tailscale steht.
+- **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt über den Compose-Dienst `tailscale` im eigenen Tailnet (README, „Starten“), nie über Tailscale Funnel. Ohne Tailscale läuft der Kamera-Test über `localhost`. Der Test mit echter Kamera und echter Packung aus E3 ist am 29.10.2026 über Tailscale auf dem Handy bestanden.
 - **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F).
 - **Backup** (E5): nächtlich `pg_dump` plus ein Tarball der Bilder auf ein gemountetes Verzeichnis. Die letzten 14 Sicherungen bleiben erhalten.
