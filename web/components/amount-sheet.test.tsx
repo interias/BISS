@@ -142,7 +142,7 @@ test("a further tap on a serving adds one more: 2 eggs, 3 eggs", () => {
     ],
   };
   inDialog(<AmountForm food={egg} onSubmit={onSubmit} />);
-  const chip = () => screen.getByRole("button", { name: /1 Ei \(M\)/ });
+  const chip = () => screen.getByRole("button", { name: /1 Ei \(M\).*g$/ });
   expect(amount()).toHaveValue(55);
   expect(chip()).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(chip());
@@ -151,6 +151,16 @@ test("a further tap on a serving adds one more: 2 eggs, 3 eggs", () => {
   fireEvent.click(chip());
   expect(amount()).toHaveValue(165);
   expect(chip()).toHaveTextContent("3 × 1 Ei (M)165 g");
+  // From two servings on a − takes one away; at one serving it is gone.
+  const less = () => screen.queryByRole("button", { name: "1 Ei (M) abziehen" });
+  fireEvent.click(less()!);
+  expect(amount()).toHaveValue(110);
+  fireEvent.click(less()!);
+  expect(amount()).toHaveValue(55);
+  expect(less()).not.toBeInTheDocument();
+  fireEvent.click(chip());
+  fireEvent.click(chip());
+  expect(amount()).toHaveValue(165);
   // Another serving starts at one again.
   fireEvent.click(screen.getByRole("button", { name: /1 Ei \(S\)/ }));
   expect(amount()).toHaveValue(48);

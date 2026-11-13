@@ -63,7 +63,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Bild, Quelle, Name und Marke.
   - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
   - Ein neuer Eintrag beginnt mit der zuletzt eingetragenen Menge des Lebensmittels, sonst mit der Standardportion.
-  - Portions-Chips: Ein Tap setzt die Portion, jeder weitere Tap legt eine dazu („2 × 1 Ei (M) · 110 g“).
+  - Portions-Chips: Ein Tap setzt die Portion, jeder weitere Tap legt eine dazu („2 × 1 Ei (M) · 110 g“). Ab zwei Portionen steht ein „−“ vor dem Chip und nimmt eine weg.
   - „zuletzt“-Chips: die bis zu drei zuletzt eingetragenen Mengen, die keine Portion sind. Es zählen nur Einzeleinträge, keine Zutaten eines Tellers oder Schnellzugriffs.
   - kcal/E/K/F live.
   - „Eintragen · X kcal“, im Bearbeitungsmodus „Speichern“ und „Entfernen“.
