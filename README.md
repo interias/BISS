@@ -62,7 +62,7 @@ Nach Änderungen an `uv.lock` oder `pnpm-lock.yaml`: `docker compose build`, dan
 
 ## BLS-Daten
 
-`data/bls/bls_4_0_extract.csv` ist ein Auszug aus dem Bundeslebensmittelschlüssel (BLS) 4.0 des Max Rubner-Instituts, Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de), gekürzt und umformatiert (Details in [`data/bls/NOTICE`](data/bls/NOTICE)). Er enthält je Lebensmittel Code, deutschen Namen und die Werte je 100 g für kcal, Eiweiß, Kohlenhydrate, Fett, Ballaststoffe, Zucker, gesättigte Fettsäuren und Salz. `data/bls/servings.csv` ergänzt geschätzte Standardportionen für etwa 30 häufige Lebensmittel.
+`data/bls/bls_4_0_extract.csv` ist ein Auszug aus dem Bundeslebensmittelschlüssel (BLS) 4.0 des Max Rubner-Instituts, Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de), gekürzt und umformatiert (Details in [`data/bls/NOTICE`](data/bls/NOTICE)). Er enthält je Lebensmittel Code, deutschen Namen und die Werte je 100 g für kcal, Eiweiß, Kohlenhydrate, Fett, Ballaststoffe, Zucker, gesättigte Fettsäuren und Salz. `data/bls/servings.csv` ergänzt geschätzte Portionen für rund 170 häufige Lebensmittel, `data/bls/aliases.csv` Alltagsnamen für die Suche („Ei“ → „Hühnerei roh“).
 
 Neu erzeugen: Die XLSX `BLS_4_0_Daten_2025_DE.xlsx` von [blsdb.de](https://www.blsdb.de) herunterladen (der Link trägt ein Session-Token, deshalb gibt es keinen automatischen Download) und das Skript mit dem Pfad aufrufen:
 

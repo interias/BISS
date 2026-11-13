@@ -210,6 +210,7 @@ def _barcode_food(session: Session, found: Food | FoodDraft) -> schemas.BarcodeF
             standard_serving=schemas.StandardServing.model_validate(
                 standard_serving(session, found.id)
             ),
+            last_grams=foods.last_grams(session, found.id),
         )
     serving = found.serving
     return schemas.BarcodeFood(

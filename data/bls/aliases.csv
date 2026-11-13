@@ -1,0 +1,95 @@
+alias,code,name
+ei,E111100,Hühnerei roh
+ei,E111132,Hühnerei gekocht
+eier,E111100,Hühnerei roh
+eier,E111132,Hühnerei gekocht
+milch,M111300,"Vollmilch frisch, 3,5 % Fett, pasteurisiert"
+milch,M111200,"Milch fettarm, frisch, 1,5 % Fett, pasteurisiert"
+butter,Q611000,Butter mild gesäuert
+margarine,Q400000,"Pflanzenmargarine Vollfett, angereichert mit Vitaminen"
+reis,C352032,"Reis poliert, gekocht"
+reis,C352000,"Reis poliert, roh"
+nudeln,E401032,"Teigwaren eifrei, gekocht"
+nudeln,E401000,"Teigwaren eifrei, roh"
+pasta,E401032,"Teigwaren eifrei, gekocht"
+pasta,E401000,"Teigwaren eifrei, roh"
+spaghetti,E401032,"Teigwaren eifrei, gekocht"
+spaghetti,E401000,"Teigwaren eifrei, roh"
+quark,M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr."
+quark,M713500,"Speisequark Fettstufe, 40 % Fett i. Tr."
+magerquark,M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr."
+käse,M402600,Gouda 48 % Fett i. Tr.
+käse,M304600,Emmentaler mind. 45 % Fett i. Tr.
+käse,M401500,Edamer mind. 40 % Fett i. Tr.
+frischkäse,M710800,"Frischkäsezubereitung Natur, mind. 60 % Fett i. Tr."
+frischkäse,M711100,Körniger Frischkäse < 10 % Fett i. Tr.
+hüttenkäse,M711100,Körniger Frischkäse < 10 % Fett i. Tr.
+brot,B101000,Vollkornbrot
+brot,B271000,Roggenmischbrot
+brot,B251000,Weizenmischbrot
+brot,B311000,Weizenbrot/Weißbrot
+brötchen,B511000,Weizenbrötchen
+brötchen,B401000,Vollkornbrötchen
+semmel,B511000,Weizenbrötchen
+toast,B314000,Weizentoastbrot/Buttertoastbrot
+toast,B111200,Weizenvollkorntoastbrot
+mehl,C214100,"Weizen Mehl, Type 405"
+öl,Q120000,Olivenöl
+öl,Q180000,Rapsöl/Rüböl
+öl,Q320000,Sonnenblumenöl
+sahne,M173800,Schlagsahne mind. 30 % Fett
+schmand,M176800,"Sauerrahm/Creme fraiche, 30 % Fett"
+saure sahne,M172500,"Sauerrahm/Saure Sahne, mind. 10 % Fett"
+creme fraiche,M176800,"Sauerrahm/Creme fraiche, 30 % Fett"
+tee,N630000,Schwarztee (Getränk)
+wasser,N110000,Trinkwasser
+wasser,N120000,Natürliches Mineralwasser
+cola,N330000,Colagetränk koffeinhaltig
+bier,P163000,Pilsner Bier
+bier,P150000,Weizenbier kristallklar
+wein,P2A3000,Rotwein trocken
+wein,P210000,Weißwein trocken
+hähnchen,V416100,"Hähnchen Brustfilet, roh"
+hähnchenbrust,V416100,"Hähnchen Brustfilet, roh"
+hühnchen,V416100,"Hähnchen Brustfilet, roh"
+pute,V486100,"Pute Brust, ohne Haut, roh"
+hackfleisch,U050100,"Rind/Schwein, Hackfleisch gemischt, roh"
+hackfleisch,U010100,"Rind Hackfleisch, roh"
+hack,U050100,"Rind/Schwein, Hackfleisch gemischt, roh"
+hack,U010100,"Rind Hackfleisch, roh"
+schinken,W424000,"Schwein Kochschinken, Kochpökelware"
+wurst,W231100,Lyoner/Lyoner Wurst
+wurst,W234000,Fleischwurst
+würstchen,W211200,Wiener Würstchen
+thunfisch,T121902,"Thunfisch im eigenen Saft, Konserve, abgetropft"
+thunfisch,T121702,"Thunfisch in Öl, Konserve, abgetropft"
+nutella,S145000,Nuss-Nougat-Creme
+marmelade,S132000,Konfitüre extra
+ketchup,R141100,Tomatenketchup
+senf,R132000,Senf mittelscharf
+mayo,Q991000,Mayonnaise (Fertigprodukt)
+mayonnaise,Q991000,Mayonnaise (Fertigprodukt)
+salat,G105100,Kopfsalat roh
+salat,G103100,Eisbergsalat roh
+paprika,G543100,"Gemüsepaprika rot, roh"
+paprika,G542100,"Gemüsepaprika gelb, roh"
+paprika,G541100,"Gemüsepaprika grün, roh"
+zwiebel,G480100,Speisezwiebel roh
+pilze,K701100,Champignon roh
+champignons,K701100,Champignon roh
+nüsse,H120100,Walnuss
+nüsse,H130100,Haselnuss
+nüsse,H210100,Mandel süß
+nüsse,H170100,Cashewkern
+mandeln,H210100,Mandel süß
+erdnüsse,H110600,Erdnuss geröstet
+erdnüsse,H110700,"Erdnuss geröstet, gesalzen"
+müsli,C512000,Müsli Basismischung (ohne Trockenfrüchte) ungesüßt
+cornflakes,C515400,Cornflakes ungesüßt
+pommes,X654042,Pommes frites
+chips,K280100,"Kartoffelchips/Stapelchips, diverse Sorten"
+gummibärchen,S361000,Fruchtgummi (Gummibonbon)
+salz,R111000,Speisesalz/Siedesalz/Tafelsalz
+leberkäse,W256100,Leberkäse
+espresso,N411100,Espresso (Getränk)
+cappuccino,N414000,"Cappuccino (Getränk) mit Milch 3,5 % Fett"

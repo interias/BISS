@@ -98,6 +98,7 @@ def test_live_hit_is_a_draft_and_cached(client: TestClient, session: Session, of
             {"label": "1 Riegel (40 g)", "grams": 40, "origin": "package", "is_default": True}
         ],
         "standard_serving": {"label": "1 Riegel (40 g)", "grams": 40, "origin": "package"},
+        "last_grams": [],
     }
     assert off_foods(session) == []  # stored only on the first entry
     cached = session.get(OffCache, GTIN)

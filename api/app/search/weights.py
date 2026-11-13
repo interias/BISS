@@ -18,6 +18,10 @@ class RankingConfig:
     # similarity of query and whole name: the shorter, closer name wins
     # ("Apfel roh" before "Apfel getrocknet").
     similarity: float = 1.0
+    # The similarity an everyday name gives its food (search.aliases): "Ei" counts for
+    # "Hühnerei roh" like a name that starts with the query ("Ei roh"). So the staple food
+    # stands before dishes that contain the word, and behind an own food that is in use.
+    alias_similarity: float = 0.55
     # Times source_priority of the food's source.
     source: float = 0.1
     source_priority: dict[str, float] = field(

@@ -342,3 +342,29 @@ def test_cached_brand_is_a_known_brand(session: Session) -> None:
     add_cached(session, BAR, NOW - timedelta(days=1), brands="Zwergmarke")
     hits = search_foods(session, "Zwergmarke Haselnuss", now=NOW)
     assert [(hit.gtin, hit.brand) for hit in hits] == [("0" + BAR, "Zwergmarke")]
+
+
+def test_everyday_name_puts_the_staple_food_before_dishes(session: Session) -> None:
+    # "ei" is an alias of E111100 and E111132 (data/bls/aliases.csv), in this order.
+    add_food(session, "Hühnerei gekocht", source="bls", source_id="E111132", kcal=144)
+    add_food(session, "Hühnerei roh", source="bls", source_id="E111100", kcal=135)
+    add_food(session, "Ei-Einlauf, Suppeneinlage", source="bls", kcal=134)
+    add_food(session, "Bratkartoffeln mit Ei", source="bls", kcal=150)
+    for query in ["Ei", "eier"]:
+        assert names(session, query)[:2] == ["Hühnerei roh", "Hühnerei gekocht"], query
+    assert names(session, "Ei-Einlauf")[0] == "Ei-Einlauf, Suppeneinlage"
+
+
+def test_own_food_in_use_stays_before_an_everyday_name(session: Session) -> None:
+    add_food(session, "Hühnerei roh", source="bls", source_id="E111100", kcal=135)
+    own = add_food(session, "Ei hartgekocht", kcal=137)
+    for _ in range(5):
+        use(session, own.id)
+    now = datetime(2026, 10, 29, 12, tzinfo=UTC)
+    hits = search_foods(session, "Ei", now=now)
+    assert [hit.name for hit in hits] == ["Ei hartgekocht", "Hühnerei roh"]
+
+
+def test_everyday_name_of_another_source_does_not_count(session: Session) -> None:
+    add_food(session, "Banane", source_id="E111100", kcal=100)
+    assert names(session, "Ei") == []

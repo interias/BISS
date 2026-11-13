@@ -116,6 +116,9 @@ class FoodDetail(BaseModel):
     per_100: Nutrients
     servings: list[Serving]
     standard_serving: StandardServing
+    last_grams: list[float] = Field(
+        description="amounts last logged as single entries, newest first, at most 3"
+    )
 
 
 class BarcodeServing(BaseModel):
@@ -144,6 +147,7 @@ class BarcodeFood(BaseModel):
     per_100: Nutrients
     servings: list[BarcodeServing]
     standard_serving: StandardServing
+    last_grams: list[float] = Field(default=[], description="as in FoodDetail; empty for a draft")
 
 
 class BarcodeNotFound(BaseModel):

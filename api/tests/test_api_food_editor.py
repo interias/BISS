@@ -329,3 +329,18 @@ def test_patch_cannot_set_the_origin(client: TestClient, session: Session) -> No
         ("1 Becher", 250, "own", False),
         ("1 Löffel", 15, "own", True),
     ]
+
+
+def test_changed_servings_of_a_bls_food_go_into_overridden(
+    client: TestClient, session: Session
+) -> None:
+    food = add_food(session, "Hühnerei roh", source="bls", source_id="E111100", kcal=135)
+    serving = add_serving(session, food, "1 Ei (M)", 55)
+    same = [{"id": serving.id, "label": "1 Ei (M)", "grams": 55, "is_default": True}]
+    client.patch(f"/api/v1/foods/{food.id}", json={"servings": same})
+    session.refresh(food)
+    assert food.overridden == []  # the editor sends the unchanged list with every save
+
+    client.patch(f"/api/v1/foods/{food.id}", json={"servings": []})
+    session.refresh(food)
+    assert food.overridden == ["servings"]

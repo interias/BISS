@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { previewMacros, stepDown, stepUp } from "./amount";
+import { previewMacros, servingCount, servingsGrams, stepDown, stepUp } from "./amount";
 
 describe("gram steps: 1 g below 20 g, 5 g up to 100 g, 10 g above", () => {
   test.each([
@@ -71,5 +71,24 @@ describe("local preview: value per 100 × grams / 100", () => {
     const m = previewMacros(milk, 206, "ml", 1.03);
     expect(m.kcal).toBeCloseTo(128);
     expect(m.fat).toBeCloseTo(7);
+  });
+});
+
+describe("servings in an amount", () => {
+  test.each([
+    [55, 55, 1],
+    [110, 55, 2],
+    [165, 55, 3],
+    [3.6, 1.2, 3],
+    [60, 55, 0],
+    [27.5, 55, 0],
+    [0, 55, 0],
+  ])("%s g of a %s g serving are %s", (grams, serving, count) =>
+    expect(servingCount(grams, serving)).toBe(count),
+  );
+
+  test("the grams of several servings carry no float noise", () => {
+    expect(servingsGrams(3, 1.2)).toBe(3.6);
+    expect(servingsGrams(2, 55)).toBe(110);
   });
 });

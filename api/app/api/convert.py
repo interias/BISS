@@ -62,6 +62,7 @@ def food_detail(session: Session, food: Food) -> schemas.FoodDetail:
         per_100=schemas.Nutrients.model_validate(food),
         servings=[schemas.Serving.model_validate(s) for s in foods.servings_of(session, food.id)],
         standard_serving=schemas.StandardServing.model_validate(standard_serving(session, food.id)),
+        last_grams=foods.last_grams(session, food.id),
     )
 
 
