@@ -140,7 +140,7 @@ test("without a hit the shutter sends the live picture with the GTIN-14 to the e
 
   const label = biscuitLabel("0" + MISS_CODE);
   await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
-  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, label);
+  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, label, undefined);
   expect(onFound).not.toHaveBeenCalled();
 });
 
@@ -160,7 +160,7 @@ test("the shutter Etikett sends the live picture without a barcode and without G
 
   const label = biscuitLabel(null);
   await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
-  expect(onLabel).toHaveBeenCalledWith(undefined, label);
+  expect(onLabel).toHaveBeenCalledWith(undefined, label, undefined);
 });
 
 test("without camera the shutter Etikett opens the photo choice; a failure offers the hand", async () => {
@@ -186,7 +186,7 @@ test("without camera the shutter Etikett opens the photo choice; a failure offer
   expect(screen.getByRole("button", { name: "Etikett" })).toBeInTheDocument(); // a new photo
   expect(screen.queryByRole("button", { name: "Etikett fotografieren" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Von Hand eingeben" }));
-  expect(onLabel).toHaveBeenCalledWith(undefined);
+  expect(onLabel).toHaveBeenCalledWith(undefined, undefined, undefined);
 });
 
 test("an unreadable photo after the shutter Etikett says so", async () => {
@@ -215,7 +215,7 @@ test("a failed extraction offers a new photo or the editor by hand", async () =>
   expect(screen.getByText("Nährwerttabelle nicht erkannt. Neues Foto oder von Hand eingeben.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Etikett fotografieren" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Von Hand eingeben" }));
-  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE);
+  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, undefined, undefined);
 });
 
 test("without camera the label is a chosen photo; an unreadable one says so", async () => {
@@ -358,4 +358,53 @@ test("a photo without a barcode says so, a miss keeps the photo choice", async (
   fireEvent.change(input, { target: { files: [photo] } });
   expect(await screen.findByRole("button", { name: "Etikett fotografieren" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Foto wählen" })).toBeInTheDocument();
+});
+
+/** The barcode chain answers every code with this miss (SPEC 6). */
+function missWith(miss: { reason: string; name?: string | null; brand?: string | null }) {
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (url, init) =>
+    String(url).startsWith("/api/v1/foods/barcode/")
+      ? new Response(JSON.stringify({ detail: "no product", gtin: "0" + MISS_CODE, name: null, brand: null, ...miss }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      : fake(url, init),
+  );
+}
+
+test("a product Open Food Facts has without values is named and its name goes on with the label", async () => {
+  fakeApi();
+  missWith({ reason: "incomplete", name: "Quellwasser Medium", brand: "Testquelle" });
+  const { onLabel } = renderCamera();
+  await detect(MISS_CODE);
+  expect(
+    await screen.findByText("„Quellwasser Medium“ gefunden, aber ohne Nährwerte. Bitte Etikett fotografieren."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Noch einmal versuchen" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Etikett fotografieren" }));
+  await waitFor(() =>
+    expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, biscuitLabel("0" + MISS_CODE), {
+      name: "Quellwasser Medium",
+      brand: "Testquelle",
+    }),
+  );
+});
+
+test("when Open Food Facts does not answer the camera says so and looks the code up again on demand", async () => {
+  fakeApi();
+  missWith({ reason: "unavailable" });
+  renderCamera();
+  const lookups = () => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/v1/foods/barcode/"));
+  await detect(MISS_CODE);
+  expect(
+    await screen.findByText("Open Food Facts antwortet gerade nicht. Noch einmal versuchen oder Etikett fotografieren."),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Etikett fotografieren" })).toBeInTheDocument();
+  await detect(MISS_CODE); // the same code in the next frame: no second request by itself
+  expect(lookups()).toHaveLength(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "Noch einmal versuchen" }));
+  await detect(MISS_CODE);
+  await waitFor(() => expect(lookups()).toHaveLength(2));
 });

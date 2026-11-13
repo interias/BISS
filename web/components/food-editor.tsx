@@ -57,12 +57,14 @@ type New = {
   gtin?: string;
   /** The draft read from the label photo; it fills the new food. */
   label?: LabelExtraction;
+  /** Name and brand Open Food Facts has for the scanned code; they go before the label's. */
+  known?: { name: string | null; brand: string | null };
 };
 
 /**
  * Editor sheet; with a food id it loads the food and edits it, without one it creates.
  */
-export function FoodEditor({ foodId, gtin, label, ...actions }: Actions & New & { foodId?: number }) {
+export function FoodEditor({ foodId, gtin, label, known, ...actions }: Actions & New & { foodId?: number }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     if (foodId === undefined) return;
@@ -76,7 +78,7 @@ export function FoodEditor({ foodId, gtin, label, ...actions }: Actions & New & 
   if (foodId !== undefined && !food) {
     return <SheetTitle className="sr-only">Lebensmittel bearbeiten</SheetTitle>;
   }
-  return <EditorForm food={food ?? undefined} gtin={gtin} label={label} {...actions} />;
+  return <EditorForm food={food ?? undefined} gtin={gtin} label={label} known={known} {...actions} />;
 }
 
 type Row = { key: number; label: string; grams: string };
@@ -98,14 +100,14 @@ const inputClass =
  * list (star = standard, origin tag). Validation and the change of origin are the backend's
  * (ADR-0003); the `eigene` tag while typing is a preview.
  */
-export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & New & { food?: FoodDetail }) {
+export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Actions & New & { food?: FoodDetail }) {
   const draft = food ? undefined : label?.draft;
   // The label servings as read; the row of the i-th has the key -(i + 1).
   const [fromLabel] = useState(() => (draft ? servingsOfLabel(draft) : { servings: [], skipped: [] }));
   // The last saved state: after a save whose photo upload failed, a retry must update.
   const [base, setBase] = useState(food);
-  const [name, setName] = useState(food?.name ?? draft?.name ?? "");
-  const [brand, setBrand] = useState(food?.brand ?? draft?.brand ?? "");
+  const [name, setName] = useState(food?.name ?? known?.name ?? draft?.name ?? "");
+  const [brand, setBrand] = useState(food?.brand ?? known?.brand ?? draft?.brand ?? "");
   // Optional: without one the symbol of "Sonstiges" shows.
   const [category, setCategory] = useState<Category | "">(food?.category ?? "");
   const [texts, setTexts] = useState(() => textsOf(food?.per_100 ?? (draft && per100OfLabel(draft.per_100))));
@@ -149,6 +151,8 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
       carbs: nutrients.carbs,
       fat: nutrients.fat,
       fiber: nutrients.fiber,
+      // Read from the label only; a food does not store it.
+      ...(draft?.per_100.alcohol_vol != null && { alcohol_vol: draft.per_100.alcohol_vol }),
     });
   useEffect(() => {
     if (!checkBody) return;
@@ -339,6 +343,17 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
           </span>
         </div>
       )}
+      {draft && (draft.per_100.state === "prepared" || draft.notes) && (
+        // What the model noticed while reading; a food does not store it.
+        <div data-testid="label-notes" className="mb-3 grid gap-1 rounded-xl border bg-surface-2 px-3 py-2.5 text-[13px]">
+          {draft.per_100.state === "prepared" && (
+            <p className="font-semibold">
+              Das Etikett nennt nur Werte für das zubereitete Produkt. Die eingetragene Menge muss dazu passen.
+            </p>
+          )}
+          {draft.notes && <p className="text-muted-foreground">Hinweis vom Auslesen: {draft.notes}</p>}
+        </div>
+      )}
       {label && !food && !label.validation.ok && (
         // The backend's check after the second try (SPEC 7); the live hint below stays.
         <div
@@ -490,7 +505,7 @@ export function EditorForm({ food, gtin, label, onSaved, onCancel }: Actions & N
   );
 }
 
-/** The Atwater hint of the backend: values within 10 % of the stated kcal are plausible. */
+/** The Atwater hint of the backend: values within 10 % or 10 kcal of the stated kcal are plausible. */
 function AtwaterHint({ result, kcal, invalid }: { result: Atwater | null; kcal: number; invalid: boolean }) {
   const bad = invalid || (result !== null && !result.ok);
   let text = "Prüfe Werte …";

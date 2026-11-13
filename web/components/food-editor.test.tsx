@@ -399,3 +399,30 @@ test("the symbol is optional; a chosen one is sent and shows without a photo", a
   await waitFor(() => expect(onSaved).toHaveBeenCalled());
   expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({ name: "Skyr", category: "dairy" });
 });
+
+test("the name Open Food Facts has for the code goes before the one read from the label", () => {
+  fakeBackend();
+  inDialog(
+    <EditorForm
+      gtin={GTIN}
+      label={biscuitLabel(GTIN)}
+      known={{ name: "Dinkel Haferkeks 200 g", brand: null }}
+      onSaved={noop}
+      onCancel={noop}
+    />,
+  );
+  expect(field("Name")).toHaveValue("Dinkel Haferkeks 200 g");
+  expect(field("Marke")).toHaveValue("Testmühle"); // not known there: the label's brand stays
+});
+
+test("notes of the reading and prepared values show in the editor", () => {
+  fakeBackend();
+  const label = biscuitLabel(GTIN);
+  expect(screen.queryByTestId("label-notes")).not.toBeInTheDocument();
+  label.draft.notes = "Ballaststoffe schwer lesbar.";
+  label.draft.per_100.state = "prepared";
+  inDialog(<EditorForm gtin={GTIN} label={label} onSaved={noop} onCancel={noop} />);
+  const notes = screen.getByTestId("label-notes");
+  expect(notes).toHaveTextContent("Das Etikett nennt nur Werte für das zubereitete Produkt.");
+  expect(notes).toHaveTextContent("Hinweis vom Auslesen: Ballaststoffe schwer lesbar.");
+});

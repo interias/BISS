@@ -5,6 +5,7 @@ a food with source off, its raw data and its package serving (SPEC 4).
 """
 
 from datetime import datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -18,19 +19,33 @@ from app.sources.off import FoodDraft, OpenFoodFacts
 CACHE_DAYS = 30
 
 
-class NotFound(LookupError):
-    """No food and no product for the GTIN; the client offers the label photo."""
+# unknown: Open Food Facts has no product. incomplete: it has one, but without a name or
+# an energy value. unavailable: it did not answer, so the scan may be worth repeating.
+Reason = Literal["unknown", "incomplete", "unavailable"]
 
-    def __init__(self, gtin: str) -> None:
+
+class NotFound(LookupError):
+    """No food and no usable product for the GTIN; the client offers the label photo.
+
+    An incomplete product still hands on its name and brand for the editor.
+    """
+
+    def __init__(
+        self,
+        gtin: str,
+        reason: Reason = "unknown",
+        name: str | None = None,
+        brand: str | None = None,
+    ) -> None:
         super().__init__(f"no food or product for GTIN {gtin}")
-        self.gtin = gtin
+        self.gtin, self.reason, self.name, self.brand = gtin, reason, name, brand
 
 
 def lookup(session: Session, code: str, source: OpenFoodFacts, now: datetime) -> Food | FoodDraft:
     """The own food with the GTIN of the code, else the product from the cache or live.
 
-    A live hit is cached; a miss, a timeout or a failure is not. Raises InvalidGtin and
-    NotFound.
+    A live hit is cached; a miss, a product without values, a timeout or a failure is
+    not. Raises InvalidGtin and NotFound.
     """
     gtin = normalize_gtin(code)
     food = _own(session, gtin)
@@ -39,9 +54,15 @@ def lookup(session: Session, code: str, source: OpenFoodFacts, now: datetime) ->
     cached = cached_product(session, gtin, now)
     if cached is not None and (found := off.draft(gtin, cached.payload)) is not None:
         return found
-    payload = source.product(gtin)
-    if payload is None or (found := off.draft(gtin, payload)) is None:
+    try:
+        payload = source.product(gtin)
+    except off.Unavailable as error:
+        raise NotFound(gtin, "unavailable") from error
+    if payload is None:
         raise NotFound(gtin)
+    found = off.draft(gtin, payload)
+    if found is None:
+        raise NotFound(gtin, "incomplete", *off.identity(payload))
     cache_product(session, gtin, payload, now)
     session.commit()
     return found

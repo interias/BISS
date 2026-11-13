@@ -20,6 +20,7 @@ def per_100(**values: float | None) -> LabelPer100:
         "fiber": 0,
         "protein": 0,
         "salt": 0,
+        "alcohol_vol": None,
     }
     return LabelPer100.model_validate(base | values)
 

@@ -32,9 +32,10 @@ class Check:
 
 
 def check(per_100: LabelPer100) -> Check:
-    """Atwater within 10 %, kJ ≈ kcal · 4.184 within 5 %, sugar ≤ carbs, saturated fat ≤ fat."""
+    """Atwater within 10 % or 10 kcal (alcohol counted), kJ ≈ kcal · 4.184 within 5 %,
+    sugar ≤ carbs, saturated fat ≤ fat."""
     v = per_100
-    result = atwater(v.energy_kcal, v.protein, v.carbs, v.fat, v.fiber)
+    result = atwater(v.energy_kcal, v.protein, v.carbs, v.fat, v.fiber, v.alcohol_vol)
     violations = []
     if not result.ok:
         deviation = "?" if result.deviation_pct is None else f"{result.deviation_pct:.1f} %"

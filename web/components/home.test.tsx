@@ -457,3 +457,44 @@ test("als Schnellzugriff merken creates a combo from a diary group", async () =>
   expect(screen.getByRole("button", { name: "Schnellzugriff Hähnchen mit Reis und Brokkoli" })).toBeInTheDocument();
   expect(within(diary).queryByRole("button", { name: "als Schnellzugriff merken" })).not.toBeInTheDocument();
 });
+
+test("a failed tap says so instead of doing nothing", async () => {
+  fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (url, init) => {
+    if (url === "/api/v1/entries" && init?.method === "POST") throw new TypeError("Failed to fetch");
+    return fake(url, init);
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<Home />);
+  const chips = await screen.findByRole("group", { name: "Zuletzt gegessen" });
+  fireEvent.click(await within(chips).findByRole("button", { name: /Banane roh\s*120 g/ }));
+  expect(await screen.findByText("Das hat nicht geklappt. Verbindung prüfen.")).toBeInTheDocument();
+});
+
+test("without the backend the screen says so; Erneut versuchen loads the day", async () => {
+  fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  let down = true;
+  vi.mocked(fetch).mockImplementation(async (url, init) => {
+    if (down) throw new TypeError("Failed to fetch");
+    return fake(url, init);
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<Home />);
+  expect(await screen.findByText("BISS ist gerade nicht erreichbar.")).toBeInTheDocument();
+  down = false;
+  fireEvent.click(screen.getByRole("button", { name: "Erneut versuchen" }));
+  expect(await screen.findByText("Heute · Mi 28. Okt")).toBeInTheDocument();
+  expect(screen.queryByText("BISS ist gerade nicht erreichbar.")).not.toBeInTheDocument();
+});
+
+test("back in front the page loads the day again", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await screen.findByText("Heute · Mi 28. Okt");
+  const days = () => calls.filter((c) => c.url === "/api/v1/days/today").length;
+  const before = days();
+  fireEvent(document, new Event("visibilitychange")); // jsdom: the document is visible
+  await waitFor(() => expect(days()).toBe(before + 1));
+});

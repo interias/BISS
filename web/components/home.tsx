@@ -31,7 +31,7 @@ import {
 } from "@/lib/api";
 import { fmt, headerDate, shortName } from "@/lib/format";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
-import { Camera } from "@/components/camera/camera";
+import { Camera, type Known } from "@/components/camera/camera";
 import { ComboSheet } from "@/components/combo/combo-sheet";
 import { DaySummary } from "@/components/day-summary";
 import { Diary } from "@/components/diary";
@@ -53,8 +53,9 @@ type SheetState =
   // A scanned draft from Open Food Facts; its first entry stores it as food.
   | { kind: "draft"; food: BarcodeFood }
   // `back` is the amount sheet "Bearbeiten" came from; a new food has none. `gtin` is a
-  // scanned barcode without a hit, `label` the draft read from its label photo.
-  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; back?: AmountState }
+  // scanned barcode without a hit, `label` the draft read from its label photo, `known` the
+  // name and brand Open Food Facts has for it.
+  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; known?: Known; back?: AmountState }
   // The dish read from a plate photo; nothing is logged before "Eintragen" (SPEC 7a).
   | { kind: "plate"; plate: PlateExtraction; photo: Blob }
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
@@ -68,6 +69,8 @@ export function Home() {
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The first load failed: without the backend the screen would stay empty without a word.
+  const [offline, setOffline] = useState(false);
   const { toast, show, hide } = useToast();
 
   // Every change reloads the day from the backend, which computes all values (ADR-0003).
@@ -78,9 +81,43 @@ export function Home() {
   }, []);
   const reload = useCallback(() => load().then(apply), [apply]);
 
+  /** Loads the day and says so when the backend does not answer. */
+  const start = useCallback(
+    () =>
+      load().then(
+        (loaded) => {
+          apply(loaded);
+          setOffline(false);
+        },
+        (failure) => {
+          console.error(failure);
+          setOffline(true);
+        },
+      ),
+    [apply],
+  );
+
   useEffect(() => {
-    load().then(apply, console.error);
-  }, [apply]);
+    start();
+  }, [start]);
+
+  // A phone keeps the page open over night: back in front it shows the current day again.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") start();
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, [start]);
+
+  /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
+  const fail = useCallback(
+    (failure: unknown) => {
+      console.error(failure);
+      show("Das hat nicht geklappt. Verbindung prüfen.");
+    },
+    [show],
+  );
 
   /** Runs a write, reloads the day and closes the sheet; the toast follows. */
   const write = async (action: () => Promise<unknown>) => {
@@ -95,7 +132,7 @@ export function Home() {
   };
 
   const undo = (entryId: number) => () => {
-    deleteEntry(entryId).then(reload).catch(console.error);
+    deleteEntry(entryId).then(reload).catch(fail);
   };
 
   const logRecent = async (food: FoodSummary) => {
@@ -108,7 +145,7 @@ export function Home() {
   /** The toast of a logged Schnellzugriff; "Rückgängig" removes the whole group, as for a plate. */
   const comboLogged = (name: string, group: EntryGroup) =>
     show(`${name} eingetragen · ${fmt(group.totals.kcal)} kcal`, () => {
-      deleteEntryGroup(group.group_id).then(reload).catch(console.error);
+      deleteEntryGroup(group.group_id).then(reload).catch(fail);
     });
 
   /** One tap: the template's items, the meal the backend suggests. */
@@ -120,7 +157,7 @@ export function Home() {
 
   /** Logs the adjusted items; the template stays as it is. */
   const logAdjusted = (combo: Combo) => (items: ComboItemWrite[]) =>
-    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items }))).catch(console.error);
+    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items }))).catch(fail);
 
   /** "Als Vorlage speichern" changes the template, "Speichern" of a new one creates it. */
   const saveCombo = (combo?: Combo) => (name: string, items: ComboItemWrite[]) =>
@@ -128,13 +165,13 @@ export function Home() {
       if (combo) await updateCombo(combo.id, { name, items });
       else await createCombo({ name, items });
       show(`${name} als Schnellzugriff gespeichert`);
-    }).catch(console.error);
+    }).catch(fail);
 
   const removeCombo = (combo: Combo) => () =>
     write(async () => {
       await deleteCombo(combo.id);
       show(`${combo.name} gelöscht`);
-    }).catch(console.error);
+    }).catch(fail);
 
   /** "als Schnellzugriff merken": the backend copies foods, grams and name of the group. */
   const remember = async (group: DayGroupRow) => {
@@ -157,10 +194,10 @@ export function Home() {
         const created = await createEntry({ ...target, grams });
         show(`${shortName(created.food.name)} eingetragen`, undo(created.id));
       }
-    }).catch(console.error);
+    }).catch(fail);
 
   const edited = (back?: AmountState) => (food: FoodDetail) => {
-    reload().catch(console.error); // names and values in the diary may have changed
+    reload().catch(fail); // names and values in the diary may have changed
     if (back) show("Lebensmittel gespeichert");
     setSheet({ kind: "amount", ...(back ?? { foodId: food.id }) });
   };
@@ -173,7 +210,7 @@ export function Home() {
   /** A cached product has no food yet: the barcode chain answers its draft, as after a scan. */
   const picked = (hit: SearchHit) => {
     if (hit.id !== null) setSheet({ kind: "amount", foodId: hit.id });
-    else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), console.error);
+    else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), fail);
   };
 
   /** A Gericht is logged in one call; "Rückgängig" removes the whole group again. */
@@ -181,9 +218,9 @@ export function Home() {
     write(async () => {
       const group = await createEntryGroup({ group_name: name, items });
       show(`${name} eingetragen`, () => {
-        deleteEntryGroup(group.group_id).then(reload).catch(console.error);
+        deleteEntryGroup(group.group_id).then(reload).catch(fail);
       });
-    }).catch(console.error);
+    }).catch(fail);
 
   /**
    * Removes a Gericht. "Rückgängig" logs it again with the same name, meal, time and amounts
@@ -200,7 +237,7 @@ export function Home() {
         items: group.entries.map((entry) => ({ food_id: entry.food.id, grams: entry.grams })),
       })
         .then(reload)
-        .catch(console.error);
+        .catch(fail);
     });
   };
 
@@ -208,7 +245,7 @@ export function Home() {
     write(async () => {
       await deleteEntry(entry.id);
       show("Entfernt");
-    }).catch(console.error);
+    }).catch(fail);
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
@@ -223,6 +260,14 @@ export function Home() {
       </header>
 
       <main className="flex-1 overflow-y-auto bg-card px-5 pt-1 pb-3">
+        {!day && offline && (
+          <div role="alert" className="grid justify-items-center gap-3 pt-16 text-center text-sm text-muted-foreground">
+            <p>BISS ist gerade nicht erreichbar.</p>
+            <button type="button" onClick={start} className="h-11 rounded-xl border px-5 font-bold text-primary">
+              Erneut versuchen
+            </button>
+          </div>
+        )}
         {day && (
           <>
             <DaySummary totals={day.totals} targets={day.targets} />
@@ -230,8 +275,8 @@ export function Home() {
               rows={day.rows}
               comboNames={combos.map((combo) => combo.name)}
               onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
-              onRemoveGroup={(removal) => removeGroup(removal).catch(console.error)}
-              onRemember={(group) => remember(group).catch(console.error)}
+              onRemoveGroup={(removal) => removeGroup(removal).catch(fail)}
+              onRemember={(group) => remember(group).catch(fail)}
             />
           </>
         )}
@@ -240,10 +285,10 @@ export function Home() {
       <Dock
         combos={combos}
         recent={recent}
-        onCombo={(combo) => tapCombo(combo).catch(console.error)}
+        onCombo={(combo) => tapCombo(combo).catch(fail)}
         onComboHold={(combo) => setSheet({ kind: "combo", combo })}
         onNewCombo={() => setSheet({ kind: "combo" })}
-        onRecent={(food) => logRecent(food).catch(console.error)}
+        onRecent={(food) => logRecent(food).catch(fail)}
         onSearch={() => setSheet({ kind: "search" })}
         onCamera={() => {
           setSheet(null);
@@ -254,9 +299,9 @@ export function Home() {
       {camera && (
         <Camera
           onFound={scanned}
-          onLabel={(gtin, label) => {
+          onLabel={(gtin, label, known) => {
             setCamera(false);
-            setSheet({ kind: "editor", gtin, label });
+            setSheet({ kind: "editor", gtin, label, known });
           }}
           onPlate={(plate, photo) => {
             setCamera(false);
@@ -327,6 +372,7 @@ export function Home() {
               foodId={sheet.foodId}
               gtin={sheet.gtin}
               label={sheet.label}
+              known={sheet.known}
               onSaved={edited(sheet.back)}
               onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />

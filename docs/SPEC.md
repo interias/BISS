@@ -6,7 +6,7 @@ Stand: 29.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [d
 
 BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wächst mit der Nutzung, realistisch sind es 50–100 verschiedene Lebensmittel im Jahr.
 
-**Kernphilosophie: Möglichst wenige Taps bis zum getrackten Eintrag.** Jede Funktion wird daran gemessen, wie schnell sie vom Öffnen der App zum gespeicherten Eintrag führt.
+Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle hält die Tap-Budgets dazu fest:
 
 | Ablauf | Tap-Budget |
 |---|---|
@@ -17,14 +17,11 @@ BISS ersetzt ein FDDB-Abo für eine Person. Die eigene Lebensmitteldatenbank wä
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
 
-Jedes Epic belegt sein Budget per Playwright. Ein schlechteres Budget braucht eine Entscheidung des Menschen.
+**Weitere Leitprinzipien:**
 
-**Leitprinzipien:**
-
-1. **Wenige Taps:** Jeder Ablauf hält sein Tap-Budget aus der Kernphilosophie. Wiederkehrendes Essen kostet einen Tap, ein neues Produkt höchstens zwei Bestätigungen.
-2. **Nur erfassen:** Die App zeigt ausschließlich den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Es gibt keine Diagramme und keine Historie-Auswertungen.
-3. **Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
-4. **Logik im Backend:** Der Web-Client zeigt nur an. Eine spätere Flutter-App nutzt dieselbe API ([ADR-0003](adr/0003-logic-in-backend.md)).
+1. **Nur erfassen:** Die App zeigt ausschließlich den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Es gibt keine Diagramme und keine Historie-Auswertungen.
+2. **Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
+3. **Logik im Backend:** Der Web-Client zeigt nur an. Eine spätere Flutter-App nutzt dieselbe API ([ADR-0003](adr/0003-logic-in-backend.md)).
 
 ## 2. Funktionsumfang
 
@@ -79,10 +76,13 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
+- **Fehler:** Schlägt ein Aufruf fehl, sagt ein Toast „Das hat nicht geklappt. Verbindung prüfen.“. Ist das Backend beim Öffnen nicht erreichbar, steht das auf dem Hauptscreen mit „Erneut versuchen“. Kommt die App wieder in den Vordergrund, lädt sie den Tag neu.
 - **Kamera:**
   - Drei Auslöser: Barcode (automatisch), Etikett und Teller (E7).
   - Ein erkannter Barcode öffnet ohne Auslösen das Mengen-Sheet.
   - Ohne Treffer zeigt die Kamera „Etikett fotografieren“. Das Foto geht mit der GTIN an die Extraktion.
+  - Die Kamera sagt, warum es keinen Treffer gibt (Abschnitt 6): unbekannt, bei Open Food Facts ohne Nährwerte (mit Name) oder Open Food Facts antwortet nicht (mit „Noch einmal versuchen“).
+  - Das Live-Bild wird mit 1920 × 1080 angefragt, damit das Standbild für Etikett und Teller scharf genug ist.
   - Der Auslöser „Etikett“ braucht keinen Barcode. Das Foto geht ohne GTIN an die Extraktion.
   - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
   - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet.
@@ -188,6 +188,11 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 **Barcode** (E3):
 - EAN-8, EAN-13 und UPC-A werden auf GTIN-14 normalisiert (führende Nullen).
 - Kette: eigene DB, dann OFF-Cache, dann OFF live (Timeout 2 s), dann „Etikett fotografieren“.
+- Ohne Treffer nennt die Antwort (404) den Grund `reason`:
+  - `unknown`: Open Food Facts kennt das Produkt nicht.
+  - `incomplete`: Open Food Facts kennt es ohne Name oder Energiewert. `name` und `brand` gehen an den Editor und stehen dort vor den Werten aus dem Etikett.
+  - `unavailable`: Timeout, Fehlerstatus oder lokales Limit. Ob es das Produkt gibt, ist dann offen.
+- Im Live-Bild zählt ein EAN-13 sofort, ein EAN-8 oder UPC-A erst nach zwei gleichen Lesungen in Folge, mit dem Leser des Browsers wie mit ZXing.
 
 ## 7. Etikett-Extraktion (E4)
 
@@ -196,12 +201,15 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 **Ein- und Ausgabe:**
 - Eingabe ist das Foto plus die GTIN aus dem Scan. Die GTIN liest nie das Modell.
 - Die GTIN ist optional. Ohne GTIN entsteht ein Lebensmittel ohne GTIN.
-- Die Ausgabe ist strukturiert nach festem JSON-Schema: `name, brand, package_size, per_100 {basis, state, energy_kj, energy_kcal, fat, saturated_fat, carbs, sugar, fiber, protein, salt}, servings [{label, amount, unit, source}], confidence, notes`.
+- Die Ausgabe ist strukturiert nach festem JSON-Schema: `name, brand, package_size, per_100 {basis, state, energy_kj, energy_kcal, fat, saturated_fat, carbs, sugar, fiber, protein, salt, alcohol_vol}, servings [{label, amount, unit, source}], confidence, notes`.
+- `alcohol_vol` ist der Alkoholgehalt in % vol, wenn das Foto einen zeigt. Er dient nur der Prüfung und wird nicht gespeichert.
+- Der Editor zeigt `notes` und weist auf `state = prepared` hin.
 
 **Prompt:** Er fängt drei typische Fehler ab: die Spalte je 100 g gegenüber je Portion, zubereitet gegenüber unzubereitet sowie g gegenüber ml.
 
 **Validierung im Code:**
-- Atwater: `4·KH + 4·Eiweiß + 9·Fett + 2·Ballaststoffe` weicht höchstens 10 % von kcal ab.
+- Atwater: `4·KH + 4·Eiweiß + 9·Fett + 2·Ballaststoffe + 7·Alkohol` weicht höchstens 10 % oder höchstens 10 kcal von kcal ab. Alkohol in g je 100 ml ist % vol · 0,789.
+  - Die 10 kcal fangen Rundung und Angaben wie „< 0,5 g“ ab; ohne sie galt jedes Getränk mit wenigen kcal als unplausibel.
 - `kJ ≈ kcal · 4,184` (± 5 %), `Zucker ≤ KH`, `gesättigte Fettsäuren ≤ Fett`.
 
 **Modelle:**
@@ -263,6 +271,9 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 [ADR-0006](adr/0006-stack-and-tooling.md)
 
 - **Plattform:** Docker Compose in Docker Desktop, immer aktuell gehalten. Web auf Port 2477, API auf 2478, Postgres nur intern.
+- **Weiterleitung:** Web leitet `/api/v1` an die API weiter und wartet bis zu 200 s, weil ein Etikett oder Teller zwei Modellaufrufe von je bis zu 90 s brauchen kann.
+- **Logs:** `db`, `api` und `web` behalten höchstens 3 Dateien zu je 10 MB.
+- **PWA:** Die App hat ein Manifest und lässt sich auf dem Handy zum Startbildschirm hinzufügen.
 - **Volumes:** `db-data` und `images`.
 - **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt über den Compose-Dienst `tailscale` im eigenen Tailnet (README, „Starten“), nie über Tailscale Funnel. Ohne Tailscale läuft der Kamera-Test über `localhost`. Der Test mit echter Kamera und echter Packung aus E3 ist am 29.10.2026 über Tailscale auf dem Handy bestanden.
 - **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F).

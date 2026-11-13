@@ -112,6 +112,7 @@ export const biscuitLabel = (gtin: string | null): LabelExtraction => ({
       fiber: 5,
       protein: 8,
       salt: 0.6,
+      alcohol_vol: null,
     },
     servings: [{ label: "1 Keks (12,5 g)", amount: 12.5, unit: "g", source: "package" }],
     confidence: 0.9,

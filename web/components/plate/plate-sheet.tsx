@@ -228,6 +228,11 @@ export function PlateSheet({
       </ul>
 
       <p className="mt-2 mb-3 text-[12.5px] text-muted-foreground">Mengen sind geschätzt. Fehlt etwas?</p>
+      {plate.notes && (
+        <p data-testid="plate-notes" className="-mt-1 mb-3 text-[12.5px] text-muted-foreground">
+          Hinweis: {plate.notes}
+        </p>
+      )}
       {unmatched > 0 && (
         <p role="status" className="-mt-1 mb-3 text-[12.5px] font-semibold text-destructive">
           Nicht zugeordnete Zutaten werden nicht eingetragen.

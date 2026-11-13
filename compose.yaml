@@ -1,6 +1,14 @@
+# The health checks log a line every few seconds; without a limit the log files only grow.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:18-alpine
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-biss}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-biss}
@@ -16,6 +24,7 @@ services:
     restart: unless-stopped
 
   api:
+    logging: *logging
     build:
       context: ./api
       additional_contexts:
@@ -50,6 +59,7 @@ services:
     restart: unless-stopped
 
   web:
+    logging: *logging
     build: ./web
     environment:
       # Target of the /api/v1 rewrite in next.config.ts, read when the app is built.
