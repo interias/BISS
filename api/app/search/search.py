@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.barcode.chain import CACHE_DAYS
+from app.search.aliases import alias_codes
 from app.search.normalize import normalize
 from app.search.usage import USAGE_BY_FOOD, usage_params
 from app.search.weights import (
@@ -75,6 +76,9 @@ _N = {field: _off_number(key) for field, key in off.NUTRIMENTS.items()}
 #    Usage counts as much as the word similarity: it lifts a food that matches the query,
 #    not one that hardly resembles it.
 # 3. For each of the best candidates the generic candidates it duplicates.
+# An everyday name (search.aliases) makes its BLS foods candidates and counts for them as a
+# name that starts with the query: the word and the whole word match, the whole name
+# :alias_similarity. The foods of one alias keep the order of the list.
 # With :brand_filter only the foods of the brand :brand_hit are candidates; the brand
 # match bonus applies to that brand in both modes.
 _SEARCH = text(
@@ -83,13 +87,16 @@ _SEARCH = text(
     matched AS (
         SELECT 'food ' || f.id AS ref, f.id, f.gtin, f.source,
                f.kcal, f.protein, f.carbs, f.fat, f.fiber,
-               f.name_norm, biss_normalize(f.brand) AS brand_norm, CAST(NULL AS jsonb) AS payload
+               f.name_norm, biss_normalize(f.brand) AS brand_norm, CAST(NULL AS jsonb) AS payload,
+               CASE WHEN f.source = 'bls'
+                    THEN array_position(CAST(:alias_codes AS text[]), f.source_id) END AS alias
         FROM food f
         WHERE :q <% f.name_norm OR :q_stem <% f.name_norm
            OR (f.brand IS NOT NULL AND :q <% biss_normalize(f.brand))
+           OR (f.source = 'bls' AND f.source_id = ANY(CAST(:alias_codes AS text[])))
         UNION ALL
         SELECT 'off ' || c.gtin, NULL, c.gtin, 'off', c.kcal, c.protein, c.carbs, c.fat, c.fiber,
-               c.name_norm, c.brand_norm, c.payload
+               c.name_norm, c.brand_norm, c.payload, NULL
         FROM (
             SELECT o.gtin, o.payload, o.name_norm, o.brand_norm,
                    CAST(coalesce({_N["kcal"]},
@@ -119,11 +126,14 @@ _SEARCH = text(
         SELECT m.*,
                :w_word * w.ws
              + :w_strict * greatest(
+                   CASE WHEN m.alias IS NOT NULL THEN 1 ELSE 0 END,
                    strict_word_similarity(:key, key),
                    strict_word_similarity(:key_stem, key),
                    strict_word_similarity(:key, replace(key, ' ', '')),
                    strict_word_similarity(:key_stem, replace(key, ' ', '')))
              + :w_similarity * greatest(
+                   CASE WHEN m.alias IS NOT NULL
+                        THEN :alias_similarity - 0.01 * (m.alias - 1) ELSE 0 END,
                    similarity(:key, key),
                    similarity(:key_stem, key),
                    similarity(:key, replace(key, ' ', '')),
@@ -138,7 +148,8 @@ _SEARCH = text(
         FROM filtered m
         LEFT JOIN food_usage u ON u.food_id = m.id
         CROSS JOIN LATERAL (
-            SELECT greatest(word_similarity(:key, m.key), word_similarity(:key_stem, m.key)) AS ws
+            SELECT greatest(word_similarity(:key, m.key), word_similarity(:key_stem, m.key),
+                            CASE WHEN m.alias IS NOT NULL THEN 1 ELSE 0 END) AS ws
         ) w
     ),
     candidate AS MATERIALIZED (
@@ -232,6 +243,8 @@ def _query(session: Session, q: str, text_q: str, brand, brand_filter: bool, now
         {
             "q": q,
             "q_stem": _stem(q),
+            "alias_codes": alias_codes(q, _stem(q)),
+            "alias_similarity": config.alias_similarity,
             "key": _flat(text_q),
             "key_stem": _flat(_stem(text_q)),
             "brand_hit": brand,

@@ -3,6 +3,7 @@
 import csv
 
 from app.importers.bls import CSV_PATH, FIELDS, SERVINGS_PATH, _number
+from app.search.aliases import ALIASES_PATH
 
 
 def read(path):
@@ -26,9 +27,18 @@ def test_extract_values_are_parseable() -> None:
 def test_servings_refer_to_extract_and_are_estimated() -> None:
     names = {row["code"]: row["name"] for row in read(CSV_PATH)}
     servings = read(SERVINGS_PATH)
-    assert 25 <= len(servings) <= 40
-    assert len({row["code"] for row in servings}) == len(servings)
+    assert len({row["code"] for row in servings}) >= 150
+    assert len({(row["code"], row["label"]) for row in servings}) == len(servings)
     for serving in servings:
         assert names[serving["code"]] == serving["name"]
         assert serving["origin"] == "estimated"
         assert float(serving["grams"]) > 0
+
+
+def test_aliases_refer_to_extract() -> None:
+    names = {row["code"]: row["name"] for row in read(CSV_PATH)}
+    aliases = read(ALIASES_PATH)
+    assert len({(row["alias"], row["code"]) for row in aliases}) == len(aliases)
+    for alias in aliases:
+        assert names[alias["code"]] == alias["name"]
+        assert alias["alias"] == alias["alias"].strip().lower()

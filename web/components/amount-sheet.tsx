@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getFood, imageUrl, type Entry, type FoodDetail, type Serving } from "@/lib/api";
-import { previewMacros } from "@/lib/amount";
+import { previewMacros, servingCount, servingsGrams } from "@/lib/amount";
 import { brandLine, fmt, SOURCE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -23,7 +23,16 @@ type Initial = { grams: number };
 /** What the form shows: a stored food or a scanned draft, whose servings have no id yet. */
 export type AmountFood = Pick<
   FoodDetail,
-  "name" | "brand" | "source" | "basis" | "density" | "image_path" | "category" | "per_100" | "standard_serving"
+  | "name"
+  | "brand"
+  | "source"
+  | "basis"
+  | "density"
+  | "image_path"
+  | "category"
+  | "per_100"
+  | "standard_serving"
+  | "last_grams"
 > & { servings: Omit<Serving, "id">[] };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
@@ -52,10 +61,17 @@ export const DOTS = [
   { key: "fat", label: "Fett", color: "var(--biss-fat)" },
 ] as const;
 
+const CHIP =
+  "inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap";
+
 /**
  * Picture, source, name, brand, grams with ± or typed, serving chips and the local preview
  * of kcal/E/K/F (ADR-0003). With an entry it edits: "Speichern" and "Entfernen". There is no
  * meal: the backend suggests it by the time of day and the diary does not show it.
+ *
+ * A new entry starts with the amount last logged of the food, else with its standard
+ * serving. A tap on the chip of a serving sets it, each further tap adds one more ("2 × 1 Ei").
+ * The amounts last logged that are no serving stand behind the servings as "zuletzt".
  */
 export function AmountForm({
   food,
@@ -67,7 +83,10 @@ export function AmountForm({
   onEdit,
 }: Actions & { food: AmountFood; entry?: Entry; initial?: Initial }) {
   const [grams, setGrams] = useState(
-    initial?.grams ?? entry?.grams ?? food.standard_serving.grams,
+    initial?.grams ?? entry?.grams ?? food.last_grams?.[0] ?? food.standard_serving.grams,
+  );
+  const last = (food.last_grams ?? []).filter(
+    (amount) => !food.servings.some((serving) => servingCount(amount, serving.grams)),
   );
   const preview = previewMacros(food.per_100, grams, food.basis, food.density);
 
@@ -109,23 +128,37 @@ export function AmountForm({
 
       <IngredientGrams large grams={grams} max={Infinity} onChange={setGrams} />
 
-      {food.servings.length > 0 && (
+      {food.servings.length + last.length > 0 && (
         <div className="mb-[18px] flex flex-wrap justify-center gap-2">
-          {food.servings.map((serving) => (
+          {food.servings.map((serving) => {
+            const count = servingCount(grams, serving.grams);
+            return (
+              <button
+                key={`${serving.label}-${serving.grams}`}
+                type="button"
+                onClick={() => setGrams(servingsGrams(count + 1, serving.grams))}
+                aria-pressed={count > 0}
+                className={cn(CHIP, count > 0 && "border-primary bg-accent")}
+              >
+                {count > 1 && `${count} × `}
+                {serving.label}
+                <small className="font-medium text-muted-foreground tabular-nums">
+                  {fmt(servingsGrams(count || 1, serving.grams))} g
+                </small>
+              </button>
+            );
+          })}
+          {last.map((amount) => (
             <button
-              key={`${serving.label}-${serving.grams}`}
+              key={amount}
               type="button"
-              onClick={() => setGrams(serving.grams)}
-              aria-pressed={serving.grams === grams}
-              className={cn(
-                "inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap",
-                serving.grams === grams && "border-primary bg-accent",
-              )}
+              onClick={() => setGrams(amount)}
+              aria-label={`zuletzt ${fmt(amount)} g`}
+              aria-pressed={amount === grams}
+              className={cn(CHIP, amount === grams && "border-primary bg-accent")}
             >
-              {serving.label}
-              <small className="font-medium text-muted-foreground tabular-nums">
-                {fmt(serving.grams)} g
-              </small>
+              <small className="font-medium text-muted-foreground">zuletzt</small>
+              <span className="tabular-nums">{fmt(amount)} g</span>
             </button>
           ))}
         </div>

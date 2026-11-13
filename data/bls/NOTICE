@@ -13,5 +13,7 @@ Fett (FAT), Ballaststoffe (FIBT), Zucker (SUGAR), gesättigte Fettsäuren (FASAT
 Salz (NACL) enthalten, ohne Angaben zu Datenherkunft und Referenz. Kennzeichen wie
 TR, <LOD, <LOQ und - sind unverändert übernommen.
 
-servings.csv ist keine BLS-Datei: Die Standardportionen sind eigene Schätzungen
+servings.csv ist keine BLS-Datei: Die Portionen sind eigene Schätzungen
 (Herkunft "estimated") und verweisen nur über den BLS-Code auf die Lebensmittel.
+aliases.csv ist ebenfalls keine BLS-Datei: eigene Alltagsnamen für die Suche, die
+über den BLS-Code auf die Lebensmittel verweisen.

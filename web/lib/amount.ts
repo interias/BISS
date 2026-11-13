@@ -19,6 +19,19 @@ export const stepDown = (grams: number) => {
 };
 
 /**
+ * How many servings the grams are: 2 for 110 g of "1 Ei (M)" (55 g), 0 when they are no
+ * whole number of them. A tap on the chip of a serving adds one more.
+ */
+export const servingCount = (grams: number, servingGrams: number) => {
+  const count = Math.round(grams / servingGrams);
+  return count >= 1 && Math.abs(count * servingGrams - grams) < 0.05 ? count : 0;
+};
+
+/** The grams of `count` servings, without the noise of floats (3 × 1.2 g). */
+export const servingsGrams = (count: number, servingGrams: number) =>
+  Math.round(count * servingGrams * 10) / 10;
+
+/**
  * Local preview in the amount sheet: value per 100 × amount / 100 (ADR-0003). For
  * basis ml the values are per 100 ml, so the grams go through the density first.
  * Rounded to 0.1 like the backend snapshot, so the preview shows what the diary will

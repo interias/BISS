@@ -165,3 +165,20 @@ def test_openapi_documents_the_endpoints(client: TestClient) -> None:
     } <= set(paths)
     day = paths["/api/v1/days/{day}"]["get"]["responses"]["200"]["content"]["application/json"]
     assert day["schema"] == {"$ref": "#/components/schemas/Day"}
+
+
+def test_food_lists_the_amounts_last_logged(client: TestClient, session: Session) -> None:
+    food = add_food(session, "Zucker weiß", kcal=400)
+    assert client.get(f"/api/v1/foods/{food.id}").json()["last_grams"] == []
+    for grams, day in [(6, 1), (10, 2), (6, 3), (15, 4), (3, 5)]:
+        body = {"food_id": food.id, "grams": grams, "eaten_at": f"2026-11-0{day}T12:00:00Z"}
+        assert client.post("/api/v1/entries", json=body).status_code == 201
+    # Newest first, each amount once, at most three.
+    assert client.get(f"/api/v1/foods/{food.id}").json()["last_grams"] == [3, 15, 6]
+
+
+def test_amounts_of_a_plate_are_not_last_amounts(client: TestClient, session: Session) -> None:
+    food = add_food(session, "Reis gekocht", kcal=112)
+    group = {"group_name": "Teller", "items": [{"food_id": food.id, "grams": 137}]}
+    assert client.post("/api/v1/entries/group", json=group).status_code == 201
+    assert client.get(f"/api/v1/foods/{food.id}").json()["last_grams"] == []

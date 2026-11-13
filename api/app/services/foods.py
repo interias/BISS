@@ -4,12 +4,12 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.barcode.gtin import normalize_gtin
 from app.domain.servings import TooManyDefaults, default_index, origin_after_edit
-from app.models import Food, Serving
+from app.models import Entry, Food, Serving
 
 # Without a standard serving a recent chip and an entry without grams use 100 g.
 FALLBACK_GRAMS = 100.0
@@ -94,6 +94,23 @@ def servings_of(session: Session, food_id: int) -> Sequence[Serving]:
     ).all()
 
 
+def last_grams(session: Session, food_id: int, limit: int = 3) -> list[float]:
+    """The amounts last logged of the food, newest first, each once.
+
+    Only single entries count: the amounts of a plate or Schnellzugriff are estimates or
+    part of a recipe, not what a person chose for this food.
+    """
+    return list(
+        session.scalars(
+            select(Entry.grams)
+            .where(Entry.food_id == food_id, Entry.group_id.is_(None))
+            .group_by(Entry.grams)
+            .order_by(func.max(Entry.eaten_at).desc(), func.max(Entry.id).desc())
+            .limit(limit)
+        )
+    )
+
+
 def create_food(
     session: Session, fields: dict[str, Any], servings: list[ServingInput], gtin: str | None = None
 ) -> Food:
@@ -126,12 +143,19 @@ def update_food(
     """Change fields and, when given, the complete list of servings.
 
     At a bls or off food every changed field goes into overridden, so that an update
-    from the source keeps it (SPEC 4, overlay).
+    from the source keeps it (SPEC 4, overlay). Changed servings of a bls food go in as
+    "servings", so that the seed of servings.csv adds none to it (importers.bls).
     """
     food = get_food(session, food_id)
     changed = [name for name, value in _editable(fields).items() if getattr(food, name) != value]
     for name in changed:
         setattr(food, name, fields[name])
+    if (
+        food.source == "bls"
+        and servings is not None
+        and _servings_differ(servings_of(session, food.id), servings)
+    ):
+        changed.append("servings")
     if food.source != "own":
         known = set(food.overridden)
         food.overridden = [*food.overridden, *(name for name in changed if name not in known)]
@@ -139,6 +163,11 @@ def update_food(
         _replace_servings(session, food, servings)
     session.commit()
     return food
+
+
+def _servings_differ(stored: Sequence[Serving], given: list[ServingInput]) -> bool:
+    key = sorted((s.id, s.label, s.grams, s.is_default) for s in stored)
+    return key != sorted((s.id or 0, s.label, s.grams, s.is_default) for s in given)
 
 
 def _editable(fields: dict[str, Any]) -> dict[str, Any]:

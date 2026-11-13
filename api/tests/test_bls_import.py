@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.importers.bls import import_bls
+from app.importers.bls import import_bls, sync_servings
 from app.models import Food, FoodSourceData, Serving
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -191,3 +191,65 @@ def test_serving_for_unknown_code_fails(session: Session, tmp_path: Path) -> Non
     servings.write_text("code,name,label,grams,origin\nX999999,?,1 Stück,10,estimated\n")
     with pytest.raises(ValueError, match="X999999"):
         import_bls(session, csv_path=MINI_CSV, servings_path=servings)
+
+
+def more_servings(tmp_path: Path) -> Path:
+    """The serving fixture with a second serving for apple and bread, a first one for the oil."""
+    path = tmp_path / "servings.csv"
+    path.write_text(
+        MINI_SERVINGS.read_text(encoding="utf-8")
+        + "T000001,Testapfel roh,1 kleiner Apfel,120,estimated\n"
+        + 'T000002,"Testbrot, hell",1 dicke Scheibe,60,estimated\n'
+        + "T000003,Testöl,1 EL,10,estimated\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def servings_by_code(session: Session) -> dict[str, list[tuple[str, float, bool]]]:
+    session.expire_all()
+    rows = session.execute(
+        select(Food.source_id, Serving).join(Food).order_by(Food.source_id, Serving.id)
+    ).all()
+    found: dict[str, list[tuple[str, float, bool]]] = {}
+    for code, serving in rows:
+        found.setdefault(code, []).append((serving.label, serving.grams, serving.is_default))
+    return found
+
+
+def test_several_servings_of_a_food_the_first_is_standard(session: Session, tmp_path: Path) -> None:
+    import_bls(session, csv_path=MINI_CSV, servings_path=more_servings(tmp_path))
+    assert servings_by_code(session)["T000001"] == [
+        ("1 Apfel", 150, True),
+        ("1 kleiner Apfel", 120, False),
+    ]
+
+
+def test_sync_adds_the_new_servings_to_known_foods(session: Session, tmp_path: Path) -> None:
+    run_import(session)
+
+    assert sync_servings(session, more_servings(tmp_path)) == 3
+
+    found = servings_by_code(session)
+    assert found["T000001"] == [("1 Apfel", 150, True), ("1 kleiner Apfel", 120, False)]
+    assert found["T000002"] == [("1 Scheibe", 40, True), ("1 dicke Scheibe", 60, False)]
+    assert found["T000003"] == [("1 EL", 10, True)]  # had none: the first is the standard
+    assert sync_servings(session, more_servings(tmp_path)) == 0
+
+
+def test_sync_leaves_foods_with_edited_servings(
+    client: TestClient, session: Session, tmp_path: Path
+) -> None:
+    run_import(session)
+    apple = session.scalars(select(Food).where(Food.source_id == "T000001")).one()
+    own = [{"label": "1 Stück", "grams": 170, "is_default": True}]
+    assert client.patch(f"/api/v1/foods/{apple.id}", json={"servings": own}).status_code == 200
+    assert (
+        client.patch(f"/api/v1/foods/{bread(session).id}", json={"servings": []}).status_code == 200
+    )
+
+    assert sync_servings(session, more_servings(tmp_path)) == 1  # only the oil
+
+    found = servings_by_code(session)
+    assert found["T000001"] == [("1 Stück", 170, True)]
+    assert "T000002" not in found

@@ -129,3 +129,51 @@ test("data from Open Food Facts carry the source note (ADR-0002), other foods do
   inDialog(<AmountForm food={bananaDetail} onSubmit={() => {}} />);
   expect(screen.queryByText(/ODbL/)).not.toBeInTheDocument();
 });
+
+test("a further tap on a serving adds one more: 2 eggs, 3 eggs", () => {
+  const onSubmit = vi.fn();
+  const egg = {
+    ...bananaDetail,
+    name: "Hühnerei roh",
+    standard_serving: { label: "1 Ei (M)", grams: 55, origin: "estimated" as const },
+    servings: [
+      { id: 1, label: "1 Ei (S)", grams: 48, origin: "estimated" as const, is_default: false },
+      { id: 2, label: "1 Ei (M)", grams: 55, origin: "estimated" as const, is_default: true },
+    ],
+  };
+  inDialog(<AmountForm food={egg} onSubmit={onSubmit} />);
+  const chip = () => screen.getByRole("button", { name: /1 Ei \(M\)/ });
+  expect(amount()).toHaveValue(55);
+  expect(chip()).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(chip());
+  expect(amount()).toHaveValue(110);
+  expect(chip()).toHaveTextContent("2 × 1 Ei (M)110 g");
+  fireEvent.click(chip());
+  expect(amount()).toHaveValue(165);
+  expect(chip()).toHaveTextContent("3 × 1 Ei (M)165 g");
+  // Another serving starts at one again.
+  fireEvent.click(screen.getByRole("button", { name: /1 Ei \(S\)/ }));
+  expect(amount()).toHaveValue(48);
+  expect(chip()).toHaveTextContent("1 Ei (M)55 g");
+  fireEvent.click(chip());
+  fireEvent.click(chip());
+  fireEvent.click(screen.getByRole("button", { name: /Eintragen/ }));
+  expect(onSubmit).toHaveBeenCalledWith(110);
+});
+
+test("a new entry starts with the amount last logged and offers the last amounts", () => {
+  const sugar = { ...bananaDetail, name: "Zucker weiß", last_grams: [6, 120, 15] };
+  inDialog(<AmountForm food={sugar} onSubmit={() => {}} />);
+  expect(amount()).toHaveValue(6);
+  expect(screen.getByRole("button", { name: "zuletzt 6 g" })).toHaveAttribute("aria-pressed", "true");
+  // 120 g is the serving "1 Banane" of the fixture: no second chip for it.
+  expect(screen.queryByRole("button", { name: "zuletzt 120 g" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "zuletzt 15 g" }));
+  expect(amount()).toHaveValue(15);
+});
+
+test("editing an entry keeps its amount, whatever was logged last", () => {
+  const food = { ...bananaDetail, last_grams: [6] };
+  inDialog(<AmountForm food={food} entry={bananaEntry} onSubmit={() => {}} />);
+  expect(amount()).toHaveValue(bananaEntry.grams);
+});

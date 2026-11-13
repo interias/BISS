@@ -115,7 +115,10 @@ test("editing a BLS food keeps the value after a reload and shows eigene at once
   try {
     await page.goto("/");
     const sheet = await openBananaEditor(page);
-    const row = sheet.getByRole("listitem").first();
+    // The servings stand by grams: the row of the standard serving, before and after the change.
+    const row = sheet.getByRole("listitem").nth(before.servings.indexOf(serving));
+    const others = before.servings.filter((s) => s !== serving);
+    const rowAfter = others.filter((s) => s.grams < 130).length;
     // A rerun on the same database finds the serving already changed to own (the API cannot
     // undo that); the report then says that the origin change was not exercised.
     if (serving.origin !== "own") await expect(row.getByTestId("origin")).toHaveText("geschätzt");
@@ -133,7 +136,7 @@ test("editing a BLS food keeps the value after a reload and shows eigene at once
     await page.reload();
     const again = await openBananaEditor(page);
     await expect(again.getByLabel("Energie (kcal)")).toHaveValue("99");
-    const reloaded = again.getByRole("listitem").first();
+    const reloaded = again.getByRole("listitem").nth(rowAfter);
     await expect(reloaded.getByLabel("Gramm")).toHaveValue("130");
     await expect(reloaded.getByTestId("origin")).toHaveText("eigene"); // the backend changed the origin
 

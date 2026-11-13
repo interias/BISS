@@ -72,6 +72,8 @@ export type FoodDetail = Omit<FoodSummary, "per_100"> & {
     salt: number | null;
   };
   servings: Serving[];
+  /** Amounts last logged as single entries, newest first; none for a draft. */
+  last_grams?: number[];
 };
 
 export type Per100 = FoodDetail["per_100"];

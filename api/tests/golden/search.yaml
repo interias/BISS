@@ -2,7 +2,7 @@
 # Chosen before tuning: what a person typing the query means, usually the raw food.
 # expected: a BLS code, "fixture:<key>" for a food of `foods` or "cache:<key>" for a product
 # of `cache`.
-# kind: generic | typo | umlaut | plural | brand | usage | priority | off
+# kind: generic | typo | umlaut | plural | brand | usage | priority | off | alias
 # `foods` and `entries` are added next to the BLS seed; entries are dated days before now.
 # `cache`: products in the Open Food Facts cache, fetched days_ago before now (searchable for
 # 30 days, SPEC 6). `product` replaces fields of an invented API answer (tests/factories.py,
@@ -10,8 +10,8 @@
 # GTIN of haferdrink_alpro and must not appear next to it; one is too old to be found.
 # `barcodes`: a scanned code -> the food of `foods` with that GTIN, with and without leading
 # zeros (EAN-8, UPC-A, EAN-13, GTIN-14). The GTINs are invented, with valid check digits.
-# Not in the set: "Reis", "Nudeln", "Quark". The BLS seed has no generic entry for them, so the
-# raw food is not at place 1 by name alone; usage ranking lifts it after the first entry (epic #2).
+# alias: an everyday name of data/bls/aliases.csv ("Reis", "Nudeln", "Quark"). The BLS seed has
+# no generic entry for them, so the staple food is not at place 1 by name alone.
 foods:
   - {key: muesli_beere, name: Müsli Beere, kcal: 370}
   - {key: muesli_nuss, name: Müsli Nuss, kcal: 430}
@@ -173,6 +173,33 @@ pairs:
   - query: Haferdrink Original
     expected: fixture:haferdrink_alpro  # the food, not the cache row of its GTIN
     kind: off
+  - query: Eier
+    expected: E111100  # Hühnerei roh, before "Eier gekocht" and the dishes with eggs
+    kind: alias
+  - query: Milch
+    expected: M111300  # Vollmilch frisch, 3,5 % Fett, pasteurisiert
+    kind: alias
+  - query: Butter
+    expected: Q611000  # Butter mild gesäuert
+    kind: alias
+  - query: Reis
+    expected: C352032  # Reis poliert, gekocht
+    kind: alias
+  - query: Nudeln
+    expected: E401032  # Teigwaren eifrei, gekocht
+    kind: alias
+  - query: Quark
+    expected: M713100  # Speisequark Magerstufe
+    kind: alias
+  - query: Brötchen
+    expected: B511000  # Weizenbrötchen
+    kind: alias
+  - query: Öl
+    expected: Q120000  # Olivenöl
+    kind: alias
+  - query: Zucker
+    expected: S111000  # Zucker weiß
+    kind: generic
 barcodes:
   - {code: "2000000000022", expected: "fixture:haferflocken_koelln", kind: ean13}
   - {code: "02000000000022", expected: "fixture:haferflocken_koelln", kind: gtin14}

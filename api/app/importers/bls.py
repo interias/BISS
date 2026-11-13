@@ -1,8 +1,9 @@
-"""Seed the BLS 4.0 foods and their estimated standard servings.
+"""Seed the BLS 4.0 foods and their estimated servings.
 
-Runs on API start (see the Dockerfile) only while no foods with source=bls exist. Run by
-hand on an existing database it updates the BLS foods without touching overlay fields
-(food.overridden, SPEC 4). The raw CSV row is kept in food_source_data.
+Runs on API start (see the Dockerfile): while no foods with source=bls exist it imports
+them, afterwards it only adds the servings new in servings.csv. Run by hand on an existing
+database it updates the BLS foods without touching overlay fields (food.overridden, SPEC 4).
+The raw CSV row is kept in food_source_data.
 
     uv run python -m app.importers.bls
 """
@@ -91,38 +92,65 @@ def _upsert_foods(session: Session, rows: list[dict[str, str]], fetched_at: date
     )
 
 
-def _add_servings(
-    session: Session, servings_path: Path, food_ids: dict[str, int], known: set[str]
-) -> None:
-    """Estimated standard servings for the foods new in this run.
+def _add_servings(session: Session, servings_path: Path, food_ids: dict[str, int]) -> int:
+    """Add the estimated servings of servings.csv; return how many are new.
 
+    The first serving of a food in the file is its standard serving, unless the food has one.
     Existing servings stay: an unchanged estimated one with the same label takes the new
     grams, an own one (also an edited estimate) is never touched, nothing is duplicated.
-    A known food without servings keeps none, since they were removed on purpose.
+    A food whose servings were changed in the editor ("servings" in food.overridden, also
+    when all were removed) or that has an own serving gets no new ones.
     """
     existing: dict[int, list[Serving]] = {}
     for serving in session.scalars(select(Serving).where(Serving.food_id.in_(food_ids.values()))):
         existing.setdefault(serving.food_id, []).append(serving)
+    edited = set(
+        session.scalars(
+            select(Food.id).where(
+                Food.source == SOURCE, literal("servings") == any_(Food.overridden)
+            )
+        )
+    )
 
+    added = 0
     for row in _read(servings_path):
         if row["code"] not in food_ids:
             raise ValueError(f"serving {row['label']!r} refers to unknown BLS code {row['code']}")
         food_id = food_ids[row["code"]]
         grams = float(row["grams"])
-        if row["code"] in known:
-            for serving in existing.get(food_id, []):
-                if serving.origin == "estimated" and serving.label == row["label"]:
-                    serving.grams = grams
-        elif food_id not in existing:
+        servings = existing.setdefault(food_id, [])
+        same = next((s for s in servings if s.label == row["label"]), None)
+        if same is not None:
+            if same.origin == "estimated":
+                same.grams = grams
+        elif food_id not in edited and all(s.origin == "estimated" for s in servings):
             serving = Serving(
                 food_id=food_id,
                 label=row["label"],
                 grams=grams,
                 origin=row["origin"],
-                is_default=True,
+                is_default=not any(s.is_default for s in servings),
             )
             session.add(serving)
-            existing[food_id] = [serving]
+            servings.append(serving)
+            added += 1
+    return added
+
+
+def _food_ids(session: Session) -> dict[str, int]:
+    return {
+        source_id: food_id
+        for food_id, source_id in session.execute(
+            select(Food.id, Food.source_id).where(Food.source == SOURCE)
+        )
+    }
+
+
+def sync_servings(session: Session, servings_path: Path = SERVINGS_PATH) -> int:
+    """Add the servings new in servings.csv to the BLS foods; return their number."""
+    added = _add_servings(session, servings_path, _food_ids(session))
+    session.commit()
+    return added
 
 
 def import_bls(
@@ -133,12 +161,7 @@ def import_bls(
     fetched_at = datetime.now(UTC)
     known = set(session.scalars(select(Food.source_id).where(Food.source == SOURCE)))
     _upsert_foods(session, rows, fetched_at)
-    food_ids = {
-        source_id: food_id
-        for food_id, source_id in session.execute(
-            select(Food.id, Food.source_id).where(Food.source == SOURCE)
-        )
-    }
+    food_ids = _food_ids(session)
 
     raw_rows = [
         {
@@ -164,7 +187,7 @@ def import_bls(
             raw_rows,
         )
 
-    _add_servings(session, servings_path, food_ids, known)
+    _add_servings(session, servings_path, food_ids)
     session.commit()
     return len({row["code"] for row in rows} - known)
 
@@ -174,8 +197,11 @@ def main() -> None:
 
     with get_session() as session:
         # On API start the import only seeds; updating existing foods is a manual step.
-        count = 0 if has_bls_foods(session) else import_bls(session)
-    message = f"imported {count} BLS foods" if count else "BLS foods present, nothing to import"
+        # The servings new in servings.csv are added on every start.
+        if has_bls_foods(session):
+            message = f"BLS foods present, {sync_servings(session)} servings added"
+        else:
+            message = f"imported {import_bls(session)} BLS foods"
     print(message, file=sys.stderr)
 
 

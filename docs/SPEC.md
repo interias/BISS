@@ -62,7 +62,10 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
   - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
-  - Portions-Chips sowie kcal/E/K/F live.
+  - Ein neuer Eintrag beginnt mit der zuletzt eingetragenen Menge des Lebensmittels, sonst mit der Standardportion.
+  - Portions-Chips: Ein Tap setzt die Portion, jeder weitere Tap legt eine dazu („2 × 1 Ei (M) · 110 g“).
+  - „zuletzt“-Chips: die bis zu drei zuletzt eingetragenen Mengen, die keine Portion sind. Es zählen nur Einzeleinträge, keine Zutaten eines Tellers oder Schnellzugriffs.
+  - kcal/E/K/F live.
   - „Eintragen · X kcal“, im Bearbeitungsmodus „Speichern“ und „Entfernen“.
 - **Schritte von − und +** (Mengen-, Teller- und Schnellzugriff-Blatt):
   - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
@@ -117,6 +120,7 @@ Regeln:
 - **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
 - **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
+- **Geschätzte Portionen:** `data/bls/servings.csv` hält typische Portionen für Grundlebensmittel, die erste je Lebensmittel ist der Standard. Jeder API-Start ergänzt neue Zeilen. Ein BLS-Lebensmittel, dessen Portionen im Editor geändert wurden (`servings` in `overridden`) oder das eine eigene Portion hat, bekommt keine dazu.
 - **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
 - **Kategorie:** Eine feste Liste von 16 Symbolgruppen (`bread`, `grains`, `fruit`, `vegetables`, `legumes`, `potatoes`, `dairy`, `eggs`, `meat`, `sausage`, `fish`, `fats`, `sweets`, `drinks`, `dishes`, `other`).
   - BLS: aus dem ersten Buchstaben des BLS-Codes (Hauptgruppe), bei E und K aus den ersten zwei Zeichen (Eier, Pilze).
@@ -145,7 +149,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
 | GET | `/foods/search/off?q=` | Open-Food-Facts-Textsuche, Produkte ohne die lokalen Treffer; bei Fehler leere `hits` mit `reason` ([ADR-0011](adr/0011-off-text-search.md)) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
-| GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen |
+| GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen und `last_grams` (zuletzt eingetragene Mengen) |
 | PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
 | POST | `/plates/extract` | Teller-Foto → Gericht mit Zutaten, Mengen und Zuordnung, nichts wird eingetragen (E7) |
@@ -171,6 +175,10 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 - Bindestriche und Satzzeichen werden zu Leerzeichen, Mengenangaben wie `500 g` oder `1,5 l` fallen weg.
 
 **Kandidaten:** `pg_trgm` über `name_norm` und Marke, mit `word_similarity` für Teilwörter und Tippfehler.
+
+**Alltagsnamen:** Der BLS benennt systematisch („Hühnerei roh“, „Teigwaren eifrei, gekocht“). `data/bls/aliases.csv` ordnet Alltagswörtern wie „Ei“, „Milch“ oder „Nudeln“ die gemeinten BLS-Lebensmittel zu.
+- Ist die Suche ein solches Wort (auch im Plural), zählt es für diese Lebensmittel wie ein Name, der mit dem Wort beginnt. Sie stehen damit vor Gerichten, die das Wort nur enthalten („Ei-Einlauf“).
+- Ein eigenes, genutztes Lebensmittel bleibt davor.
 
 **Marke:**
 - Ein Wort der Suche, das als Marke bekannt ist, filtert auf diese Marke.

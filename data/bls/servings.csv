@@ -1,34 +1,292 @@
 code,name,label,grams,origin
 F503100,Banane roh,1 Banane,120,estimated
+F503100,Banane roh,1 kleine Banane,100,estimated
+F503100,Banane roh,1 große Banane,140,estimated
 F110100,Apfel roh,1 Apfel,150,estimated
+F110100,Apfel roh,1 kleiner Apfel,120,estimated
+F110100,Apfel roh,1 großer Apfel,200,estimated
 F130100,Birne roh,1 Birne,160,estimated
 F603100,Orange roh,1 Orange,180,estimated
+F603100,Orange roh,1 kleine Orange,130,estimated
 F514100,Kiwi roh,1 Kiwi,75,estimated
 F301100,Erdbeere roh,1 Schale,150,estimated
+F301100,Erdbeere roh,1 Erdbeere,15,estimated
+F301100,Erdbeere roh,1 Handvoll,100,estimated
 F502100,Avocado roh,½ Avocado,75,estimated
+F502100,Avocado roh,1 Avocado,150,estimated
 E111100,Hühnerei roh,1 Ei (M),55,estimated
+E111100,Hühnerei roh,1 Ei (S),48,estimated
+E111100,Hühnerei roh,1 Ei (L),63,estimated
 B511000,Weizenbrötchen,1 Brötchen,55,estimated
+B511000,Weizenbrötchen,½ Brötchen,28,estimated
 B121000,Roggenvollkornbrot,1 Scheibe,50,estimated
 B314000,Weizentoastbrot/Buttertoastbrot,1 Scheibe,25,estimated
 C133000,Hafer Flocken,1 Portion,50,estimated
+C133000,Hafer Flocken,1 EL,10,estimated
 M111300,"Vollmilch frisch, 3,5 % Fett, pasteurisiert",1 Glas,200,estimated
+M111300,"Vollmilch frisch, 3,5 % Fett, pasteurisiert",1 Schuss,30,estimated
+M111300,"Vollmilch frisch, 3,5 % Fett, pasteurisiert",1 Tasse,150,estimated
 M141300,"Joghurt mild, mind. 3,5 % Fett",1 Becher,150,estimated
+M141300,"Joghurt mild, mind. 3,5 % Fett",1 EL,20,estimated
+M141300,"Joghurt mild, mind. 3,5 % Fett",1 großer Becher,500,estimated
 M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr.",1 Becher,250,estimated
+M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr.",1 EL,30,estimated
+M713100,"Speisequark Magerstufe, Magerquark < 10 % Fett i. Tr.",½ Becher,125,estimated
 M711100,Körniger Frischkäse < 10 % Fett i. Tr.,1 Becher,200,estimated
+M711100,Körniger Frischkäse < 10 % Fett i. Tr.,1 EL,30,estimated
 M402600,Gouda 48 % Fett i. Tr.,1 Scheibe,20,estimated
+M402600,Gouda 48 % Fett i. Tr.,1 Portion,30,estimated
 M032100,Mozzarella mind. 45 % Fett i. Tr.,1 Kugel,125,estimated
+M032100,Mozzarella mind. 45 % Fett i. Tr.,½ Kugel,62,estimated
 Q611000,Butter mild gesäuert,1 Portion,10,estimated
+Q611000,Butter mild gesäuert,1 TL,5,estimated
+Q611000,Butter mild gesäuert,1 EL,15,estimated
 Q120000,Olivenöl,1 EL,10,estimated
+Q120000,Olivenöl,1 TL,4,estimated
 S120000,Honig,1 TL,8,estimated
+S120000,Honig,1 EL,20,estimated
 C352000,"Reis poliert, roh",1 Portion (roh),70,estimated
+C352000,"Reis poliert, roh",1 Kochbeutel,125,estimated
 E401000,"Teigwaren eifrei, roh",1 Portion (roh),100,estimated
+E401000,"Teigwaren eifrei, roh",1 kleine Portion (roh),75,estimated
+E401000,"Teigwaren eifrei, roh",1 große Portion (roh),125,estimated
 K110100,"Kartoffel geschält, roh",1 Kartoffel,100,estimated
+K110100,"Kartoffel geschält, roh",1 Portion,200,estimated
 G561100,Tomate roh,1 Tomate,80,estimated
+G561100,Tomate roh,1 Kirschtomate,15,estimated
+G561100,Tomate roh,1 große Tomate,150,estimated
 G520100,Gurke roh,½ Gurke,200,estimated
+G520100,Gurke roh,1 Gurke,400,estimated
+G520100,Gurke roh,1 Scheibe,7,estimated
 G620100,"Karotte/Möhre, roh",1 Karotte,70,estimated
+G620100,"Karotte/Möhre, roh",1 große Karotte,100,estimated
 G543100,"Gemüsepaprika rot, roh",1 Paprika,160,estimated
+G543100,"Gemüsepaprika rot, roh",½ Paprika,80,estimated
 G312100,Broccoli roh,1 Portion,200,estimated
 V416100,"Hähnchen Brustfilet, roh",1 Filet,150,estimated
 T410100,Lachs roh,1 Filet,125,estimated
 H210100,Mandel süß,1 Handvoll,25,estimated
+H210100,Mandel süß,1 Mandel,1.2,estimated
 H120100,Walnuss,1 Handvoll,25,estimated
+H120100,Walnuss,1 Walnuss,5,estimated
+E111132,Hühnerei gekocht,1 Ei (M),55,estimated
+E111132,Hühnerei gekocht,1 Ei (S),48,estimated
+E111132,Hühnerei gekocht,1 Ei (L),63,estimated
+Y740162,Eier gekocht,1 Ei (M),55,estimated
+Y710142,Spiegelei gebraten,1 Spiegelei,60,estimated
+Y720143,Rührei gebraten,1 Portion (2 Eier),120,estimated
+S111000,Zucker weiß (Raffinadezucker/Weißzucker),1 TL,5,estimated
+S111000,Zucker weiß (Raffinadezucker/Weißzucker),1 Würfel,3,estimated
+S111000,Zucker weiß (Raffinadezucker/Weißzucker),1 EL,15,estimated
+S112000,Zucker braun (Kandisfarin/Rohzucker),1 TL,5,estimated
+S112000,Zucker braun (Kandisfarin/Rohzucker),1 EL,15,estimated
+S132000,Konfitüre extra,1 TL,10,estimated
+S132000,Konfitüre extra,1 EL,20,estimated
+S145000,Nuss-Nougat-Creme,1 TL,10,estimated
+S145000,Nuss-Nougat-Creme,1 EL,20,estimated
+Q6A4000,Butter gesalzen,1 Portion,10,estimated
+Q6A4000,Butter gesalzen,1 TL,5,estimated
+Q6A4000,Butter gesalzen,1 EL,15,estimated
+Q400000,"Pflanzenmargarine Vollfett, angereichert mit Vitaminen",1 Portion,10,estimated
+Q400000,"Pflanzenmargarine Vollfett, angereichert mit Vitaminen",1 TL,5,estimated
+Q400000,"Pflanzenmargarine Vollfett, angereichert mit Vitaminen",1 EL,15,estimated
+Q180000,Rapsöl/Rüböl,1 EL,10,estimated
+Q180000,Rapsöl/Rüböl,1 TL,4,estimated
+Q320000,Sonnenblumenöl,1 EL,10,estimated
+Q320000,Sonnenblumenöl,1 TL,4,estimated
+Q991000,Mayonnaise (Fertigprodukt),1 EL,15,estimated
+Q991000,Mayonnaise (Fertigprodukt),1 TL,5,estimated
+R141100,Tomatenketchup,1 EL,15,estimated
+R141100,Tomatenketchup,1 TL,5,estimated
+R132000,Senf mittelscharf,1 TL,5,estimated
+R132000,Senf mittelscharf,1 EL,15,estimated
+M111200,"Milch fettarm, frisch, 1,5 % Fett, pasteurisiert",1 Glas,200,estimated
+M111200,"Milch fettarm, frisch, 1,5 % Fett, pasteurisiert",1 Schuss,30,estimated
+M111200,"Milch fettarm, frisch, 1,5 % Fett, pasteurisiert",1 Tasse,150,estimated
+M111100,"Milch entrahmt, frisch, höchstens 0,1 % Fett, pasteurisiert",1 Glas,200,estimated
+M111100,"Milch entrahmt, frisch, höchstens 0,1 % Fett, pasteurisiert",1 Schuss,30,estimated
+C660000,Haferdrink ungesüßt,1 Glas,200,estimated
+C660000,Haferdrink ungesüßt,1 Schuss,30,estimated
+H841100,Sojadrink ungesüßt,1 Glas,200,estimated
+H841100,Sojadrink ungesüßt,1 Schuss,30,estimated
+H800000,Mandeldrink ungesüßt,1 Glas,200,estimated
+H800000,Mandeldrink ungesüßt,1 Schuss,30,estimated
+M150000,Buttermilch,1 Glas,200,estimated
+M130300,"Kefir mind. 3,5 % Fett",1 Glas,200,estimated
+M171500,Kaffeesahne mind. 10 % Fett,1 Schuss,10,estimated
+M173800,Schlagsahne mind. 30 % Fett,1 EL,15,estimated
+M173800,Schlagsahne mind. 30 % Fett,1 Becher,200,estimated
+M172500,"Sauerrahm/Saure Sahne, mind. 10 % Fett",1 EL,20,estimated
+M172500,"Sauerrahm/Saure Sahne, mind. 10 % Fett",1 Becher,200,estimated
+M176800,"Sauerrahm/Creme fraiche, 30 % Fett",1 EL,20,estimated
+M176800,"Sauerrahm/Creme fraiche, 30 % Fett",1 Becher,200,estimated
+M141200,"Joghurt fettarm, mind. 1,5 % bis max. 1,8 % Fett",1 Becher,150,estimated
+M141200,"Joghurt fettarm, mind. 1,5 % bis max. 1,8 % Fett",1 EL,20,estimated
+M141200,"Joghurt fettarm, mind. 1,5 % bis max. 1,8 % Fett",1 großer Becher,500,estimated
+M141100,"Joghurt aus entrahmter Milch, max. 0,5 % Fett",1 Becher,150,estimated
+M141100,"Joghurt aus entrahmter Milch, max. 0,5 % Fett",1 EL,20,estimated
+M710100,"Skyr, Frischkäse < 10 % Fett i. Tr.",1 Becher,150,estimated
+M710100,"Skyr, Frischkäse < 10 % Fett i. Tr.",1 großer Becher,450,estimated
+M713500,"Speisequark Fettstufe, 40 % Fett i. Tr.",1 Becher,250,estimated
+M713500,"Speisequark Fettstufe, 40 % Fett i. Tr.",1 EL,30,estimated
+M713500,"Speisequark Fettstufe, 40 % Fett i. Tr.",½ Becher,125,estimated
+M713300,"Speisequark Halbfettstufe, 20 % Fett i. Tr.",1 Becher,250,estimated
+M713300,"Speisequark Halbfettstufe, 20 % Fett i. Tr.",1 EL,30,estimated
+M713300,"Speisequark Halbfettstufe, 20 % Fett i. Tr.",½ Becher,125,estimated
+M710800,"Frischkäsezubereitung Natur, mind. 60 % Fett i. Tr.",1 Portion,30,estimated
+M710800,"Frischkäsezubereitung Natur, mind. 60 % Fett i. Tr.",1 EL,20,estimated
+M401500,Edamer mind. 40 % Fett i. Tr.,1 Scheibe,20,estimated
+M401500,Edamer mind. 40 % Fett i. Tr.,1 Portion,30,estimated
+M304600,Emmentaler mind. 45 % Fett i. Tr.,1 Scheibe,25,estimated
+M304600,Emmentaler mind. 45 % Fett i. Tr.,1 Portion,30,estimated
+M012200,Feta mind. 45 % Fett i. Tr.,1 Portion,50,estimated
+M012200,Feta mind. 45 % Fett i. Tr.,1 Packung,200,estimated
+M306400,Parmesan mind. 30 % Fett i. Tr.,1 EL (gerieben),10,estimated
+M306400,Parmesan mind. 30 % Fett i. Tr.,1 Portion,30,estimated
+M602600,Camembert mind. 45 % Fett i. Tr.,1 Portion,30,estimated
+M602600,Camembert mind. 45 % Fett i. Tr.,1 Stück,125,estimated
+B401000,Vollkornbrötchen,1 Brötchen,65,estimated
+B521000,Roggenbrötchen,1 Brötchen,60,estimated
+B101000,Vollkornbrot,1 Scheibe,50,estimated
+B271000,Roggenmischbrot,1 Scheibe,45,estimated
+B251000,Weizenmischbrot,1 Scheibe,45,estimated
+B311000,Weizenbrot/Weißbrot,1 Scheibe,30,estimated
+B221000,Roggenbrot,1 Scheibe,45,estimated
+B111000,Weizenvollkornbrot,1 Scheibe,50,estimated
+B111200,Weizenvollkorntoastbrot,1 Scheibe,25,estimated
+D771600,Croissant (Hefeblätterteig/Plunderteig),1 Croissant,60,estimated
+C512000,Müsli Basismischung (ohne Trockenfrüchte) ungesüßt,1 Portion,50,estimated
+C512000,Müsli Basismischung (ohne Trockenfrüchte) ungesüßt,1 EL,10,estimated
+C515400,Cornflakes ungesüßt,1 Portion,30,estimated
+C214100,"Weizen Mehl, Type 405",1 EL,10,estimated
+C214100,"Weizen Mehl, Type 405",1 Tasse,125,estimated
+C352032,"Reis poliert, gekocht",1 Portion (gekocht),180,estimated
+C359000,"Reis parboiled, poliert, roh",1 Portion (roh),70,estimated
+C359000,"Reis parboiled, poliert, roh",1 Kochbeutel,125,estimated
+C351000,"Reis unpoliert, roh",1 Portion (roh),70,estimated
+E401032,"Teigwaren eifrei, gekocht",1 Portion (gekocht),250,estimated
+C119200,Couscous (Hartweizen) roh,1 Portion (roh),70,estimated
+C119100,Bulgur (Hartweizen) roh,1 Portion (roh),70,estimated
+C118000,"Quinoa weiß, roh",1 Portion (roh),60,estimated
+K110132,"Kartoffel geschält, gekocht",1 Kartoffel,90,estimated
+K110132,"Kartoffel geschält, gekocht",1 Portion,200,estimated
+K120134,"Kartoffel ungeschält, gekocht",1 Kartoffel,90,estimated
+K120134,"Kartoffel ungeschält, gekocht",1 Portion,200,estimated
+X654042,Pommes frites,1 Portion,150,estimated
+F606100,Mandarine roh,1 Mandarine,60,estimated
+F607100,Clementine roh,1 Clementine,50,estimated
+F601100,Zitrone roh,1 Zitrone,60,estimated
+F601100,Zitrone roh,1 Scheibe,8,estimated
+F304100,Heidelbeere roh,1 Handvoll,50,estimated
+F304100,Heidelbeere roh,1 Schale,125,estimated
+F302100,Himbeere roh,1 Handvoll,50,estimated
+F302100,Himbeere roh,1 Schale,125,estimated
+F310100,Weintraube roh,1 Handvoll,100,estimated
+F310100,Weintraube roh,1 Traube,5,estimated
+F203100,Pfirsich roh,1 Pfirsich,125,estimated
+F202100,Nektarine roh,1 Nektarine,125,estimated
+F220100,Pflaume roh,1 Pflaume,35,estimated
+F201100,Aprikose roh,1 Aprikose,45,estimated
+F211100,Süßkirsche roh,1 Handvoll,100,estimated
+F211100,Süßkirsche roh,1 Kirsche,8,estimated
+F516100,Mango roh,1 Mango,300,estimated
+F516100,Mango roh,½ Mango,150,estimated
+F501100,Ananas roh,1 Scheibe,100,estimated
+F535100,Wassermelone roh,1 Stück,250,estimated
+F533100,Honigmelone roh,1 Stück,150,estimated
+F604100,Grapefruit roh,½ Grapefruit,150,estimated
+F504400,Dattel getrocknet,1 Dattel,8,estimated
+F840100,Rosine/Sultanine (Weinbeere getrocknet),1 EL,15,estimated
+F840100,Rosine/Sultanine (Weinbeere getrocknet),1 Handvoll,30,estimated
+G541100,"Gemüsepaprika grün, roh",1 Paprika,160,estimated
+G541100,"Gemüsepaprika grün, roh",½ Paprika,80,estimated
+G542100,"Gemüsepaprika gelb, roh",1 Paprika,160,estimated
+G542100,"Gemüsepaprika gelb, roh",½ Paprika,80,estimated
+G480100,Speisezwiebel roh,1 Zwiebel,80,estimated
+G480100,Speisezwiebel roh,½ Zwiebel,40,estimated
+G490100,Knoblauch roh,1 Zehe,3,estimated
+G582100,Zucchini roh,1 Zucchini,250,estimated
+G582100,Zucchini roh,½ Zucchini,125,estimated
+K701100,Champignon roh,1 Champignon,20,estimated
+K701100,Champignon roh,1 Portion,100,estimated
+G105100,Kopfsalat roh,1 Portion,50,estimated
+G103100,Eisbergsalat roh,1 Portion,50,estimated
+G104100,"Feldsalat/Rapunzel, roh",1 Portion,50,estimated
+G130100,Rucola roh,1 Handvoll,25,estimated
+G211100,Spinat roh,1 Handvoll,30,estimated
+G211100,Spinat roh,1 Portion,150,estimated
+G311100,Blumenkohl roh,1 Portion,200,estimated
+G691100,Radieschen roh,1 Radieschen,10,estimated
+G331100,Kohlrabi roh,1 Kohlrabi,250,estimated
+G510100,Aubergine roh,1 Aubergine,300,estimated
+G570100,Zuckermais roh,1 Kolben,200,estimated
+H130100,Haselnuss,1 Handvoll,25,estimated
+H170100,Cashewkern,1 Handvoll,25,estimated
+H110600,Erdnuss geröstet,1 Handvoll,25,estimated
+H110700,"Erdnuss geröstet, gesalzen",1 Handvoll,25,estimated
+H110800,Erdnussmus,1 TL,10,estimated
+H110800,Erdnussmus,1 EL,20,estimated
+H880200,Erdnussbutter/Erdnusscreme,1 TL,10,estimated
+H880200,Erdnussbutter/Erdnusscreme,1 EL,20,estimated
+H861000,Tofu,1 Portion,100,estimated
+H861000,Tofu,1 Block,200,estimated
+V486100,"Pute Brust, ohne Haut, roh",1 Schnitzel,150,estimated
+U010100,"Rind Hackfleisch, roh",1 Portion,125,estimated
+U050100,"Rind/Schwein, Hackfleisch gemischt, roh",1 Portion,125,estimated
+U543100,Schwein Schnitzel (Nuss) roh,1 Schnitzel,150,estimated
+T410600,Lachs geräuchert (Räucherlachs),1 Scheibe,25,estimated
+T410600,Lachs geräuchert (Räucherlachs),1 Packung,100,estimated
+T121902,"Thunfisch im eigenen Saft, Konserve, abgetropft",1 Dose (abgetropft),140,estimated
+T121702,"Thunfisch in Öl, Konserve, abgetropft",1 Dose (abgetropft),140,estimated
+W424000,"Schwein Kochschinken, Kochpökelware",1 Scheibe,20,estimated
+W561000,"Putenbrust, Kochpökelware, geräuchert",1 Scheibe,12,estimated
+W140000,Salami,1 Scheibe,5,estimated
+W140000,Salami,1 Portion,30,estimated
+W231100,Lyoner/Lyoner Wurst,1 Scheibe,12,estimated
+W234000,Fleischwurst,1 Scheibe,12,estimated
+W211200,Wiener Würstchen,1 Würstchen,50,estimated
+W211200,Wiener Würstchen,1 Paar,100,estimated
+W327000,Leberwurst einfach,1 Portion,25,estimated
+W256100,Leberkäse,1 Scheibe,100,estimated
+S539900,Vollmilchschokolade,1 Stück,5,estimated
+S539900,Vollmilchschokolade,1 Riegel,25,estimated
+S539900,Vollmilchschokolade,1 Tafel,100,estimated
+S570000,Bitterschokolade,1 Stück,5,estimated
+S570000,Bitterschokolade,1 Riegel,25,estimated
+S570000,Bitterschokolade,1 Tafel,100,estimated
+S361000,Fruchtgummi (Gummibonbon),1 Stück,2.5,estimated
+S361000,Fruchtgummi (Gummibonbon),1 Handvoll,25,estimated
+S830000,Müsli-Riegel,1 Riegel,25,estimated
+D630400,Butterkekse/Butterplätzchen (Mürbeteig),1 Keks,5,estimated
+K280100,"Kartoffelchips/Stapelchips, diverse Sorten",1 Handvoll,25,estimated
+K280100,"Kartoffelchips/Stapelchips, diverse Sorten",1 Tüte,175,estimated
+D064000,Salzbrezeln/Salzstangen (Laugendauergebäck),1 Handvoll,25,estimated
+N410100,Kaffee (Getränk),1 Tasse,150,estimated
+N410100,Kaffee (Getränk),1 Becher,250,estimated
+N411100,Espresso (Getränk),1 Espresso,30,estimated
+N411100,Espresso (Getränk),1 doppelter Espresso,60,estimated
+N414000,"Cappuccino (Getränk) mit Milch 3,5 % Fett",1 Tasse,150,estimated
+N414000,"Cappuccino (Getränk) mit Milch 3,5 % Fett",1 Becher,250,estimated
+N418000,"Latte macchiato (Getränk) mit Milch 3,5 % Fett",1 Glas,250,estimated
+N630000,Schwarztee (Getränk),1 Tasse,150,estimated
+N630000,Schwarztee (Getränk),1 Becher,250,estimated
+N110000,Trinkwasser,1 Glas,200,estimated
+N110000,Trinkwasser,1 Flasche,500,estimated
+N120000,Natürliches Mineralwasser,1 Glas,200,estimated
+N120000,Natürliches Mineralwasser,1 Flasche,500,estimated
+N330000,Colagetränk koffeinhaltig,1 Glas,200,estimated
+N330000,Colagetränk koffeinhaltig,1 Dose,330,estimated
+N330000,Colagetränk koffeinhaltig,1 Flasche,500,estimated
+F110600,Apfelsaft,1 Glas,200,estimated
+F603600,Orangensaft,1 Glas,200,estimated
+N256000,Fruchtsaftschorle Apfel,1 Glas,200,estimated
+N256000,Fruchtsaftschorle Apfel,1 Flasche,500,estimated
+P163000,Pilsner Bier,1 kleines Bier,330,estimated
+P163000,Pilsner Bier,1 großes Bier,500,estimated
+P150000,Weizenbier kristallklar,1 Weizen,500,estimated
+P2A3000,Rotwein trocken,1 Glas,150,estimated
+P2A3000,Rotwein trocken,1 kleines Glas,100,estimated
+P210000,Weißwein trocken,1 Glas,150,estimated
+P210000,Weißwein trocken,1 kleines Glas,100,estimated
+R111000,Speisesalz/Siedesalz/Tafelsalz,1 Prise,0.5,estimated
+R111000,Speisesalz/Siedesalz/Tafelsalz,1 TL,6,estimated
