@@ -70,7 +70,8 @@ const CHIP =
  * meal: the backend suggests it by the time of day and the diary does not show it.
  *
  * A new entry starts with the amount last logged of the food, else with its standard
- * serving. A tap on the chip of a serving sets it, each further tap adds one more ("2 × 1 Ei").
+ * serving. A tap on the chip of a serving sets it, each further tap adds one more ("2 × 1 Ei");
+ * from two servings on a − in front of the chip takes one away.
  * The amounts last logged that are no serving stand behind the servings as "zuletzt".
  */
 export function AmountForm({
@@ -133,19 +134,30 @@ export function AmountForm({
           {food.servings.map((serving) => {
             const count = servingCount(grams, serving.grams);
             return (
-              <button
-                key={`${serving.label}-${serving.grams}`}
-                type="button"
-                onClick={() => setGrams(servingsGrams(count + 1, serving.grams))}
-                aria-pressed={count > 0}
-                className={cn(CHIP, count > 0 && "border-primary bg-accent")}
-              >
-                {count > 1 && `${count} × `}
-                {serving.label}
-                <small className="font-medium text-muted-foreground tabular-nums">
-                  {fmt(servingsGrams(count || 1, serving.grams))} g
-                </small>
-              </button>
+              <span key={`${serving.label}-${serving.grams}`} className="inline-flex flex-none items-center gap-1">
+                {count > 1 && (
+                  <button
+                    type="button"
+                    aria-label={`${serving.label} abziehen`}
+                    onClick={() => setGrams(servingsGrams(count - 1, serving.grams))}
+                    className="size-[34px] rounded-full border border-primary bg-surface-2 text-[17px] leading-none font-bold"
+                  >
+                    −
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setGrams(servingsGrams(count + 1, serving.grams))}
+                  aria-pressed={count > 0}
+                  className={cn(CHIP, count > 0 && "border-primary bg-accent")}
+                >
+                  {count > 1 && `${count} × `}
+                  {serving.label}
+                  <small className="font-medium text-muted-foreground tabular-nums">
+                    {fmt(servingsGrams(count || 1, serving.grams))} g
+                  </small>
+                </button>
+              </span>
             );
           })}
           {last.map((amount) => (
