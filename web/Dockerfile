@@ -5,7 +5,9 @@ FROM mcr.microsoft.com/playwright:v1.64.1-noble
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     NEXT_TELEMETRY_DISABLED=1 \
     CI=1
-RUN corepack enable
+# Node 25 and later ship without corepack, and the Playwright tag is republished with newer
+# Node versions: install it, over the bundled one where the image still has it.
+RUN npm install -g --force corepack@0.36.0 && corepack enable
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

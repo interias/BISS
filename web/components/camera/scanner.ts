@@ -15,7 +15,12 @@ async function reader() {
 export const cameraAvailable = () =>
   typeof window !== "undefined" && window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
 
-const CAMERA: MediaStreamConstraints = { video: { facingMode: "environment" }, audio: false };
+// Without a wanted size browsers hand out a small picture (often 640x480), too coarse for
+// the small print of a nutrition table: the label and plate photo are frames of this video.
+const CAMERA: MediaStreamConstraints = {
+  video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+  audio: false,
+};
 
 /**
  * Scans the rear camera into the video element; every recognised code goes to `onCode`.
@@ -26,8 +31,10 @@ export async function scanLive(video: HTMLVideoElement, onCode: (code: string) =
   const { nativeDetector, detectLive } = await import("@/components/camera/native");
   const detector = await nativeDetector();
   if (!detector) {
+    const { liveConfirmer } = await import("@/components/camera/decode");
+    const confirm = liveConfirmer(onCode);
     const controls = await (await reader()).decodeFromConstraints(CAMERA, video, (result) => {
-      if (result) onCode(result.getText());
+      if (result) confirm({ format: result.getBarcodeFormat(), text: result.getText() });
     });
     return () => controls.stop();
   }

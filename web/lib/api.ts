@@ -125,6 +125,8 @@ export type LabelDraft = {
     fiber: number | null;
     protein: number;
     salt: number | null;
+    /** % vol as printed; only the backend's check uses it. */
+    alcohol_vol: number | null;
   };
   servings: { label: string; amount: number; unit: Basis; source: "package" | "estimated" }[];
   confidence: number;
@@ -262,13 +264,27 @@ export const searchOff = (q: string) =>
 export const getFood = (id: number) => request<FoodDetail>(`/foods/${id}`);
 
 /**
+ * A barcode without a food. `incomplete`: Open Food Facts has the product without values and
+ * hands on its name and brand; `unavailable`: it did not answer, a second scan may help.
+ */
+export type BarcodeMiss = {
+  gtin: string;
+  reason: "unknown" | "incomplete" | "unavailable";
+  name: string | null;
+  brand: string | null;
+};
+
+/**
  * Barcode chain (ADR-0003): the raw code goes to the backend, which normalises it to GTIN-14.
  * A miss (404) carries that GTIN; the camera then offers the label photo.
  */
-export async function scanBarcode(code: string): Promise<{ food: BarcodeFood } | { gtin: string }> {
+export async function scanBarcode(code: string): Promise<{ food: BarcodeFood } | BarcodeMiss> {
   const path = `/foods/barcode/${encodeURIComponent(code)}`;
   const response = await fetch(BASE + path);
-  if (response.status === 404) return { gtin: ((await response.json()) as { gtin: string }).gtin };
+  if (response.status === 404) {
+    const miss = (await response.json()) as Partial<BarcodeMiss> & { gtin: string };
+    return { gtin: miss.gtin, reason: miss.reason ?? "unknown", name: miss.name ?? null, brand: miss.brand ?? null };
+  }
   if (!response.ok) throw new Error(`GET ${path}: ${response.status}`);
   return { food: (await response.json()) as BarcodeFood };
 }
@@ -289,7 +305,9 @@ export const deleteEntry = (id: number) => request<void>(`/entries/${id}`, { met
 export const imageUrl = (imagePath: string) => `${BASE}/images/${imagePath}`;
 
 /** Atwater check of values per 100 g; the backend decides what is plausible (ADR-0003). */
-export const validateFood = (body: Pick<Per100, "kcal" | "protein" | "carbs" | "fat" | "fiber">) =>
+export const validateFood = (
+  body: Pick<Per100, "kcal" | "protein" | "carbs" | "fat" | "fiber"> & { alcohol_vol?: number | null },
+) =>
   request<{ atwater: Atwater }>("/foods/validate", { method: "POST", body: JSON.stringify(body) });
 
 export const createFood = (body: FoodWrite) =>

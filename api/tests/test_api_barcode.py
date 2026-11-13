@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_off
 from app.main import app
 from app.models import Food, FoodSourceData, OffCache, Serving
-from app.sources.off import OpenFoodFacts
+from app.sources.off import OpenFoodFacts, identity
 from tests.factories import add_food, add_serving, off_answer
 
 BASE = "https://off.test"
@@ -138,18 +138,18 @@ def test_fresh_cache_is_used_without_request(client: TestClient, session: Sessio
 
 
 @pytest.mark.parametrize(
-    "mock",
+    ("mock", "reason"),
     [
-        {"json": {"code": CODE, "status": 0, "status_verbose": "product not found"}},
-        {"status_code": 404},
-        {"status_code": 500},
-        {"status_code": 429},
-        {"side_effect": httpx.ReadTimeout},
+        ({"json": {"code": CODE, "status": 0, "status_verbose": "product not found"}}, "unknown"),
+        ({"status_code": 404}, "unknown"),
+        ({"status_code": 500}, "unavailable"),
+        ({"status_code": 429}, "unavailable"),
+        ({"side_effect": httpx.ReadTimeout}, "unavailable"),
     ],
     ids=["no hit", "404", "5xx", "429", "timeout"],
 )
 def test_no_hit_is_404_with_the_gtin_and_not_cached(
-    client: TestClient, session: Session, off, mock: dict
+    client: TestClient, session: Session, off, mock: dict, reason: str
 ) -> None:
     route = off.get(URL)
     if "side_effect" in mock:
@@ -161,6 +161,23 @@ def test_no_hit_is_404_with_the_gtin_and_not_cached(
     body = response.json()
     assert body["gtin"] == GTIN
     assert body["detail"]
+    assert (body["reason"], body["name"], body["brand"]) == (reason, None, None)
+    assert cache_rows(session) == 0
+
+
+def test_product_without_values_is_404_with_its_name_and_brand(
+    client: TestClient, session: Session, off
+) -> None:
+    """Open Food Facts knows many products by name only, e.g. a mineral water."""
+    answer = off_answer()
+    answer["product"]["nutriments"] = {}
+    off.get(URL).respond(json=answer)
+    response = scan(client)
+    assert response.status_code == 404
+    body = response.json()
+    assert body["reason"] == "incomplete"
+    assert body["name"] and body["brand"]
+    assert (body["name"], body["brand"]) == identity(answer)
     assert cache_rows(session) == 0
 
 

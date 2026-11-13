@@ -34,6 +34,9 @@ class LabelPer100(_Strict):
     fiber: float | None
     protein: float
     salt: float | None
+    alcohol_vol: float | None = Field(
+        description="alcohol in % vol as printed ('Alk. 4,8 % vol'); null when none is printed"
+    )
 
 
 class LabelServing(_Strict):

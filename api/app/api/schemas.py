@@ -149,6 +149,13 @@ class BarcodeFood(BaseModel):
 class BarcodeNotFound(BaseModel):
     detail: str
     gtin: str = Field(description="the normalised GTIN-14; the client offers the label photo")
+    reason: Literal["unknown", "incomplete", "unavailable"] = Field(
+        default="unknown",
+        description="unknown: no product; incomplete: Open Food Facts has it without "
+        "values; unavailable: Open Food Facts did not answer, scanning again may help",
+    )
+    name: str | None = Field(default=None, description="of an incomplete product")
+    brand: str | None = Field(default=None, description="of an incomplete product")
 
 
 class NutrientsIn(BaseModel):
@@ -238,6 +245,9 @@ class AtwaterIn(BaseModel):
     carbs: Amount
     fat: Amount
     fiber: Amount | None = Field(default=None, description="missing counts as 0")
+    alcohol_vol: Amount | None = Field(
+        default=None, description="alcohol in % vol as read from a label; missing counts as 0"
+    )
 
 
 class AtwaterResult(BaseModel):
@@ -247,7 +257,7 @@ class AtwaterResult(BaseModel):
     deviation_pct: float | None = Field(
         description="|computed - kcal| / kcal in %; null when kcal is 0 and computed is not"
     )
-    ok: bool = Field(description="deviation at most 10 %")
+    ok: bool = Field(description="deviation at most 10 % or 10 kcal")
 
 
 class Validation(BaseModel):
@@ -273,7 +283,7 @@ class LabelValidation(BaseModel):
     ok: bool = Field(description="no rule violated")
     atwater: AtwaterResult
     violations: list[LabelViolation] = Field(
-        description="atwater within 10 %, energy kJ ≈ kcal · 4.184 within 5 %, "
+        description="atwater within 10 % or 10 kcal, energy kJ ≈ kcal · 4.184 within 5 %, "
         "sugar ≤ carbs, saturated_fat ≤ fat"
     )
 

@@ -69,6 +69,7 @@ Gemessen mit `api/scripts/spike_plate.py` an 5 Fotos des Repo-Satzes, 7 Modellau
 - **Lauf 2** lief nach genau einer Korrektur. Das Beispiel heißt jetzt „Kartoffel geschält, gebacken“ (auch für geröstete Kartoffelstücke). Alle Schwellen sind erreicht.
 - **Lokale Ausreißer:** Zwei Salate mit Hähnchen und Oliven erkannte das Modell als Tofu und Bohnen (−89 %, −65 %). Bei einem Teller lag das Hähnchen bei −39 %.
 - Insgesamt 67 Modellaufrufe: Spike 7, Lauf 1 30, Lauf 2 30.
+- **Verworfen am 13.11.2026:** eine Prompt-Regel, die für Gebratenes und angemachten Salat 5 bis 10 g Öl oder Butter als vermutete Zutat verlangt. Das Modell setzte das Öl fast überall dazu. Im Repo-Satz lagen damit nur 2/5 und 3/5 Teller innerhalb ± 35 % (zwei Läufe), ohne die Regel am selben Tag 5/5. Die gewogenen Teller werden ohnehin eher zu hoch geschätzt.
 
 ## Folgen
 - Die kcal eines Tellers hängen an zwei Schätzungen, der Menge und der Zuordnung. Die App zeigt deshalb jede Zutat mit „erkannt“ oder „vermutet“, mit ihrem Lebensmittel und mit ±. Vor dem Eintragen lässt sich alles korrigieren.

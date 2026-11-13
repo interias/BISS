@@ -213,3 +213,8 @@ test("Zutat suchen adds a search hit with its standard serving", async () => {
   expect(within(rows[3]).getByText("Banane roh")).toBeInTheDocument();
   expect(within(rows[3]).getByRole("spinbutton")).toHaveValue(banana.standard_serving.grams);
 });
+
+test("a note of the recognition shows below the ingredients", () => {
+  renderSheet({ ...fakePlate(), notes: "Sauce unter dem Reis nicht sicher erkennbar." });
+  expect(screen.getByTestId("plate-notes")).toHaveTextContent("Hinweis: Sauce unter dem Reis nicht sicher erkennbar.");
+});

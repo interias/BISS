@@ -87,6 +87,13 @@ class RateLimit:
 SearchFailure = Literal["limit", "timeout", "error"]
 
 
+class Unavailable(RuntimeError):
+    """Open Food Facts gave no answer for a barcode: local limit, timeout or an error.
+
+    Not the same as an unknown product: the client says so and the scan may be repeated.
+    """
+
+
 @dataclass(frozen=True)
 class SearchAnswer:
     """Products as API v2 answers ({"code", "status", "product"}), or why there are none."""
@@ -152,14 +159,14 @@ class OpenFoodFacts:
         return SearchAnswer(tuple(_as_product(hit) for hit in hits if isinstance(hit, dict)))
 
     def product(self, gtin: str) -> dict[str, Any] | None:
-        """The API answer for a found product.
+        """The API answer for a found product, None when Open Food Facts has none.
 
-        None when there is none, on a timeout, an error status (also 429) or when the local
-        limit is reached: the barcode chain then ends without a hit.
+        Raises Unavailable on a timeout, an error status (also 429), a broken answer or
+        when the local limit is reached: whether the product exists is not known then.
         """
         if not self.rate_limit.acquire():
             log.warning("open food facts: local limit reached, %s not requested", gtin)
-            return None
+            raise Unavailable("local limit reached")
         try:
             response = httpx.get(
                 f"{self.base_url}/api/v2/product/{off_code(gtin)}",
@@ -169,16 +176,16 @@ class OpenFoodFacts:
             )
         except httpx.HTTPError as error:
             log.warning("open food facts: %s for %s", type(error).__name__, gtin)
+            raise Unavailable(type(error).__name__) from error
+        if response.status_code == 404:
             return None
         if response.status_code != 200:
-            # 404 is an unknown product; 429 and 5xx are no hit either.
-            if response.status_code != 404:
-                log.warning("open food facts: status %s for %s", response.status_code, gtin)
-            return None
+            log.warning("open food facts: status %s for %s", response.status_code, gtin)
+            raise Unavailable(f"status {response.status_code}")
         try:
             body = response.json()
-        except ValueError:
-            return None
+        except ValueError as error:
+            raise Unavailable("no JSON") from error
         # An unknown product is answered with 200, status 0 and no product.
         if not isinstance(body, dict) or body.get("status") != 1:
             return None
@@ -224,7 +231,7 @@ class FoodDraft:
 def draft(gtin: str, payload: dict[str, Any]) -> FoodDraft | None:
     """Map an API answer onto a draft; None without a name or an energy value."""
     product = payload["product"]
-    name = _text(product.get("product_name_de")) or _text(product.get("product_name"))
+    name, brand = identity(payload)
     nutriments = product.get("nutriments")
     nutriments = nutriments if isinstance(nutriments, dict) else {}
     values = {field: _number(nutriments.get(key)) for field, key in NUTRIMENTS.items()}
@@ -236,17 +243,27 @@ def draft(gtin: str, payload: dict[str, Any]) -> FoodDraft | None:
     for field in CORE:
         if values[field] is None:
             values[field] = 0.0
-    brands = [brand.strip() for brand in (_text(product.get("brands")) or "").split(",")]
     return FoodDraft(
         gtin=gtin,
         source_id=_text(payload.get("code")) or off_code(gtin),
         name=name,
-        brand=next((brand for brand in brands if brand), None),
+        brand=brand,
         basis="ml" if product.get("product_quantity_unit") == "ml" else "g",
         values=values,
         serving=_serving(product),
         category=off_category(_tags(product.get("categories_tags"))),
     )
+
+
+def identity(payload: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Name (German first) and first brand of an API answer.
+
+    Also of a product without values: it is no draft, but it names what was scanned.
+    """
+    product = payload["product"]
+    name = _text(product.get("product_name_de")) or _text(product.get("product_name"))
+    brands = [brand.strip() for brand in (_text(product.get("brands")) or "").split(",")]
+    return name, next((brand for brand in brands if brand), None)
 
 
 SERVING_AMOUNT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:g|ml)\b", re.IGNORECASE)

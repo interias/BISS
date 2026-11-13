@@ -32,6 +32,7 @@ FAKE_DRAFT = LabelDraft(
         fiber=5,
         protein=8,
         salt=0.6,
+        alcohol_vol=None,
     ),
     servings=[LabelServing(label="1 Keks (12,5 g)", amount=12.5, unit="g", source="package")],
     confidence=0.9,

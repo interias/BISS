@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from app.sources.off import USER_AGENT, OpenFoodFacts, RateLimit, draft
+from app.sources.off import USER_AGENT, OpenFoodFacts, RateLimit, Unavailable, draft
 from tests.factories import off_answer
 
 BASE = "https://off.test"
@@ -50,25 +50,38 @@ def test_base_url_with_trailing_slash(router: respx.Router) -> None:
     [
         httpx.Response(200, json={"code": "2000000000015", "status": 0, "status_verbose": "x"}),
         httpx.Response(404, json={"status": 0}),
-        httpx.Response(500),
-        httpx.Response(503, text="maintenance"),
-        httpx.Response(429, json={"error": "too many requests"}),
-        httpx.Response(200, text="<html>no json</html>"),
         httpx.Response(200, json={"code": "2000000000015", "status": 1}),
     ],
-    ids=["status 0", "404", "500", "503", "429", "no json", "no product"],
+    ids=["status 0", "404", "no product"],
 )
 def test_no_hit(router: respx.Router, response: httpx.Response) -> None:
     router.get(URL).mock(return_value=response)
     assert OpenFoodFacts(BASE).product(GTIN) is None
 
 
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(500),
+        httpx.Response(503, text="maintenance"),
+        httpx.Response(429, json={"error": "too many requests"}),
+        httpx.Response(200, text="<html>no json</html>"),
+    ],
+    ids=["500", "503", "429", "no json"],
+)
+def test_an_error_answer_is_unavailable(router: respx.Router, response: httpx.Response) -> None:
+    router.get(URL).mock(return_value=response)
+    with pytest.raises(Unavailable):
+        OpenFoodFacts(BASE).product(GTIN)
+
+
 @pytest.mark.parametrize("error", [httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError])
-def test_timeout_and_connection_failure_are_no_hit(
+def test_timeout_and_connection_failure_are_unavailable(
     router: respx.Router, error: type[httpx.HTTPError]
 ) -> None:
     router.get(URL).mock(side_effect=error)
-    assert OpenFoodFacts(BASE).product(GTIN) is None
+    with pytest.raises(Unavailable):
+        OpenFoodFacts(BASE).product(GTIN)
 
 
 def test_local_limit_of_15_requests_per_minute(router: respx.Router) -> None:
@@ -78,12 +91,14 @@ def test_local_limit_of_15_requests_per_minute(router: respx.Router) -> None:
     for _ in range(15):
         assert source.product(GTIN) is not None
         clock.now += 1
-    assert source.product(GTIN) is None
+    with pytest.raises(Unavailable):
+        source.product(GTIN)
     assert route.call_count == 15
 
     clock.now = 1000.0 + 60  # the first request leaves the window
     assert source.product(GTIN) is not None
-    assert source.product(GTIN) is None
+    with pytest.raises(Unavailable):
+        source.product(GTIN)
     assert route.call_count == 16
 
 
@@ -91,7 +106,8 @@ def test_failed_requests_count_against_the_limit(router: respx.Router) -> None:
     route = router.get(URL).mock(side_effect=httpx.ReadTimeout)
     source = OpenFoodFacts(BASE, RateLimit(limit=2, clock=Clock()))
     for _ in range(3):
-        assert source.product(GTIN) is None
+        with pytest.raises(Unavailable):
+            source.product(GTIN)
     assert route.call_count == 2
 
 

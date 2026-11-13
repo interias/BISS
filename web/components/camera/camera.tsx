@@ -7,6 +7,7 @@ import {
   extractPlate,
   scanBarcode,
   type BarcodeFood,
+  type BarcodeMiss,
   type LabelExtraction,
   type PlateExtraction,
 } from "@/lib/api";
@@ -22,17 +23,20 @@ export const RETRY_MS = 1500;
 // picture (ADR-0005); the chain after the code is the same.
 type Mode = "starting" | "live" | "upload";
 
+/** What Open Food Facts knows of a product without values; the editor starts with it. */
+export type Known = { name: string | null; brand: string | null };
+
 type Status =
   | { kind: "idle" }
   | { kind: "looking" }
   | { kind: "hit" }
-  | { kind: "miss"; gtin: string }
+  | { kind: "miss"; gtin: string; reason: BarcodeMiss["reason"]; known?: Known }
   | { kind: "unreadable" }
   | { kind: "no-code" }
   // The label photo at the extraction; a failure offers a new photo or the hand. `gtin` is
   // the code of a miss; the label shutter without a barcode has none (SPEC 7).
   | { kind: "reading" }
-  | { kind: "label-failed"; gtin?: string; photo: boolean }
+  | { kind: "label-failed"; gtin?: string; known?: Known; photo: boolean }
   // The plate photo at the extraction (SPEC 7a); a failure offers a new photo.
   | { kind: "reading-plate" }
   | { kind: "plate-failed"; photo: boolean };
@@ -43,10 +47,9 @@ const HINTS: Record<Mode, string> = {
   upload: "Keine Kamera verfügbar. Wähle ein Foto des Barcodes, des Etiketts oder des Tellers.",
 };
 
-const STATUS_HINTS: Record<Exclude<Status["kind"], "idle" | "label-failed" | "plate-failed">, string> = {
+const STATUS_HINTS: Record<Exclude<Status["kind"], "idle" | "miss" | "label-failed" | "plate-failed">, string> = {
   looking: "Suche Produkt …",
   hit: "Gefunden",
-  miss: "Kein Treffer für diesen Barcode.",
   unreadable: "Barcode nicht lesbar. Bitte noch einmal.",
   "no-code": "Kein Barcode im Bild erkannt.",
   reading: "Lese Nährwerttabelle …",
@@ -63,8 +66,18 @@ const labelFailedHint = (photo: boolean) =>
 const plateFailedHint = (photo: boolean) =>
   photo ? "Foto nicht lesbar (JPEG, PNG oder WebP bis 10 MB)." : "Gericht nicht erkannt. Bitte noch einmal.";
 
+/** Why the barcode has no food: the three reasons of the backend (SPEC 6). */
+const missHint = (reason: BarcodeMiss["reason"], known?: Known) =>
+  reason === "unavailable"
+    ? "Open Food Facts antwortet gerade nicht. Noch einmal versuchen oder Etikett fotografieren."
+    : reason === "incomplete"
+      ? `${known?.name ? `„${known.name}“` : "Produkt"} gefunden, aber ohne Nährwerte. Bitte Etikett fotografieren.`
+      : "Kein Treffer für diesen Barcode.";
+
 const statusHint = (status: Exclude<Status, { kind: "idle" }>) =>
-  status.kind === "label-failed"
+  status.kind === "miss"
+    ? missHint(status.reason, status.known)
+    : status.kind === "label-failed"
     ? labelFailedHint(status.photo)
     : status.kind === "plate-failed"
       ? plateFailedHint(status.photo)
@@ -106,9 +119,10 @@ export function Camera({
   onFound: (food: BarcodeFood) => void;
   /**
    * The draft read from the label, or nothing to go on by hand; with the GTIN-14 of a miss,
-   * without one after the shutter "Etikett".
+   * without one after the shutter "Etikett". `known` is the name and brand of a product
+   * Open Food Facts has without values.
    */
-  onLabel: (gtin: string | undefined, label?: LabelExtraction) => void;
+  onLabel: (gtin: string | undefined, label?: LabelExtraction, known?: Known) => void;
   /** The dish read from the plate photo, with the photo for the result sheet. */
   onPlate: (plate: PlateExtraction, photo: Blob) => void;
   onClose: () => void;
@@ -143,7 +157,8 @@ export function Camera({
         timer.current = setTimeout(() => handlers.current.onFound(result.food), HIT_DELAY_MS);
         return; // stays busy: no second lookup while the frame is green
       }
-      setStatus({ kind: "miss", gtin: result.gtin });
+      const known = result.reason === "incomplete" ? { name: result.name, brand: result.brand } : undefined;
+      setStatus({ kind: "miss", gtin: result.gtin, reason: result.reason, known });
     } catch (failure) {
       // 422 (no valid GTIN) or no backend: scanning goes on, the same code again after a pause.
       console.error(failure);
@@ -199,17 +214,17 @@ export function Camera({
   };
 
   /** The label photo goes to the extraction; no barcode lookup runs meanwhile. */
-  const readLabel = async (gtin: string | undefined, photo: () => Promise<Blob>) => {
+  const readLabel = async (gtin: string | undefined, known: Known | undefined, photo: () => Promise<Blob>) => {
     if (busy.current) return;
     busy.current = true;
     setStatus({ kind: "reading" });
     try {
       const label = await extractLabel(await photo(), gtin);
-      handlers.current.onLabel(gtin, label);
+      handlers.current.onLabel(gtin, label, known);
       return; // the overlay closes
     } catch (failure) {
       console.error(failure);
-      setStatus({ kind: "label-failed", gtin, photo: failure instanceof ApiError && failure.status === 422 });
+      setStatus({ kind: "label-failed", gtin, known, photo: failure instanceof ApiError && failure.status === 422 });
     }
     busy.current = false;
   };
@@ -234,7 +249,9 @@ export function Camera({
   const hit = status.kind === "hit";
   const reading = status.kind === "reading" || status.kind === "reading-plate";
   // The GTIN goes along while a miss is on screen; the status stays during the file choice.
-  const labelGtin = status.kind === "miss" || status.kind === "label-failed" ? status.gtin : undefined;
+  const missed = status.kind === "miss" || status.kind === "label-failed" ? status : undefined;
+  const labelGtin = missed?.gtin;
+  const known = missed?.known;
   // A miss offers its own shutter with the GTIN, so "Etikett" does not stand beside it.
   const offer = labelGtin !== undefined;
   const shutter = !offer && !hit && !reading && mode !== "starting";
@@ -242,7 +259,13 @@ export function Camera({
   const shoot = () => {
     if (mode === "upload") return labelFile.current?.click();
     const live = video.current;
-    if (live) readLabel(labelGtin, () => captureFrame(live)).catch(console.error);
+    if (live) readLabel(labelGtin, known, () => captureFrame(live)).catch(console.error);
+  };
+
+  /** Open Food Facts did not answer: the same code is looked up again. */
+  const again = () => {
+    last.current = null;
+    setStatus({ kind: "idle" });
   };
 
   const shootPlate = () => {
@@ -260,7 +283,7 @@ export function Camera({
   const pickLabel = (event: ChangeEvent<HTMLInputElement>) => {
     const image = event.target.files?.[0];
     event.target.value = ""; // the same photo can be chosen again
-    if (image) readLabel(labelGtin, async () => image).catch(console.error);
+    if (image) readLabel(labelGtin, known, async () => image).catch(console.error);
   };
 
   return (
@@ -349,8 +372,17 @@ export function Camera({
             </div>
           )}
           {status.kind === "label-failed" && (
-            <button type="button" onClick={() => onLabel(labelGtin)} className="h-10 px-4 text-sm font-semibold text-cam-muted">
+            <button
+              type="button"
+              onClick={() => onLabel(labelGtin, undefined, known)}
+              className="h-10 px-4 text-sm font-semibold text-cam-muted"
+            >
               Von Hand eingeben
+            </button>
+          )}
+          {status.kind === "miss" && status.reason === "unavailable" && (
+            <button type="button" onClick={again} className="h-10 px-4 text-sm font-semibold text-cam-muted">
+              Noch einmal versuchen
             </button>
           )}
         </div>

@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import { BarcodeFormat, FormatException, NotFoundException } from "@zxing/library";
 import { ean13Modules, ean8Modules } from "@/e2e/barcode-image";
 import { HIT_CODE } from "@/e2e/camera-setup";
-import { attempts, decodePixels, quietly, settle } from "./decode";
+import { attempts, decodePixels, liveConfirmer, quietly, settle } from "./decode";
 
 /** Deterministic noise (mulberry32), so the picture is the same in every run. */
 function random(seed: number) {
@@ -123,6 +123,19 @@ test("settle: an EAN-13 counts at once, a short code once a second read confirms
   expect(settle([upcA, ean8, upcA])).toBe(upcA.text);
   expect(settle([ean8, ean13, ean8])).toBe(HIT_CODE);
   expect(settle([])).toBeNull();
+});
+
+test("liveConfirmer: an EAN-13 goes on at once, a short code once the read before agrees", () => {
+  const codes: string[] = [];
+  const confirm = liveConfirmer((code) => codes.push(code));
+  const ean8 = { format: BarcodeFormat.EAN_8, text: EAN_8 };
+  confirm(ean8);
+  expect(codes).toEqual([]);
+  confirm({ format: BarcodeFormat.EAN_13, text: HIT_CODE });
+  confirm(ean8); // the EAN-13 in between: no two reads in a row
+  expect(codes).toEqual([HIT_CODE]);
+  confirm(ean8);
+  expect(codes).toEqual([HIT_CODE, EAN_8]);
 });
 
 test("quietly leaves out the reader-found-nothing warnings of ZXing, and only those", () => {

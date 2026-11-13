@@ -82,7 +82,13 @@ def barcode(code: str, session: SessionDep, off: OffDep, now: NowDep) -> schemas
     except chain.NotFound as error:
         return JSONResponse(
             status_code=404,
-            content=schemas.BarcodeNotFound(detail=str(error), gtin=error.gtin).model_dump(),
+            content=schemas.BarcodeNotFound(
+                detail=str(error),
+                gtin=error.gtin,
+                reason=error.reason,
+                name=error.name,
+                brand=error.brand,
+            ).model_dump(),
         )
     return _barcode_food(session, found)
 
@@ -90,7 +96,7 @@ def barcode(code: str, session: SessionDep, off: OffDep, now: NowDep) -> schemas
 @router.post("/validate")
 def validate(body: schemas.AtwaterIn) -> schemas.Validation:
     """Atwater check of values per 100 g; the editor shows the result as a hint."""
-    result = atwater(body.kcal, body.protein, body.carbs, body.fat, body.fiber)
+    result = atwater(body.kcal, body.protein, body.carbs, body.fat, body.fiber, body.alcohol_vol)
     return schemas.Validation(atwater=schemas.AtwaterResult.model_validate(result))
 
 

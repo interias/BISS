@@ -150,6 +150,19 @@ export function settle(reads: Iterable<Read>): string | null {
   return null;
 }
 
+/**
+ * The same rule for the reads of the live picture (ZXing, where the browser has no reader of
+ * its own): an EAN-13 goes to `onCode` at once, an EAN-8 or UPC-A once the read before it
+ * gave the same digits.
+ */
+export function liveConfirmer(onCode: (code: string) => void) {
+  let previous: string | null = null;
+  return ({ format, text }: Read) => {
+    if (format === BarcodeFormat.EAN_13 || text === previous) onCode(text);
+    previous = text;
+  };
+}
+
 /** The digits of the barcode in the photo, `null` without one. `rgba` holds 4 bytes per pixel. */
 export function decodePixels(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): string | null {
   return settle(attempts(rgba, width, height));
