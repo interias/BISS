@@ -21,9 +21,11 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird nur ausgelesen und nicht gespeichert |
 | Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
 | Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |
+| Rezept | `recipe` | Selbst Gekochtes oder Gebackenes aus rohen Zutaten, mit Portionen, optionalem Fertiggewicht, Zubereitung und Foto. Es hat ein eigenes Lebensmittel mit den Werten je 100 g des fertigen Gerichts und der Portion „1 Portion“ |
+| Fertiggewicht | `cooked_grams` | Gewicht des fertigen Gerichts nach dem Backen oder Braten. Ohne Angabe gilt die Summe der Zutaten |
 | Gericht | `group` | Die Einträge eines Tellers oder Schnellzugriffs mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
 | Kategorie | `category` | Symbolgruppe eines Lebensmittels, z. B. Obst oder Wurst. Ein Lebensmittel ohne Foto zeigt ihr Symbol |
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |
 
-_Avoid_: „Rezept“ (nicht im MVP; ein Schnellzugriff ist kein Lebensmittel), „Kombi“ (es heißt Schnellzugriff), „Statistik“ (nicht Teil der App).
+_Avoid_: „Rezept“ für einen Schnellzugriff (der ist eine Vorlage und kein Lebensmittel), „Kombi“ (es heißt Schnellzugriff), „Statistik“ (nicht Teil der App).

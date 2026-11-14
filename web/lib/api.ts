@@ -74,6 +74,8 @@ export type FoodDetail = Omit<FoodSummary, "per_100"> & {
   servings: Serving[];
   /** Amounts last logged as single entries, newest first; none for a draft. */
   last_grams?: number[];
+  /** Set for the food of a recipe: "Bearbeiten" opens the recipe, not the food. */
+  recipe_id?: number | null;
 };
 
 export type Per100 = FoodDetail["per_100"];
@@ -335,6 +337,41 @@ export function uploadFoodImage(id: number, file: File) {
   form.append("file", file);
   return request<FoodDetail>(`/foods/${id}/image`, { method: "PUT", body: form });
 }
+
+/**
+ * Rezept (ADR-0012): an own dish from raw ingredients. Its food (`food_id`) carries the
+ * values per 100 g of the finished dish and the serving "1 Portion", and is logged like any
+ * food.
+ */
+export type Recipe = {
+  id: number;
+  food_id: number;
+  name: string;
+  description: string;
+  image_path: string | null;
+  portions: number;
+  /** The weighed finished dish; null: not weighed, the sum of the ingredients applies. */
+  cooked_grams: number | null;
+  raw_grams: number;
+  portion_grams: number;
+  items: ComboItem[];
+  per_portion: Macros;
+  totals: Macros;
+};
+
+export type RecipeWrite = {
+  name: string;
+  description: string;
+  items: ComboItemWrite[];
+  portions: number;
+  cooked_grams: number | null;
+};
+
+export const getRecipe = (id: number) => request<Recipe>(`/recipes/${id}`);
+export const createRecipe = (body: RecipeWrite) =>
+  request<Recipe>("/recipes", { method: "POST", body: JSON.stringify(body) });
+export const updateRecipe = (id: number, body: RecipeWrite) =>
+  request<Recipe>(`/recipes/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 
 /**
  * Label photo plus the scanned GTIN, if any → draft with validation (SPEC 7). The backend

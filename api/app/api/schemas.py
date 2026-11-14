@@ -137,6 +137,10 @@ class FoodDetail(BaseModel):
     last_grams: list[float] = Field(
         description="amounts last logged as single entries, newest first, at most 3"
     )
+    recipe_id: int | None = Field(
+        default=None,
+        description="set for the food of a recipe: its values come from GET /recipes/{id}",
+    )
 
 
 class BarcodeServing(BaseModel):
@@ -421,6 +425,54 @@ class Combo(BaseModel):
     name: str
     items: list[ComboItem]
     totals: Macros = Field(description="sum over the items")
+
+
+class RecipeItemIn(BaseModel):
+    food_id: int
+    grams: float = Field(gt=0, le=10_000)
+
+
+class RecipeCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str = Field(default="", description="how the dish is made, free text")
+    items: list[RecipeItemIn] = Field(min_length=1, description="the raw ingredients")
+    portions: int = Field(default=1, ge=1, le=100)
+    cooked_grams: float | None = Field(
+        default=None,
+        gt=0,
+        le=50_000,
+        description="weight of the finished dish; default: the sum of the ingredients",
+    )
+
+
+class RecipeUpdate(BaseModel):
+    """Only the fields sent change; items, when sent, replace all ingredients."""
+
+    name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
+    items: list[RecipeItemIn] | None = Field(default=None, min_length=1)
+    portions: int | None = Field(default=None, ge=1, le=100)
+    cooked_grams: float | None = Field(
+        default=None, gt=0, le=50_000, description="null: not weighed, the ingredients' sum"
+    )
+
+
+class Recipe(BaseModel):
+    """Rezept (ADR-0012): an own dish; its food is logged like any food."""
+
+    id: int
+    food_id: int = Field(description="the food to log: per 100 g of the finished dish")
+    name: str
+    description: str
+    image_path: str | None = Field(description="photo of the food, PUT /foods/{food_id}/image")
+    portions: int
+    cooked_grams: float | None = Field(description="the weighed finished dish; null: not weighed")
+    raw_grams: float = Field(description="sum of the ingredients")
+    portion_grams: float = Field(description="finished weight / portions: the serving 1 Portion")
+    items: list[ComboItem]
+    per_100: Nutrients = Field(description="per 100 g of the finished dish")
+    per_portion: Macros
+    totals: Macros = Field(description="of the whole dish")
 
 
 class ComboCreate(BaseModel):

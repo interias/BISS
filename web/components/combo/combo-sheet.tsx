@@ -58,7 +58,7 @@ const written = (rows: Row[]): ComboItemWrite[] =>
  * Schnellzugriff sheet (ADR-0010). With a combo it adjusts one entry: items with ± and typed
  * grams, tauschen, ✕, "+ Zutat suchen" and "Eintragen · X kcal"; the template only
  * changes with "Als Vorlage speichern". "Löschen" asks inline before it deletes. Without a combo
- * it creates one: name and items, "Speichern".
+ * it creates one: name and items, "Speichern"; there it also leads on to a new recipe.
  */
 export function ComboSheet({
   combo,
@@ -68,6 +68,7 @@ export function ComboSheet({
   onSave,
   onDelete,
   onCancel,
+  onRecipe,
 }: {
   combo?: Combo;
   recent: FoodSummary[];
@@ -76,6 +77,8 @@ export function ComboSheet({
   onSave: (name: string, items: ComboItemWrite[]) => void;
   onDelete?: () => void;
   onCancel: () => void;
+  /** A new Schnellzugriff offers the way to a recipe with portions instead. */
+  onRecipe?: () => void;
 }) {
   const [name, setName] = useState(combo?.name ?? "");
   const [rows, setRows] = useState<Row[]>(
@@ -134,6 +137,14 @@ export function ComboSheet({
         {combo
           ? "Gilt nur für diesen Eintrag. Die Vorlage bleibt, außer du speicherst sie."
           : "Name und Zutaten mit Menge. Ein Tap trägt später alles ein."}
+        {!combo && onRecipe && (
+          <>
+            {" "}
+            <button type="button" onClick={onRecipe} className="font-bold text-primary">
+              Stattdessen ein Rezept mit Portionen anlegen
+            </button>
+          </>
+        )}
       </p>
 
       <ul aria-label="Zutaten">
