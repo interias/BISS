@@ -17,6 +17,7 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Tagesbilanz | `day summary` | Summe von kcal, Eiweiß, KH und Fett eines Tages gegen die Ziele |
 | Tagesziel | `goal` | Sollwerte eines Tages; ohne eigenen Wert gilt das Standardziel |
 | Zuletzt-Chip | `recent` | Lebensmittel im Dock, ein Tap trägt die Standardportion ein |
+| Wirt | `suggest` | Die Vorhersage der leeren Suche: Wie der Wirt einer Stammkneipe, der morgens den Kaffee und abends das Bier hinstellt, rät er den nächsten Eintrag aus Häufigkeit, Uhrzeit und dem eben Eingetragenen |
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird nur ausgelesen und nicht gespeichert |
 | Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
 | Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |

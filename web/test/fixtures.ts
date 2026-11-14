@@ -394,6 +394,10 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
+    if (url === "/api/v1/foods/suggestions") {
+      const hit = (food: FoodSummary): SearchHit => ({ ...food, gtin: null });
+      return json({ likely: [hit(riceDetail)], recent: [hit(banana), hit(riceDetail), hit(chicken)] });
+    }
     if (url.startsWith("/api/v1/foods/search/off")) {
       if (url.includes("offline")) return json({ hits: [], reason: "timeout" });
       return json({ hits: url.toLowerCase().includes("zippelmo") ? [muesliHit] : [], reason: null });

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { Sheet } from "@/components/sheet";
-import { fakeApi, muesliHit } from "@/test/fixtures";
+import { banana, fakeApi, muesliHit } from "@/test/fixtures";
 import { SearchSheet } from "./search-sheet";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -52,4 +52,35 @@ test("foodsOnly never asks Open Food Facts", async () => {
   expect(await screen.findByText("Nicht gefunden.")).toBeInTheDocument();
   await new Promise((resolve) => setTimeout(resolve, 600));
   expect(calls.some((c) => c.url.startsWith("/api/v1/foods/search/off"))).toBe(false);
+});
+
+test("before anything is typed the guesses stand above the foods last used", async () => {
+  fakeApi();
+  const onPick = renderSearch({ foodsOnly: true });
+  const likely = await screen.findByRole("group", { name: "Jetzt wahrscheinlich" });
+  expect(within(likely).getAllByRole("button").map((b) => b.textContent)).toEqual([
+    expect.stringMatching(/^Reis gekocht/),
+  ]);
+  const recent = screen.getByRole("group", { name: "Zuletzt" });
+  expect(within(recent).getAllByRole("button")).toHaveLength(3);
+  fireEvent.click(within(recent).getByRole("button", { name: /^Banane roh/ }));
+  expect(onPick).toHaveBeenCalledWith({ ...banana, gtin: null });
+  // Typing makes room for the hits.
+  type("banane");
+  expect(screen.queryByRole("group", { name: "Zuletzt" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: /^Banane roh/ })).toBeInTheDocument();
+  type("");
+  expect(screen.getByRole("group", { name: "Zuletzt" })).toBeInTheDocument();
+});
+
+test("guesses that only repeat the foods last used stay away", async () => {
+  fakeApi();
+  const hit = { ...banana, gtin: null };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify({ likely: [hit], recent: [hit] }))),
+  );
+  renderSearch();
+  expect(await screen.findByRole("group", { name: "Zuletzt" })).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Jetzt wahrscheinlich" })).not.toBeInTheDocument();
 });

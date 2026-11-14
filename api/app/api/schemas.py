@@ -89,6 +89,17 @@ class SearchResult(BaseModel):
     )
 
 
+class Suggestions(BaseModel):
+    """What the search shows before anything is typed (SPEC 6, the Wirt)."""
+
+    likely: list[SearchHit] = Field(
+        description="guesses for the next entry at this moment, the most likely first, at most 6"
+    )
+    recent: list[SearchHit] = Field(
+        description="the foods last used, the latest first, at most 100"
+    )
+
+
 class OffSearchResult(BaseModel):
     """Products of the Open Food Facts text search the local search did not show."""
 

@@ -256,6 +256,12 @@ export const searchFoods = (q: string) =>
   request<{ hits: SearchHit[]; off_more: boolean }>(`/foods/search?q=${encodeURIComponent(q)}`);
 
 /**
+ * The empty search (the Wirt): guesses for the next entry at this moment and the foods last
+ * used, the latest first.
+ */
+export const getSuggestions = () => request<{ likely: SearchHit[]; recent: SearchHit[] }>("/foods/suggestions");
+
+/**
  * Open Food Facts text search (ADR-0011): products the local search does not show. A failure
  * is no error but an empty list with a `reason`.
  */
