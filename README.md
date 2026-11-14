@@ -35,6 +35,8 @@ docker compose --profile tailscale up -d --wait
 
 Die Anmeldung liegt danach im Volume `tailscale-state`, der Key wird nur für den ersten Start gebraucht. Das Handy braucht die Tailscale-App im selben Tailnet. Die API muss nicht freigegeben werden, Web leitet `/api/v1` selbst weiter. Der Dienst bleibt im eigenen Tailnet; Tailscale Funnel würde BISS ohne Login ins Internet stellen und ist ausgeschlossen.
 
+Die Fitness-App Milon liest das Tagebuch über die REST-API (`GET /api/v1/days/{tag}`, [ADR-0007](docs/adr/0007-mcp.md)). Damit ihr Server die API ohne veröffentlichten Port erreicht, hängt `compose.milon.yaml` die API zusätzlich in das Docker-Netz `milon-biss`, dort heißt sie `biss-api`. Einmalig `docker network create milon-biss` ausführen und in `.env` `COMPOSE_FILE=compose.yaml;compose.milon.yaml` eintragen (unter Linux mit `:`), nur für den Hauptstack: Test- und Parallelstacks bleiben ohne die Datei, sonst antworten mehrere APIs unter demselben Namen.
+
 Der Dienst `backup` sichert jede Nacht um 03:00 Uhr Datenbank und Produktfotos nach `BACKUP_DIR` (Standard `./backups`) und behält die letzten 14 Sicherungen. Wiederherstellung und Skripttest: [`docs/backup.md`](docs/backup.md).
 
 Die Etikett-Extraktion (`POST /api/v1/labels/extract`, [ADR-0004](docs/adr/0004-llm-extraction.md)) braucht in `.env` den Token aus `claude setup-token` als `CLAUDE_CODE_OAUTH_TOKEN` oder einen `ANTHROPIC_API_KEY`. Die Modelle stehen in `LLM_MODEL_FAST` und `LLM_MODEL_STRONG`. Die Claude-Code-CLI kommt mit dem Python-Paket `claude-agent-sdk` ins Image, Node ist nicht nötig. Die Extraktion speichert das Etikett-Foto nicht; die App legt es als Produktfoto des neuen Lebensmittels ab.

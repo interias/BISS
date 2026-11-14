@@ -1,0 +1,17 @@
+# Fitness app Milon (ADR-0007): puts the api on the shared network `milon-biss`, where
+# Milon's server reaches it as http://biss-api:2478. Only for the main stack, so test and
+# parallel stacks never answer under that name:
+#   docker network create milon-biss   # once
+#   COMPOSE_FILE=compose.yaml;compose.milon.yaml   # in .env (":" instead of ";" on Linux)
+services:
+  api:
+    networks:
+      default:
+      milon:
+        aliases:
+          - biss-api
+
+networks:
+  milon:
+    name: milon-biss
+    external: true
