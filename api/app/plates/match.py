@@ -7,7 +7,8 @@ matched ingredient are those an entry of that amount would store (services.entri
 The search goes by letters, so it takes "Trüffel gebraten" for "Falafel gebraten" and a
 "Kichererbsen-Eintopf" for seasoned chickpeas. Where the best hit does not carry the very
 name of the ingredient, plate_asks() lists candidates and the model chooses among them or
-none (extract.pick_foods); it still cannot invent a food.
+none (extract.pick_foods); it still cannot invent a food. The candidates come from several
+searches (_queries), because the BLS names many foods differently than the model does.
 """
 
 import re
@@ -79,11 +80,56 @@ class Ask:
     default: int | None
 
 
+# Words of a name that say how the food is prepared or served, not which food it is
+# (normalised as the search does).
+_PREPARATION = frozenset(
+    {"roh", "gekocht", "gebraten", "gegrillt", "gebacken", "geduenstet", "gegart"}
+    | {"frittiert", "geschmort", "gewuerzt", "geraeuchert", "geschaelt", "getrocknet"}
+    | {"gemischt", "paniert", "mit", "ohne", "und", "aus", "haut", "fett", "salz"}
+)
+# What the BLS calls the food a word ends in: "Aprikosenkonfitüre" is a "Konfitüre".
+_HEADS = {
+    "konfituere": "Konfitüre",
+    "marmelade": "Konfitüre",
+    "haferbrei": "Porridge",
+    "broetchen": "Brötchen",
+}
+# Words of a name searched on their own.
+_WORDS = 4
+
+
+def _queries(name: str) -> list[str]:
+    """What to search for a name: the whole name and its first word ("Falafel" of "Falafel
+    gebraten"), then what finds a food the BLS names differently: the name without the
+    preparation, its first two words as one ("Hähnchen Schenkel" is "Hähnchenschenkel"),
+    each word ("Pesto" of "Basilikum-Pesto") and the food a word ends in. A sauce is
+    searched in both spellings: the BLS has "Champignonsauce" and "Bratensoße"."""
+    name = name.strip()
+    head = re.split(r"[ ,]", name, maxsplit=1)[0]
+    words = [
+        word
+        for word in re.split(r"[ ,/-]+", name)
+        if len(normalize(word)) >= 3 and normalize(word) not in _PREPARATION
+    ][:_WORDS]
+    heads = [
+        food for word in words for end, food in _HEADS.items() if normalize(word).endswith(end)
+    ]
+    queries = [name, head, " ".join(words), "".join(words[:2]), *words, *heads]
+    queries += [_SAUCE.sub(_respell, query) for query in queries]
+    return list(dict.fromkeys(queries))
+
+
+_SAUCE = re.compile("sauce|soße|sosse", re.IGNORECASE)
+
+
+def _respell(match: re.Match[str]) -> str:
+    return "soße" if match[0].lower() == "sauce" else "sauce"
+
+
 def _candidates(session: Session, name: str) -> list[Food]:
-    """Foods for the whole name and for its first word ("Falafel" of "Falafel gebraten")."""
-    head = re.split(r"[ ,]", name.strip(), maxsplit=1)[0]
+    """Foods the searches of _queries() find, those for the whole name first."""
     found: dict[int, Food] = {}
-    for query in dict.fromkeys([name, head]):
+    for query in _queries(name):
         if not normalize(query):
             continue
         for hit in search_foods(session, query, limit=CANDIDATES):

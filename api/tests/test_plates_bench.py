@@ -18,7 +18,8 @@ strong model, so a figure belongs to one model. Per model it prints, over all ru
 - kcal: median deviation on the weighed plates;
 - seconds per photo.
 
-Below the table stand the main ingredients a model missed. PLATE_BENCH_OUT names a folder
+Below the table stand the main ingredients a model missed, and for a wrong food what each
+ingredient of that photo was matched to. PLATE_BENCH_OUT names a folder
 for the figures as JSON (one file per run of the benchmark), PLATE_BENCH_LABEL a word for
 what is being tried ("no thinking", "prompt v2"). Two switches try a variant without a
 change of the code: PLATE_BENCH_PICK=0 leaves the food to the search alone (no second call),
@@ -75,6 +76,8 @@ class Reading:
     extras: list[str] | None
     unmatched: list[str]
     items: int
+    # "name -> food" per recognised ingredient, to see what a wrong food was.
+    pairs: list[str]
     kcal_deviation: float | None
     failed: str | None
 
@@ -123,7 +126,7 @@ def _score(
 ) -> Reading:
     if isinstance(draft, str):
         missed = [(names[0], False) for names in truth.main]
-        return Reading(file, seconds, missed, missed, missed, None, [], 0, None, draft)
+        return Reading(file, seconds, missed, missed, missed, None, [], 0, [], None, draft)
     found = match_plate(session, draft, picked)
     items = [(item.name, item.food.name if item.food else None) for item in found.items]
     texts = [text for item in items for text in item if text]
@@ -140,6 +143,7 @@ def _score(
         more.extras,
         more.unmatched,
         len(items),
+        [f"{name} -> {food or '-'}" for name, food in items],
         score.deviation_pct,
         None,
     )
@@ -208,6 +212,17 @@ def _missed(runs: list[list[Reading]], field: str) -> list[str]:
     ]
 
 
+def _matches(runs: list[list[Reading]], lines: list[str]) -> list[str]:
+    """Per run what each ingredient of the photos in `lines` was matched to."""
+    files = {line.strip().split(":")[0] for line in lines}
+    return [
+        f"    {reading.file}: " + "; ".join(reading.pairs)
+        for run in runs
+        for reading in run
+        if reading.file in files
+    ]
+
+
 @pytest.mark.parametrize("name", list(SETS))
 def test_plate_benchmark(name: str, bls: Session, capsys: pytest.CaptureFixture[str]) -> None:
     plates = photo_set(SETS[name], "plates")
@@ -242,7 +257,9 @@ def test_plate_benchmark(name: str, bls: Session, capsys: pytest.CaptureFixture[
             "  not seen:",
             *_missed(scored, "seen"),
             "  seen, but the wrong or no food:",
-            *[line for line in _missed(scored, "logged") if line not in _missed(scored, "seen")],
+            *(wrong := [m for m in _missed(scored, "logged") if m not in _missed(scored, "seen")]),
+            "  matched there:",
+            *_matches(scored, wrong),
             "  made up: " + ", ".join(f"{n} x{c}" for n, c in made_up.most_common(15)),
             "  no food: " + ", ".join(f"{n} x{c}" for n, c in no_food.most_common(15)),
         ]

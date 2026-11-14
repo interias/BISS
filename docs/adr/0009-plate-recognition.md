@@ -87,6 +87,15 @@ Auftrag des Menschen: Die Erkennung soll vor allem die richtigen Lebensmittel fi
 
 - **Entscheidung:** Sonnet liest zuerst, Opus ist das starke Modell für den zweiten Versuch. Sonnet lag in jeder Spalte vorn oder gleichauf. Der Auswahlschritt bringt bei jedem Modell 2 bis 4 Punkte.
 - **Offen:** Zusammengesetzte Namen finden oft kein Lebensmittel („Aprikosenkonfitüre“, „Haferbrei mit Milch“, „Speiseeis Vanille“). Drei Hauptzutaten verfehlt jedes Modell; dort ist eher das Foto oder die Ground Truth uneindeutig.
+- **Mehr Kandidaten, BLS-Namen (14.11.2026, später am Tag):** Der Auswahlschritt bekommt Kandidaten aus mehreren Suchen (`_queries` in `api/app/plates/match.py`): Name ohne Zubereitung, die ersten zwei Wörter als eines („Hähnchen Schenkel“ → „Hähnchenschenkel“), jedes Wort einzeln („Pesto“ aus „Basilikum-Pesto“), der BLS-Name eines Wortendes („…marmelade“ → „Konfitüre“, „Haferbrei“ → „Porridge“, „…brötchen“ → „Brötchen“) und Soße in beiden Schreibweisen. Der Auswahl-Prompt erlaubt den allgemeinen oder anders benannten Treffer (jede Konfitüre → „Konfitüre extra“, paniertes Schnitzel → „Wiener Schnitzel“). Der Foto-Prompt nennt die BLS-Namen der Schwachstellen und Anker für Getränke. `claude-sonnet-5-5`, 45 Fotos, je 2 Durchläufe:
+
+  | Stand | seen (Spanne) | logged | logged ohne Auswahlschritt | erfunden je Teller | ohne Lebensmittel | kcal-Abweichung (Median) |
+  |---|---|---|---|---|---|---|
+  | vorher | 98,0 % (98–98) | 94,4 % | 91,8 % | 0,0 | 3,0 % | 9,5 % |
+  | Kandidaten und Prompts | 98,7 % (99–99) | 98,0 % | 94,1 % | 0,0 | 1,2 % | 18,3 % |
+  | dazu Soße in beiden Schreibweisen (Endstand) | 98,0 % (98–98) | 97,4 % | 93,1 % | 0,1 | 1,8 % | 18,3 % |
+
+  Die beiden letzten Zeilen unterscheiden sich nur im Zufall (einmal erkannter Tofu). Als falsch zugeordnet bleibt allein der Algensalat der Poke Bowl: Der BLS kennt kein solches Lebensmittel. Die Öl-Regel für Gebratenes blieb verworfen (siehe 13.11.). **Offen:** Die kcal-Abweichung der fünf gewogenen Teller stieg in beiden Läufen von 9,5 % auf 18,3 %; ob das an den neuen Namen, an mehr zugeordneten Zutaten oder am Zufall liegt, ist nicht gemessen. Der Benchmark zeigt jetzt bei einem falschen Lebensmittel, was jeder Zutat des Fotos zugeordnet wurde.
 
 ## Folgen
 - Die kcal eines Tellers hängen an zwei Schätzungen, der Menge und der Zuordnung. Die App zeigt deshalb jede Zutat mit „erkannt“ oder „vermutet“, mit ihrem Lebensmittel und mit ±. Vor dem Eintragen lässt sich alles korrigieren.
