@@ -25,6 +25,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  // Installed on Android the page reaches below the navigation bar of the phone. With
+  // "cover" Chrome says how high that bar is (safe-area-inset-bottom), and the dock, the
+  // sheets and the camera keep clear of it with their bottom padding.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

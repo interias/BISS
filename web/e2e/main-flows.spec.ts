@@ -86,6 +86,23 @@ test("the empty search lists the foods last used; one of them is logged within t
   expect(await taps(), "Suche + 2").toBe(3);
 });
 
+test("the back button closes the search and the app stays", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("textbox", { name: "Suchen" })).toBeVisible();
+
+  await page.goBack();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "BISS" })).toBeVisible();
+  // The sheet opens again and closes by back again.
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  await expect(sheet).toBeVisible();
+  await page.goBack();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Tagebuch" })).toBeVisible();
+});
+
 test("an unknown product comes from Open Food Facts, opens the amount sheet and is logged", async ({ page, request }) => {
   // The stub's invented product (web/e2e/off-stub); after a first run it is a food already.
   const local = await (await request.get(`/api/v1/foods/search?q=${encodeURIComponent("Zippelmo")}`)).json();

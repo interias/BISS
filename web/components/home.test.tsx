@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { coffeeCombo, fakeApi, muesliDraft, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Home } from "./home";
@@ -307,6 +307,19 @@ test("a Schnellzugriff in the empty search is logged with one tap and closes the
 
   await screen.findByText(/^Kaffee eingetragen · \d+ kcal$/);
   expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/v1/combos/1/log"]);
+  expect(screen.queryByRole("textbox", { name: "Suchen" })).not.toBeInTheDocument();
+});
+
+test("the back button of the phone closes the open sheet", async () => {
+  fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Lebensmittel suchen" }));
+  expect(await screen.findByRole("textbox", { name: "Suchen" })).toBeInTheDocument();
+  expect(window.history.state).toMatchObject({ biss: "overlay" });
+
+  act(() => {
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   expect(screen.queryByRole("textbox", { name: "Suchen" })).not.toBeInTheDocument();
 });
 

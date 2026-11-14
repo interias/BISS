@@ -114,6 +114,21 @@ export function Home() {
     return () => document.removeEventListener("visibilitychange", refresh);
   }, [start]);
 
+  // The back button of the phone closes the sheet or the camera instead of leaving the app:
+  // an open one stands on a history entry of its own. Closed by a tap, the entry stays and
+  // is used again, so at most one is ever left over.
+  const overlay = sheet !== null || camera;
+  useEffect(() => {
+    if (!overlay) return;
+    if (window.history.state?.biss !== "overlay") window.history.pushState({ biss: "overlay" }, "");
+    const close = () => {
+      setSheet(null);
+      setCamera(false);
+    };
+    window.addEventListener("popstate", close);
+    return () => window.removeEventListener("popstate", close);
+  }, [overlay]);
+
   /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
   const fail = useCallback(
     (failure: unknown) => {
