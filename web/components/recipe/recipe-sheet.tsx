@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import {
   createRecipe,
   getRecipe,
@@ -16,7 +16,7 @@ import {
 import { previewMacros } from "@/lib/amount";
 import { fmt, shortName } from "@/lib/format";
 import { DOTS } from "@/components/amount-sheet";
-import { FoodPic } from "@/components/food-pic";
+import { PhotoPicker } from "@/components/photo-picker";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
 import { SheetTitle } from "@/components/sheet";
@@ -115,8 +115,6 @@ function RecipeForm({
   const [searching, setSearching] = useState<number | "new" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const gallery = useRef<HTMLInputElement>(null);
-  const camera = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const url = photo?.url;
@@ -221,26 +219,7 @@ function RecipeForm({
       </SheetTitle>
 
       <div className="mb-2.5 grid grid-cols-[auto_1fr] items-start gap-3.5">
-        <div className="grid justify-items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Foto aufnehmen oder wählen"
-            onClick={() => gallery.current?.click()}
-            className="relative"
-          >
-            <FoodPic size={80} src={photoSrc} category="dishes" />
-          </button>
-          <div className="flex gap-2.5 text-[11.5px] font-bold text-muted-foreground">
-            <button type="button" onClick={() => camera.current?.click()}>
-              Kamera
-            </button>
-            <button type="button" onClick={() => gallery.current?.click()}>
-              Galerie
-            </button>
-          </div>
-          <input ref={gallery} type="file" accept="image/*" hidden data-testid="photo-gallery" onChange={pickPhoto} />
-          <input ref={camera} type="file" accept="image/*" capture="environment" hidden data-testid="photo-camera" onChange={pickPhoto} />
-        </div>
+        <PhotoPicker src={photoSrc} category="dishes" onPick={pickPhoto} />
         <div className="grid min-w-0 gap-1">
           <label htmlFor="recipe-name" className={label}>
             Name

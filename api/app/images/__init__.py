@@ -11,8 +11,11 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from app.config import get_settings
 
 MAX_BYTES = 10 * 1024 * 1024
-# The longer edge; smaller images keep their size.
-EDGE = 512
+# The app shows a photo as a square of at most 96 px, on a phone with three device pixels
+# each. So the centred square is kept, at most this many pixels wide; a smaller image keeps
+# its size. With QUALITY a photo takes some ten kilobytes.
+EDGE = 384
+QUALITY = 72
 # Pillow reports camera JPEGs with an MPF block (phones) as MPO.
 ACCEPTED = {"JPEG", "MPO", "PNG", "WEBP"}
 # <food id>-<content hash>.webp: a new upload gets a new name, so clients may cache forever.
@@ -28,7 +31,8 @@ def images_dir() -> Path:
 
 
 def to_webp(data: bytes) -> bytes:
-    """Convert a JPEG, PNG or WebP (recognised by content) to WebP, longer edge 512 px.
+    """Convert a JPEG, PNG or WebP (recognised by content) to a square WebP of at most
+    384 px: the centre of the photo, what lies beyond the square is cut off.
 
     Pillow's decompression bomb limit stays active.
     """
@@ -43,9 +47,10 @@ def to_webp(data: bytes) -> bytes:
             if image.mode not in ("RGB", "RGBA"):
                 alpha = image.mode in ("LA", "PA") or "transparency" in image.info
                 image = image.convert("RGBA" if alpha else "RGB")
-            image.thumbnail((EDGE, EDGE), Image.Resampling.LANCZOS)
+            edge = min(EDGE, *image.size)
+            image = ImageOps.fit(image, (edge, edge), Image.Resampling.LANCZOS)
             out = BytesIO()
-            image.save(out, format="WEBP", quality=85)
+            image.save(out, format="WEBP", quality=QUALITY, method=6)
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError) as error:
         raise InvalidImage(f"not a readable image: {error}") from error
     return out.getvalue()

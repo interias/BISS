@@ -176,7 +176,8 @@ def update_food(food_id: int, body: schemas.FoodUpdate, session: SessionDep) -> 
 def put_image(
     food_id: int, file: Annotated[UploadFile, File()], session: SessionDep
 ) -> schemas.FoodDetail:
-    """Product image as JPEG, PNG or WebP up to 10 MB; stored as WebP, longer edge 512 px."""
+    """Product image as JPEG, PNG or WebP up to 10 MB; stored as its centred square in
+    WebP, at most 384 px."""
     food = _food(session, food_id)
     try:
         name = images.save(food.id, file.file.read(images.MAX_BYTES + 1))

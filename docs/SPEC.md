@@ -174,7 +174,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET | `/foods/search/off?q=` | Open-Food-Facts-Textsuche, Produkte ohne die lokalen Treffer; bei Fehler leere `hits` mit `reason` ([ADR-0011](adr/0011-off-text-search.md)) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen und `last_grams` (zuletzt eingetragene Mengen) |
-| PUT | `/foods/{id}/image` | Produktfoto hochladen (WebP, 512 px) |
+| PUT | `/foods/{id}/image` | Produktfoto hochladen: gespeichert wird das mittige Quadrat als WebP mit höchstens 384 px (einige zehn Kilobyte) |
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
 | POST | `/plates/extract` | Teller-Foto → Gericht mit Zutaten, Mengen und Zuordnung, nichts wird eingetragen (E7) |
 | GET / PUT | `/goals/default` | Standardziele (E5) |

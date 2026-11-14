@@ -334,7 +334,7 @@ export const createFood = (body: FoodWrite) =>
 export const updateFood = (id: number, body: FoodWrite) =>
   request<FoodDetail>(`/foods/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 
-/** The backend converts the photo to WebP (512 px) and answers with the new `image_path`. */
+/** The backend keeps the centred square as WebP (384 px) and answers with the new `image_path`. */
 export function uploadFoodImage(id: number, file: File) {
   const form = new FormData();
   form.append("file", file);

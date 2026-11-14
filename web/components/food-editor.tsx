@@ -32,7 +32,7 @@ import {
 } from "@/lib/editor";
 import { CATEGORY_LABELS, fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { FoodPic } from "@/components/food-pic";
+import { PhotoPicker } from "@/components/photo-picker";
 import { SheetTitle } from "@/components/sheet";
 
 const CHECK_DEBOUNCE_MS = 300;
@@ -124,8 +124,6 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nextKey = useRef(-(fromLabel.servings.length + 1));
-  const gallery = useRef<HTMLInputElement>(null);
-  const camera = useRef<HTMLInputElement>(null);
 
   const nutrients = readNutrients(texts);
   const starred = rows.some((r) => r.key === star) ? star : (rows[0]?.key ?? null);
@@ -255,32 +253,12 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
       </SheetTitle>
 
       <div className="mb-1.5 grid grid-cols-[auto_1fr] items-start gap-3.5">
-        <div className="grid justify-items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Produktfoto aufnehmen oder wählen"
-            onClick={() => gallery.current?.click()}
-            className="relative"
-          >
-            <FoodPic size={96} src={photoSrc} category={category || null} />
-            <span className="absolute bottom-1.5 left-1.5 grid size-[26px] place-items-center rounded-[9px] bg-card text-foreground shadow-[0_2px_6px_var(--biss-shadow)]">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                <circle cx="12" cy="13" r="3.6" />
-              </svg>
-            </span>
-          </button>
-          <div className="flex gap-2.5 text-[11.5px] font-bold text-muted-foreground">
-            <button type="button" onClick={() => camera.current?.click()}>
-              Kamera
-            </button>
-            <button type="button" onClick={() => gallery.current?.click()}>
-              Galerie
-            </button>
-          </div>
-          <input ref={gallery} type="file" accept="image/*" hidden data-testid="photo-gallery" onChange={pick} />
-          <input ref={camera} type="file" accept="image/*" capture="environment" hidden data-testid="photo-camera" onChange={pick} />
-        </div>
+        <PhotoPicker
+          label="Produktfoto aufnehmen oder wählen"
+          src={photoSrc}
+          category={category || null}
+          onPick={pick}
+        />
         <div className="min-w-0">
           <div className="mb-2.5 grid min-w-0 gap-1">
             <label htmlFor="food-name" className="text-xs font-bold text-muted-foreground">
