@@ -62,6 +62,11 @@ class Food(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    @property
+    def scanned(self) -> bool:
+        """A product with a barcode, from a scan or a label photo; the app sets it apart."""
+        return self.gtin is not None
+
 
 class FoodSourceData(Base):
     __tablename__ = "food_source_data"

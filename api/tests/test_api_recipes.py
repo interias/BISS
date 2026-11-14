@@ -162,6 +162,23 @@ def test_recipes_are_listed_newest_first_and_marked_wherever_their_food_shows(
     assert nested["items"][0]["food"]["recipe"] is True
 
 
+def test_a_product_with_a_barcode_is_marked_as_scanned_wherever_it_shows(
+    client: TestClient, session: Session
+) -> None:
+    bar = add_food(session, "Testriegel", gtin="02000000000015", source="off")
+    plain = add_food(session, "Linsen")
+    entry = client.post("/api/v1/entries", json={"food_id": bar.id}).json()
+    client.post("/api/v1/entries", json={"food_id": plain.id})
+
+    assert entry["food"]["scanned"] is True
+    chips = {chip["name"]: chip["scanned"] for chip in client.get("/api/v1/recent").json()}
+    assert chips == {"Testriegel": True, "Linsen": False}
+    hits = client.get("/api/v1/foods/search", params={"q": "Testriegel"}).json()["hits"]
+    assert (hits[0]["scanned"], hits[0]["recipe"]) == (True, False)
+    recent = client.get("/api/v1/foods/suggestions").json()["recent"]
+    assert {item["food"]["name"]: item["food"]["scanned"] for item in recent} == chips
+
+
 def test_an_ml_ingredient_counts_by_its_volume(client: TestClient, session: Session) -> None:
     milk = add_food(
         session, "Milch", kcal=64, protein=3, carbs=5, fat=3.5, basis="ml", density=1.03

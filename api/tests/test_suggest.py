@@ -139,6 +139,7 @@ def test_suggestions_guess_for_this_moment_and_list_the_foods_last_used(
         "standard_serving": {"label": "1 Tasse", "grams": 200, "origin": "estimated"},
         "gtin": None,
         "recipe": False,
+        "scanned": False,
     }
 
     app.dependency_overrides[get_now] = lambda: at(15, 20, 5)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DayGroupRow, DayRow, Entry, Macros } from "@/lib/api";
+import { kindColor, type DayGroupRow, type DayRow, type Entry, type Macros } from "@/lib/api";
 import { clockTime, fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -21,8 +21,8 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       <span className="row-span-2">
         <FoodPic size={nested ? 36 : 44} category={entry.food.category} />
       </span>
-      {/* An own recipe stands in the accent colour, as in the search. */}
-      <span className={cn("min-w-0 self-end truncate font-semibold", entry.food.recipe && "text-primary")}>
+      {/* An own recipe in the accent colour, a scanned product in turquoise, as in the search. */}
+      <span className={cn("min-w-0 self-end truncate font-semibold", kindColor(entry.food))}>
         {entry.food.name}
       </span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(entry.macros.kcal)}</span>

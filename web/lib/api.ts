@@ -45,6 +45,8 @@ export type FoodSummary = {
   standard_serving: StandardServing;
   /** The food of an own recipe: the app sets it apart in the accent colour. */
   recipe?: boolean;
+  /** A product with a barcode: set apart in turquoise. */
+  scanned?: boolean;
 };
 
 /**
@@ -152,7 +154,7 @@ export type LabelExtraction = {
 
 export type Entry = {
   id: number;
-  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null; recipe?: boolean };
+  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null; recipe?: boolean; scanned?: boolean };
   grams: number;
   meal: Meal;
   eaten_at: string;
@@ -434,3 +436,10 @@ export const deleteCombo = (id: number) => request<void>(`/combos/${id}`, { meth
  */
 export const logCombo = (id: number, body: { meal?: Meal; items?: ComboItemWrite[] } = {}) =>
   request<EntryGroup>(`/combos/${id}/log`, { method: "POST", body: JSON.stringify(body) });
+
+/**
+ * The colour of a food's name: an own recipe in the accent colour, a scanned product (with
+ * a barcode) in turquoise, everything else plain.
+ */
+export const kindColor = (food: { recipe?: boolean; scanned?: boolean }) =>
+  food.recipe ? "text-primary" : food.scanned ? "text-scan" : undefined;

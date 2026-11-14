@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type MouseEvent } from "react";
-import type { Combo, FoodSummary } from "@/lib/api";
+import { kindColor, type Combo, type FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -11,10 +11,10 @@ import { FoodPic } from "@/components/food-pic";
 export const HOLD_MS = 500;
 
 /** The two lines of a chip: the name, below it grams and kcal. */
-function ChipText({ name, grams, kcal, accent }: { name: string; grams: number; kcal: number; accent?: boolean }) {
+function ChipText({ name, grams, kcal, color }: { name: string; grams: number; kcal: number; color?: string }) {
   return (
     <span className="grid leading-tight">
-      <span className={cn("text-[13px] font-semibold", accent && "text-primary")}>{name}</span>
+      <span className={cn("text-[13px] font-semibold", color)}>{name}</span>
       <small className="text-[11px] font-medium text-muted-foreground tabular-nums">
         {`${fmt(grams)} g · ${fmt(kcal)} kcal`}
       </small>
@@ -152,15 +152,15 @@ export function Dock({
               aria-label={`${name} ${fmt(grams)} g`}
               title={food.name}
               onClick={() => onRecent(food)}
-              // An own recipe stands in the accent colour, as in the search.
+              // An own recipe in the accent colour, a scanned product in turquoise, as in the search.
               className={cn(
                 "inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 py-[4px] pr-3 pl-[4px] text-left whitespace-nowrap",
-                food.recipe && "border-primary",
+                food.recipe ? "border-primary" : food.scanned && "border-scan",
               )}
             >
               <FoodPic size={26} round category={food.category} />
               <ChipText
-                accent={food.recipe}
+                color={kindColor(food)}
                 name={clip(name)}
                 grams={grams}
                 kcal={previewMacros(food.per_100, grams, food.basis, food.density).kcal}
