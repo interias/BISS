@@ -12,6 +12,7 @@ import {
   type PlateExtraction,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { Reading } from "@/components/camera/reading";
 import { cameraAvailable, captureFrame, decodeImage, scanLive } from "@/components/camera/scanner";
 
 /** How long the green frame shows before the amount sheet opens (prototype). */
@@ -108,7 +109,8 @@ function Shutter({ name, onClick }: { name: string; onClick: () => void }) {
  * frame green and hands the food on, a miss offers "Etikett fotografieren". The shutter
  * "Etikett" needs no barcode before. Both send the live picture (without camera a chosen
  * photo) to the extraction, the first with the GTIN of the miss, the second without one.
- * The shutter "Teller" sends it to the plate extraction (SPEC 7a).
+ * The shutter "Teller" sends it to the plate extraction (SPEC 7a). While a photo is read, a
+ * loading screen with changing quips covers the picture.
  */
 export function Camera({
   onFound,
@@ -344,11 +346,8 @@ export function Camera({
             </div>
           </>
         )}
-        {reading && (
-          <div aria-hidden="true" className="absolute inset-0 grid place-items-center bg-cam/70">
-            <div className="size-9 animate-spin rounded-full border-[3px] border-white/20 border-t-primary motion-reduce:animate-none" />
-          </div>
-        )}
+        {/* The wait for the model takes seconds: the picture makes room for the loading screen. */}
+        {reading && <Reading kind={status.kind === "reading" ? "label" : "plate"} />}
       </div>
 
       <p role="status" className="my-3 text-center text-[13px] text-cam-muted">

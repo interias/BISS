@@ -347,6 +347,11 @@ class EntryCreate(BaseModel):
     )
     meal: Meal | None = Field(default=None, description="default: suggested by eaten_at")
     eaten_at: AwareDatetime | None = Field(default=None, description="default: now")
+    group_id: UUID | None = Field(
+        default=None,
+        description="a logged Gericht the entry joins as one more ingredient; its name, "
+        "meal and moment apply instead of meal and eaten_at",
+    )
 
     @model_validator(mode="after")
     def _one_food(self) -> "EntryCreate":

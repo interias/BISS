@@ -172,3 +172,39 @@ def test_moving_a_group_moves_it_between_meals_in_the_day(
     assert meals["lunch"]["groups"] == [] and meals["lunch"]["entries"] == []
     [moved] = meals["dinner"]["groups"]
     assert moved["totals"] == group["totals"]
+
+
+def test_an_entry_joins_a_logged_gericht_as_one_more_ingredient(
+    client: TestClient, session: Session
+) -> None:
+    rice, chicken = foods(session)
+    group = create(client, rice, chicken)
+    sauce = add_food(session, "Sojasauce", kcal=60, protein=8, carbs=6, fat=0)
+
+    body = {"food_id": sauce.id, "grams": 10, "group_id": group["group_id"], "meal": "snack"}
+    response = client.post("/api/v1/entries", json=body)
+
+    assert response.status_code == 201, response.text
+    entry = response.json()
+    # Name, meal and moment are the ones of the Gericht, whatever the request says.
+    assert (entry["group_id"], entry["group_name"]) == (group["group_id"], "Hähnchen mit Reis")
+    assert entry["meal"] == group["meal"]
+    assert entry["eaten_at"] == group["entries"][0]["eaten_at"]
+    row = next(
+        r for r in client.get("/api/v1/days/2026-10-28").json()["rows"] if r["kind"] == "group"
+    )
+    assert [e["food"]["name"] for e in row["entries"]] == [
+        "Reis gekocht",
+        "Hähnchen Brustfilet",
+        "Sojasauce",
+    ]
+    assert row["totals"]["kcal"] == group["totals"]["kcal"] + 6
+
+
+def test_an_entry_for_an_unknown_gericht_is_404_and_logs_nothing(
+    client: TestClient, session: Session
+) -> None:
+    rice, _ = foods(session)
+    body = {"food_id": rice.id, "grams": 10, "group_id": str(uuid4())}
+    assert client.post("/api/v1/entries", json=body).status_code == 404
+    assert count(session) == 0

@@ -244,9 +244,88 @@
   }
 }
 
+/* Loading screen of the camera while a photo is read (components/camera/reading.tsx). */
+.biss-load-spin,
+.biss-load-bite,
+.biss-load-swing {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.biss-load-spin {
+  animation: biss-load-spin 2.4s linear infinite;
+}
+.biss-load-steam {
+  animation: biss-load-steam 1.8s ease-in-out infinite;
+}
+.biss-load-bite {
+  animation: biss-load-bite 2.7s ease-in-out infinite both;
+}
+.biss-load-swing {
+  transform-origin: bottom center;
+  animation: biss-load-swing 1.3s ease-in-out infinite alternate;
+}
+.biss-load-quip {
+  animation: biss-load-quip 0.35s ease;
+}
+
+@keyframes biss-load-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes biss-load-steam {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes biss-load-bite {
+  0%,
+  10% {
+    transform: scale(0);
+  }
+  25%,
+  85% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0);
+  }
+}
+
+@keyframes biss-load-swing {
+  from {
+    transform: rotate(-50deg);
+  }
+  to {
+    transform: rotate(50deg);
+  }
+}
+
+@keyframes biss-load-quip {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .biss-sheet,
-  .biss-scan {
+  .biss-scan,
+  .biss-load-spin,
+  .biss-load-steam,
+  .biss-load-bite,
+  .biss-load-swing,
+  .biss-load-quip {
     animation: none;
   }
 }

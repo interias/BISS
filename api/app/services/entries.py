@@ -54,9 +54,18 @@ def create_entry(
     grams: float | None = None,
     meal: Meal | None = None,
     eaten_at: datetime | None = None,
+    group_id: UUID | None = None,
 ) -> Entry:
-    """Log a food. Without grams the standard serving applies, without meal the suggestion."""
+    """Log a food. Without grams the standard serving applies, without meal the suggestion.
+
+    With group_id the entry joins that Gericht as one more ingredient and takes its name,
+    meal and moment.
+    """
     food = _food(session, food_id)
+    group_name = None
+    if group_id is not None:
+        first = get_group(session, group_id).entries[0][0]
+        group_name, meal, eaten_at = first.group_name, first.meal, first.eaten_at
     eaten_at = eaten_at or datetime.now(UTC)
     if grams is None:
         grams = standard_serving(session, food_id).grams
@@ -66,6 +75,8 @@ def create_entry(
         meal=meal or suggest_meal(eaten_at),
         eaten_at=eaten_at,
         day=day_of(eaten_at),
+        group_id=group_id,
+        group_name=group_name,
     )
     _apply(entry, snapshot(food, grams))
     session.add(entry)

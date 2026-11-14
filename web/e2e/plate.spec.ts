@@ -131,6 +131,31 @@ test("a plate unfolds in the diary; entfernen and Rückgängig bring the group b
   await expect(page.locator(`[data-group-id="${restored.group_id}"]`)).toContainText(DISH);
 });
 
+test("tap budget: a logged Gericht takes one more ingredient with aufklappen + 3", async ({ page }) => {
+  const taps = await countTaps(page);
+  await page.goto("/");
+  await photographPlate(page);
+  const { group } = await logPlate(page);
+  const logged = await taps();
+
+  const row = page.locator(`[data-group-id="${group.group_id}"]`);
+  await row.getByRole("button", { name: new RegExp(DISH) }).click();
+  await row.getByRole("button", { name: "+ Zutat" }).click();
+  const sheet = page.getByRole("dialog");
+  // Any food last used will do as the ingredient.
+  await sheet.getByRole("group", { name: "Zuletzt" }).getByRole("button").first().click();
+  const [created] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  ]);
+  expect(created.status()).toBe(201);
+  expect((await created.json()).group_id).toBe(group.group_id);
+
+  await expect(row).toContainText("4 Zutaten");
+  await expect(row.locator("[data-entry-id]")).toHaveCount(4);
+  expect((await taps()) - logged, "aufklappen + Zutat + Treffer + Eintragen").toBe(4);
+});
+
 test("Rückgängig after logging a plate removes the group again", async ({ page }) => {
   await page.goto("/");
   await photographPlate(page);
