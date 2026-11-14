@@ -22,6 +22,16 @@ function ChipText({ name, grams, kcal, color }: { name: string; grams: number; k
   );
 }
 
+/** Two stacked squares mark a combination (prototype): on its chip and on the button for a new one. */
+function ComboMark() {
+  return (
+    <span aria-hidden="true" className="relative size-[11px] flex-none">
+      <i className="absolute top-0 right-0 size-[8px] rounded-[2px] border-[1.5px] border-primary" />
+      <i className="absolute bottom-0 left-0 size-[8px] rounded-[2px] bg-primary" />
+    </span>
+  );
+}
+
 /**
  * A Schnellzugriff chip: a tap logs it, a long press or the context menu opens it. The click
  * that ends a long press does nothing; a click from the keyboard always logs.
@@ -76,18 +86,14 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
       onClick={click}
       className="inline-flex flex-none items-center gap-2 rounded-full border border-transparent bg-accent py-[4px] pr-3.5 pl-3 text-left whitespace-nowrap select-none [-webkit-touch-callout:none]"
     >
-      {/* Two stacked squares mark a combination (prototype). */}
-      <span aria-hidden="true" className="relative size-[11px] flex-none">
-        <i className="absolute top-0 right-0 size-[8px] rounded-[2px] border-[1.5px] border-primary" />
-        <i className="absolute bottom-0 left-0 size-[8px] rounded-[2px] bg-primary" />
-      </span>
+      <ComboMark />
       <ChipText name={clip(combo.name)} grams={grams} kcal={combo.totals.kcal} />
     </button>
   );
 }
 
 /**
- * Dock: "+ Neu" and the cookbook of the own recipes first so they never need scrolling, then
+ * Dock: the button for a new Schnellzugriff (a plus with the mark of its chips) and the cookbook of the own recipes first so they never need scrolling, then
  * the Schnellzugriff and recent chips, search field and the camera button.
  */
 export function Dock({
@@ -121,10 +127,13 @@ export function Dock({
         <button
           type="button"
           aria-label="Neuer Schnellzugriff"
+          title="Neuer Schnellzugriff"
           onClick={onNewCombo}
-          className="inline-flex flex-none items-center rounded-full border border-dashed border-primary px-3 py-[5px] text-[13px] leading-[26px] font-semibold whitespace-nowrap text-primary"
+          className="inline-flex h-[38px] flex-none items-center gap-1.5 rounded-full border border-dashed border-primary px-3 text-[15px] leading-none font-bold text-primary"
         >
-          + Neu
+          {/* A plus and the mark of the Schnellzugriff chips: a new one of those. */}
+          +
+          <ComboMark />
         </button>
         <button
           type="button"
