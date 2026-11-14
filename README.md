@@ -73,6 +73,10 @@ docker compose run --rm --no-deps -v "<ordner-mit-xlsx>:/bls:ro" -v "./data/bls:
 
 Die XLSX selbst gehört nicht ins Repo.
 
+## Vorstellungsvideo
+
+[`docs/video/index.html`](docs/video/index.html) zeigt die sieben Wege zum Eintrag in 60 Sekunden, animiert und mit Ton. Die Seite braucht einen Webserver, etwa `python -m http.server --directory docs/video`. Sprecher (ElevenLabs v4) und Musik (Lyria 3) erzeugt `python docs/video/generate_audio.py` über OpenRouter; dafür steht `OPENROUTER_API_KEY` in der `.env`, außerdem braucht das Skript `ffmpeg`.
+
 ## Lizenz
 
 Code unter [MIT](LICENSE). Nährwertdaten: Bundeslebensmittelschlüssel (BLS) 4.0, Max Rubner-Institut, CC BY 4.0; Produktdaten zur Laufzeit von Open Food Facts (ODbL).

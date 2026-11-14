@@ -1,0 +1,872 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BISS in 60 Sekunden</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one screen. The story panel on the left narrates, the phone on the right acts it out;
+   a timeline at the bottom. Tokens come from docs/design/prototype.html and web/app/globals.css. */
+:root{
+  --bg:#EDF0EA; --surface:#FFFFFF; --surface-2:#F4F6F1; --tile:#EEF1EA; --ink:#17201A; --muted:#5C665E; --line:#D8DDD3;
+  --accent:#B3245F; --accent-ink:#FFFFFF; --accent-soft:#F6DCE7; --scan:#0E7C86;
+  --prot:#2F64D6; --carb:#C98E00; --fat:#23926A; --ok:#23926A;
+  --frame:#C9CFC4; --shadow:rgba(23,32,26,.16); --scrim:rgba(10,14,12,.45);
+  --cam:#0B0E0C; --cam-ink:#F2F4F0; --cam-muted:#9AA59C;
+  --font-display:'Bricolage Grotesque','Figtree',system-ui,sans-serif;
+  --font-body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1210; --surface:#171C19; --surface-2:#1E2420; --tile:#242B26; --ink:#E8ECE5; --muted:#9AA59C; --line:#2B332E;
+  --accent:#E2588F; --accent-ink:#1C0712; --accent-soft:#3A1726; --scan:#38C6D9;
+  --prot:#7AA2FF; --carb:#F0C04A; --fat:#52C99A; --ok:#52C99A;
+  --frame:#2B332E; --shadow:rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1210; --surface:#171C19; --surface-2:#1E2420; --tile:#242B26; --ink:#E8ECE5; --muted:#9AA59C; --line:#2B332E;
+  --accent:#E2588F; --accent-ink:#1C0712; --accent-soft:#3A1726; --scan:#38C6D9;
+  --prot:#7AA2FF; --carb:#F0C04A; --fat:#52C99A; --ok:#52C99A;
+  --frame:#2B332E; --shadow:rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); color-scheme:dark}
+
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;overflow:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px;
+  box-sizing:border-box;display:flex;flex-direction:column;gap:10px}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.num{font-variant-numeric:tabular-nums}
+
+/* Stage */
+.stage{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,.35fr);align-items:center;gap:32px;max-width:1100px;width:100%;margin:0 auto}
+.story{position:relative;height:340px;min-width:0}
+.panel{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:12px;opacity:0;will-change:transform,opacity}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0}
+.panel h2{font-family:var(--font-display);font-weight:800;font-size:clamp(34px,4.6vw,56px);line-height:1;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.panel p{margin:0;color:var(--muted);font-size:17px;line-height:1.45;max-width:30ch}
+.budget{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px}
+.taps{display:flex;gap:6px}
+.taps i{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);display:block;transition:background .15s,transform .15s}
+.taps i.on{background:var(--accent);transform:scale(1.15)}
+.checklist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px;font-size:14.5px}
+.checklist li{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;opacity:0}
+.checklist li b{color:var(--accent);font-variant-numeric:tabular-nums}
+.checklist svg{color:var(--ok)}
+.aside{align-self:end;padding-bottom:12px;min-width:0}
+.score{font-size:13px;color:var(--muted);font-weight:600;display:grid;gap:4px;justify-items:start}
+.score b{font-family:var(--font-display);font-size:30px;color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Intro logo, over the stage */
+.intro{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:5}
+.intro-in{display:grid;justify-items:center;gap:14px}
+.intro svg{width:132px;height:132px;filter:drop-shadow(0 18px 28px var(--shadow))}
+.intro h1{font-family:var(--font-display);font-weight:800;font-size:clamp(56px,9vw,104px);letter-spacing:.08em;margin:0;line-height:.9;display:flex}
+.intro h1 span{display:inline-block}
+.intro p{margin:0;font-size:18px;color:var(--muted);font-weight:600}
+
+/* Phone */
+.phoneBox{position:relative;justify-self:center}
+.phone{position:absolute;left:0;top:0;width:404px;height:780px;transform-origin:0 0;border-radius:44px;padding:10px;background:var(--frame);box-shadow:0 30px 60px -24px var(--shadow)}
+.screen{position:relative;width:384px;height:760px;border-radius:34px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:22px 20px 4px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand svg{width:26px;height:26px}
+.brand b{font-family:var(--font-display);font-weight:800;font-size:21px;letter-spacing:.06em}
+.date{color:var(--muted);font-size:12.5px;font-weight:600}
+.summary{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:center;margin:6px 20px 0;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.ring{position:relative;width:112px;height:112px}
+.ring svg{display:block;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .big{font-family:var(--font-display);font-weight:800;font-size:27px;line-height:1}
+.ring .small{color:var(--muted);font-size:11px;margin-top:3px}
+.macros{display:grid;gap:10px}
+.macro .row{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.macro .row span:first-child{font-weight:600}
+.macro .row span:last-child{color:var(--muted)}
+.bar{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;border-radius:4px}
+.diary{flex:1;min-height:0;overflow:hidden;padding:4px 20px 0}
+.diary h3{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px;font-weight:700}
+.emptyline{color:var(--muted);font-size:13px;padding:10px 0}
+.entry{display:grid;grid-template-columns:auto 1fr auto;gap:0 12px;align-items:center;overflow:hidden;max-height:0;opacity:0;border-bottom:1px dashed var(--line)}
+.entry > *{margin-block:8px}
+.entry .n{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry .d{color:var(--muted);font-size:12px}
+.entry .k{font-weight:700;font-size:14px;text-align:right}
+.nm-recipe{color:var(--accent)} .nm-scan{color:var(--scan)}
+
+/* Picture tile with the bite mark, as in the app */
+.pic{--s:40px;width:var(--s);height:var(--s);flex:none;display:grid;place-items:center;border-radius:calc(var(--s)*.3);background:var(--tile);
+  box-shadow:inset 0 0 0 1px var(--line);font-size:calc(var(--s)*.52);line-height:1;
+  -webkit-mask:radial-gradient(circle at calc(100% - var(--s)*.04) calc(var(--s)*.04),transparent calc(var(--s)*.19),#000 calc(var(--s)*.19 + .6px));
+          mask:radial-gradient(circle at calc(100% - var(--s)*.04) calc(var(--s)*.04),transparent calc(var(--s)*.19),#000 calc(var(--s)*.19 + .6px))}
+.pic.combo{background:var(--accent-soft);color:var(--accent)}
+
+/* Dock */
+.dock{border-top:1px solid var(--line);background:var(--surface);padding:10px 10px 18px}
+.chiprow{display:flex;gap:5px;padding-bottom:10px;overflow:hidden}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);text-align:left}
+.chip .t{display:grid;line-height:1.15}
+.chip .t b{font-size:12.5px;font-weight:700}
+.chip .t small{font-size:10px;color:var(--muted);font-weight:500}
+.chip .pic{--s:32px;border-radius:50%;-webkit-mask:none;mask:none}
+.chip.new{padding:0 9px;gap:2px;border:1.5px dashed var(--accent);color:var(--accent);font-weight:800;font-size:16px;background:none}
+.chip.book{padding:0 10px;color:var(--accent)}
+.chip.combo{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.actionbar{display:flex;gap:10px;align-items:center}
+.search{flex:1;display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-weight:500}
+.shoot{width:60px;height:60px;border-radius:20px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;box-shadow:0 8px 18px -8px var(--accent)}
+
+.toast{position:absolute;left:14px;right:14px;bottom:146px;z-index:15;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--ink);color:var(--surface);font-size:13.5px;font-weight:600;opacity:0}
+.toast u{color:var(--accent-soft);text-decoration:none;font-weight:700}
+.ghost{position:absolute;left:0;top:0;z-index:16;font-size:22px;opacity:0;pointer-events:none}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:40;opacity:0;pointer-events:none}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 20px 22px;transform:translateY(105%)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.sheet h4{font-family:var(--font-display);font-weight:700;font-size:21px;margin:0;line-height:1.15}
+.sub{color:var(--muted);margin:3px 0 0;font-size:13px}
+.head{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-bottom:14px}
+.amount{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 12px}
+.step{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-size:22px;font-weight:600;display:grid;place-items:center}
+.amount output{font-family:var(--font-display);font-weight:800;font-size:42px;min-width:140px;text-align:center}
+.amount output small{font-size:19px;color:var(--muted);font-weight:700;margin-left:2px}
+.pchips{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+.pchip{padding:7px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;font-weight:600}
+.pchip.on{background:var(--accent-soft);border-color:var(--accent)}
+.quad{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;margin-bottom:16px}
+.quad div{padding:9px 4px;text-align:center;border-left:1px solid var(--line)}
+.quad div:first-child{border-left:0}
+.quad b{display:block;font-size:16px}
+.quad span{font-size:11px;color:var(--muted);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.primary{width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15.5px;display:flex;align-items:center;justify-content:center;gap:.25em;white-space:nowrap}
+.sfield{display:flex;align-items:center;gap:10px;height:50px;padding:0 14px;border-radius:14px;border:1.5px solid var(--accent);background:var(--surface-2);font-weight:600;margin-bottom:10px}
+.caret{width:2px;height:20px;background:var(--accent)}
+.hit{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);opacity:0}
+.hit b{font-weight:600;font-size:14.5px} .hit small{display:block;color:var(--muted);font-size:12px}
+.hit .k{font-weight:700;font-size:13px;color:var(--muted)}
+.mark{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:1px}
+.field{display:grid;gap:3px;margin-bottom:8px}
+.field label{font-size:11.5px;font-weight:700;color:var(--muted)}
+.field div{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);padding:0 12px;display:flex;align-items:center;font-weight:600}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.okline{display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ok);margin:4px 0 12px;opacity:0}
+.photo{position:relative;height:150px;border-radius:16px;overflow:hidden;background:var(--tile);margin-bottom:10px}
+.photo svg{width:100%;height:100%;display:block}
+.bub{position:absolute;padding:4px 9px;border-radius:999px;background:var(--surface);color:var(--ink);font-size:11.5px;font-weight:700;box-shadow:0 4px 10px var(--shadow);opacity:0;transform:scale(.4)}
+.ing{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13.5px;opacity:0}
+.ing em{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--muted)}
+.ing em.ok{color:var(--ok)}
+.rcard{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.dashpill{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;border:1.5px dashed var(--accent);color:var(--accent);font-weight:700;font-size:13px;margin-top:12px}
+
+/* Camera */
+.cam{position:absolute;inset:0;z-index:30;background:var(--cam);color:var(--cam-ink);opacity:0;pointer-events:none;display:flex;flex-direction:column}
+.cam .bar1{display:flex;justify-content:space-between;align-items:center;padding:24px 20px 8px;font-size:13px;font-weight:600;color:var(--cam-muted)}
+.view{position:relative;flex:1;margin:8px 16px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 40%,#2a3330,#101413)}
+.view .obj{position:absolute;inset:0;display:grid;place-items:center;opacity:0}
+.view .obj svg{width:78%;max-height:80%}
+.frame{position:absolute;inset:22% 12%;border-radius:18px;border:2px solid rgba(242,244,240,.55)}
+.scanline{position:absolute;left:12%;right:12%;height:3px;border-radius:2px;background:var(--scan);box-shadow:0 0 18px 4px var(--scan);opacity:0}
+.found{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);padding:6px 12px;border-radius:999px;background:var(--scan);color:#fff;font-size:12px;font-weight:700;opacity:0;white-space:nowrap}
+.trigs{display:flex;justify-content:center;gap:10px;padding:14px 16px 26px}
+.trig{display:grid;justify-items:center;gap:6px;width:86px;font-size:12px;font-weight:700;color:var(--cam-muted)}
+.trig i{width:54px;height:54px;border-radius:50%;border:3px solid var(--cam-muted);display:grid;place-items:center}
+.trig.on{color:var(--cam-ink)} .trig.on i{border-color:var(--cam-ink);background:rgba(242,244,240,.12)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:2;pointer-events:none}
+.loading{position:absolute;inset:0;z-index:3;background:var(--cam);display:grid;place-items:center;align-content:center;gap:18px;opacity:0}
+.peas{display:flex;gap:10px}
+.peas i{width:18px;height:18px;border-radius:50%;background:var(--fat)}
+.loading b{font-family:var(--font-display);font-size:19px}
+.loading small{color:var(--cam-muted);font-size:12.5px}
+
+/* Cursor and ripple, in viewport coordinates */
+.cursor{position:fixed;left:0;top:0;z-index:60;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:color-mix(in srgb,var(--ink) 22%,transparent);border:2.5px solid var(--surface);box-shadow:0 4px 14px var(--shadow);opacity:0;pointer-events:none}
+.ripple{position:fixed;left:0;top:0;z-index:59;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:3px solid var(--accent);opacity:0;pointer-events:none}
+.pop{position:fixed;z-index:61;font-family:var(--font-display);font-weight:800;font-size:22px;color:var(--accent);pointer-events:none;animation:pop .8s ease-out forwards}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(.6);opacity:1}to{transform:translate(-50%,-160%) scale(1.1);opacity:0}}
+canvas.confetti{position:fixed;inset:0;width:100%;height:100%;z-index:58;pointer-events:none}
+
+/* Subtitle and controls */
+.subline{min-height:26px;text-align:center;font-size:16px;font-weight:600;color:var(--ink);text-wrap:balance}
+.ctrl{display:flex;align-items:center;gap:14px;max-width:1100px;width:100%;margin:0 auto}
+.play{width:44px;height:44px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.rail{flex:1;display:flex;gap:4px;min-width:0}
+.seg{position:relative;height:30px;display:flex;align-items:flex-end;min-width:0}
+.seg span{position:absolute;left:0;top:0;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.seg i{display:block;width:100%;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.seg i b{display:block;height:100%;width:0;background:var(--accent)}
+.seg.cur span{color:var(--accent)}
+.time{font-size:12.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
+
+/* Start and end cards */
+.card{position:fixed;inset:0;z-index:70;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(6px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card-in{display:grid;justify-items:center;gap:14px;text-align:center;max-width:460px}
+.card svg.logo{width:96px;height:96px}
+.card h2{font-family:var(--font-display);font-weight:800;font-size:clamp(34px,6vw,52px);margin:0;line-height:1;text-wrap:balance}
+.card p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.big-btn{display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 26px;border-radius:18px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px;box-shadow:0 12px 24px -12px var(--accent)}
+.stats{display:flex;gap:26px;justify-content:center;margin:6px 0}
+.stats div{display:grid;gap:2px}
+.stats b{font-family:var(--font-display);font-weight:800;font-size:34px;color:var(--accent);font-variant-numeric:tabular-nums}
+.stats span{font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.end{opacity:0;pointer-events:none}
+
+@media (max-width:860px){
+  .stage{grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:6px;align-items:start}
+  .story{height:118px}
+  .panel{justify-content:flex-start;gap:6px;text-align:center;align-items:center}
+  .panel h2{font-size:30px}
+  .panel p,.checklist,.aside{display:none}
+  .phoneBox{align-self:start}
+  .seg span{display:none}
+  .seg{height:12px}
+  .subline{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){.pop{animation-duration:.01s}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="logo" viewBox="0 0 512 512">
+      <mask id="cookie" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+        <circle cx="256" cy="262" r="156" fill="#fff"/>
+        <path d="M232 92 L262 128 L254 156 L292 168 L300 198 L336 204 L348 236 L392 240 L430 256 L560 256 L560 -40 L232 -40 Z" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+      </mask>
+      <rect width="512" height="512" rx="116" fill="#B3245F"/>
+      <rect width="512" height="512" fill="#FFFFFF" mask="url(#cookie)"/>
+      <g fill="#B3245F"><circle cx="196" cy="230" r="15"/><circle cx="176" cy="318" r="13"/><circle cx="262" cy="334" r="15"/><circle cx="330" cy="300" r="12"/><circle cx="244" cy="262" r="10"/></g>
+    </symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-combo" viewBox="0 0 24 24"><rect x="8" y="3" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="8" width="13" height="13" rx="3" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M9.5 6v12M13 6v12M15 6v12M18 6v12M20 6v12" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-label" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-plate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  </defs>
+</svg>
+
+<main class="stage" id="stage">
+  <section class="story" id="story" aria-live="polite">
+    <div class="panel" data-scene="intro">
+      <p class="eyebrow">Ernährungstagebuch</p>
+      <h2>Eintragen in Sekunden.</h2>
+      <p>BISS zählt kcal, Eiweiß, Kohlenhydrate und Fett. Mit so wenigen Taps wie möglich.</p>
+    </div>
+    <div class="panel" data-scene="recent"></div>
+    <div class="panel" data-scene="combo"></div>
+    <div class="panel" data-scene="search"></div>
+    <div class="panel" data-scene="barcode"></div>
+    <div class="panel" data-scene="label"></div>
+    <div class="panel" data-scene="plate"></div>
+    <div class="panel" data-scene="recipe"></div>
+    <div class="panel" data-scene="finale">
+      <p class="eyebrow">Ein Tag, sieben Wege</p>
+      <h2>17 Taps für alles.</h2>
+      <ul class="checklist" id="checklist"></ul>
+    </div>
+  </section>
+
+  <div class="phoneBox" id="phoneBox">
+    <div class="phone" id="phone">
+      <div class="screen" id="screen">
+        <header class="top">
+          <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><b>BISS</b></div>
+          <span class="date">Samstag, 14. Nov.</span>
+        </header>
+        <section class="summary">
+          <div class="ring">
+            <svg width="112" height="112" viewBox="0 0 112 112" aria-hidden="true">
+              <circle cx="56" cy="56" r="48" fill="none" stroke="var(--surface-2)" stroke-width="11"/>
+              <circle id="arc" cx="56" cy="56" r="48" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 400"/>
+            </svg>
+            <div class="c"><span class="big num" id="kcal">0</span><span class="small">von 2.200 kcal</span></div>
+          </div>
+          <div class="macros" id="macros"></div>
+        </section>
+        <section class="diary">
+          <h3>Heute</h3>
+          <div class="emptyline" id="emptyline">Noch nichts eingetragen.</div>
+          <div id="rows"></div>
+        </section>
+        <footer class="dock">
+          <div class="chiprow">
+            <span class="chip new" aria-label="Neuer Schnellzugriff">+<svg width="14" height="14"><use href="#i-combo"/></svg></span>
+            <span class="chip book" id="chipBook"><svg width="20" height="20"><use href="#i-book"/></svg></span>
+            <span class="chip combo" id="chipCombo"><span class="pic combo"><svg width="18" height="18"><use href="#i-combo"/></svg></span><span class="t"><b>Frühstück</b><small>285 g · 300 kcal</small></span></span>
+            <span class="chip" id="chipOats"><span class="pic">🥣</span><span class="t"><b>Haferflocken</b><small>60 g · 222 kcal</small></span></span>
+          </div>
+          <div class="actionbar">
+            <span class="search" id="searchBtn"><svg width="20" height="20"><use href="#i-search"/></svg>Lebensmittel suchen</span>
+            <span class="shoot" id="shootBtn"><svg width="26" height="26"><use href="#i-cam"/></svg></span>
+          </div>
+        </footer>
+
+        <div class="toast" id="toast"><span id="toastText"></span><u>Rückgängig</u></div>
+        <span class="ghost" id="g0">🥛</span><span class="ghost" id="g1">🍌</span><span class="ghost" id="g2">🌰</span>
+
+        <div class="cam" id="cam">
+          <div class="bar1"><span>✕</span><span id="camHint">Barcode in den Rahmen halten</span><span></span></div>
+          <div class="view">
+            <div class="obj" id="objBar"><svg viewBox="0 0 240 160" aria-hidden="true">
+              <rect x="10" y="20" width="220" height="120" rx="14" fill="#C9862F"/><rect x="10" y="20" width="220" height="34" rx="14" fill="#7A3E1C"/>
+              <text x="26" y="44" font-family="Figtree,sans-serif" font-weight="700" font-size="17" fill="#fff">PROTEIN · Erdnuss</text>
+              <rect x="120" y="72" width="94" height="54" rx="4" fill="#fff"/>
+              <g fill="#111"><rect x="128" y="78" width="3" height="38"/><rect x="134" y="78" width="2" height="38"/><rect x="139" y="78" width="4" height="38"/><rect x="146" y="78" width="2" height="38"/><rect x="151" y="78" width="3" height="38"/><rect x="157" y="78" width="5" height="38"/><rect x="165" y="78" width="2" height="38"/><rect x="170" y="78" width="3" height="38"/><rect x="176" y="78" width="2" height="38"/><rect x="181" y="78" width="4" height="38"/><rect x="188" y="78" width="2" height="38"/><rect x="193" y="78" width="3" height="38"/><rect x="199" y="78" width="5" height="38"/></g>
+              <text x="26" y="96" font-family="Figtree,sans-serif" font-weight="600" font-size="12" fill="#fff">45 g</text>
+            </svg></div>
+            <div class="obj" id="objDrink"><svg viewBox="0 0 240 160" aria-hidden="true">
+              <rect x="60" y="6" width="120" height="150" rx="10" fill="#E9E2D0"/><rect x="60" y="6" width="120" height="40" rx="10" fill="#3D6B4F"/>
+              <text x="74" y="32" font-family="Figtree,sans-serif" font-weight="700" font-size="14" fill="#fff">Hafer-Drink</text>
+              <rect x="72" y="56" width="96" height="88" rx="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <text x="78" y="72" font-family="Figtree,sans-serif" font-weight="800" font-size="9" fill="#111">Nährwerte je 100 ml</text>
+              <g font-family="Figtree,sans-serif" font-size="8.5" fill="#222"><text x="78" y="88">Energie 59 kcal</text><text x="78" y="101">Fett 3,0 g</text><text x="78" y="114">Kohlenhydrate 6,6 g</text><text x="78" y="127">Eiweiß 1,0 g</text></g>
+            </svg></div>
+            <div class="obj" id="objPlate"><svg viewBox="0 0 240 160" aria-hidden="true"><use href="#bowl"/></svg></div>
+            <div class="frame"></div>
+            <div class="scanline" id="scanline"></div>
+            <div class="found" id="found">Barcode erkannt · 4012345678901</div>
+          </div>
+          <div class="trigs">
+            <span class="trig on" id="trigBar"><i><svg width="24" height="24"><use href="#i-barcode"/></svg></i>Barcode</span>
+            <span class="trig" id="trigLabel"><i><svg width="22" height="22"><use href="#i-label"/></svg></i>Etikett</span>
+            <span class="trig" id="trigPlate"><i><svg width="22" height="22"><use href="#i-plate"/></svg></i>Teller</span>
+          </div>
+          <div class="flash" id="flash"></div>
+          <div class="loading" id="loading"><div class="peas"><i></i><i></i><i></i></div><b id="quote">Zähle Erbsen …</b><small id="status">Lese Etikett</small></div>
+        </div>
+
+        <div class="scrim" id="scrim"></div>
+
+        <div class="sheet" id="sSearch">
+          <div class="grab"></div>
+          <div class="sfield"><svg width="20" height="20"><use href="#i-search"/></svg><span id="typed"></span><i class="caret" id="caret"></i></div>
+          <div class="hit" id="hitApple"><span class="pic">🍎</span><span><b>Apfel, roh</b><small>BLS · je 100 g</small></span><span class="k">54 kcal</span></div>
+          <div class="hit"><span class="pic">🥫</span><span><b>Apfelmus</b><small>BLS · je 100 g</small></span><span class="k">78 kcal</span></div>
+          <div class="hit"><span class="pic">🧃</span><span><b>Apfelsaft</b><small>BLS · je 100 ml</small></span><span class="k">45 kcal</span></div>
+          <div class="hit"><span class="pic">🥧</span><span><b class="nm-recipe">Apfelkuchen</b><span class="mark">Rezept</span><small>Rezept · je 100 g</small></span><span class="k">265 kcal</span></div>
+        </div>
+
+        <div class="sheet" id="sAmount">
+          <div class="grab"></div>
+          <div class="head"><span class="pic" id="aPic" style="--s:58px">🍎</span><div><h4 id="aName">Apfel</h4><p class="sub" id="aSrc">BLS · je 100 g</p></div></div>
+          <div class="amount"><span class="step">−</span><output class="num"><span id="aGrams">150</span><small>g</small></output><span class="step">+</span></div>
+          <div class="pchips"><span class="pchip on" id="aChip">1 Apfel (M) · 150 g</span><span class="pchip">zuletzt · 120 g</span></div>
+          <div class="quad">
+            <div><b class="num" id="aK">81</b><span>kcal</span></div>
+            <div><b class="num" id="aP">0</b><span><i class="dot" style="background:var(--prot)"></i>E</span></div>
+            <div><b class="num" id="aC">17</b><span><i class="dot" style="background:var(--carb)"></i>K</span></div>
+            <div><b class="num" id="aF">0</b><span><i class="dot" style="background:var(--fat)"></i>F</span></div>
+          </div>
+          <span class="primary" id="amtGo">Eintragen · 81 kcal</span>
+        </div>
+
+        <div class="sheet" id="sEditor">
+          <div class="grab"></div>
+          <p class="eyebrow">Neues Lebensmittel · vom Etikett</p>
+          <h4 style="margin-bottom:12px">Bitte kurz prüfen</h4>
+          <div class="field"><label>Name</label><div data-fill="Hafer-Drink Barista"></div></div>
+          <div class="grid4">
+            <div class="field"><label>kcal je 100 ml</label><div data-fill="59"></div></div>
+            <div class="field"><label>Eiweiß g</label><div data-fill="1,0"></div></div>
+            <div class="field"><label>Kohlenhydrate g</label><div data-fill="6,6"></div></div>
+            <div class="field"><label>Fett g</label><div data-fill="3,0"></div></div>
+          </div>
+          <div class="okline" id="okline"><svg width="18" height="18"><use href="#i-check"/></svg>Die Werte passen zusammen.</div>
+          <span class="primary" id="edGo">Speichern</span>
+        </div>
+
+        <div class="sheet" id="sPlate">
+          <div class="grab"></div>
+          <p class="eyebrow">Erkannt · bitte prüfen</p>
+          <h4 style="margin-bottom:10px">Bowl mit Lachs</h4>
+          <div class="photo"><svg viewBox="0 0 240 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#bowl"/></svg>
+            <span class="bub" style="left:14%;top:22%">Reis · 150 g</span><span class="bub" style="left:56%;top:16%">Lachs · 120 g</span>
+            <span class="bub" style="left:20%;top:64%">Avocado · 60 g</span><span class="bub" style="left:60%;top:66%">Gurke · 50 g</span>
+          </div>
+          <div class="ing"><span>Reis, gekocht</span><em class="ok">erkannt</em><b>150 g</b></div>
+          <div class="ing"><span>Lachs</span><em class="ok">erkannt</em><b>120 g</b></div>
+          <div class="ing"><span>Avocado</span><em class="ok">erkannt</em><b>60 g</b></div>
+          <div class="ing"><span>Gurke</span><em>vermutet</em><b>50 g</b></div>
+          <span class="primary" id="plateGo" style="margin-top:12px">Eintragen · <span class="num" id="plateK">0</span> kcal</span>
+        </div>
+
+        <div class="sheet" id="sRecipes">
+          <div class="grab"></div>
+          <p class="eyebrow">Kochbuch</p>
+          <h4 style="margin-bottom:6px">Meine Rezepte</h4>
+          <div class="rcard" id="recLasagne"><span class="pic" style="--s:52px">🍝</span><div><b class="nm-recipe">Lasagne</b><p class="sub">4 Portionen · 610 kcal je Portion</p></div></div>
+          <div class="rcard"><span class="pic" style="--s:52px">🍛</span><div><b class="nm-recipe">Linsen-Dal</b><p class="sub">3 Portionen · 420 kcal je Portion</p></div></div>
+          <div class="rcard"><span class="pic" style="--s:52px">🍞</span><div><b class="nm-recipe">Dinkelbrot</b><p class="sub">20 Scheiben · 96 kcal je Scheibe</p></div></div>
+          <span class="dashpill">+ Neues Rezept</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="aside">
+    <div class="score"><span>Mitgetippt</span><b id="score">0 / 17</b><span>Tippe aufs Handy, wenn der Finger tippt.</span></div>
+  </aside>
+
+  <div class="intro" id="intro">
+    <div class="intro-in">
+      <svg viewBox="0 0 512 512" aria-hidden="true">
+        <defs><mask id="biteMask"><rect width="512" height="512" fill="#fff"/><circle id="biteC" cx="470" cy="42" r="0" fill="#000"/><circle id="biteC2" cx="380" cy="10" r="0" fill="#000"/></mask></defs>
+        <g mask="url(#biteMask)"><use href="#logo"/></g>
+      </svg>
+      <h1 id="introWord"><span>B</span><span>I</span><span>S</span><span>S</span></h1>
+      <p id="introTag">Dein Essen. Weniger Taps.</p>
+    </div>
+  </div>
+</main>
+
+<p class="subline" id="subline" aria-live="polite"></p>
+
+<nav class="ctrl" aria-label="Wiedergabe">
+  <button class="play" id="playBtn" aria-label="Abspielen"><svg width="22" height="22"><use href="#i-play"/></svg></button>
+  <div class="rail" id="rail"></div>
+  <span class="time" id="time">0:00 / 1:00</span>
+</nav>
+
+<div class="cursor" id="cursor"></div>
+<div class="ripple" id="ripple"></div>
+<canvas class="confetti" id="confetti"></canvas>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="bowl" viewBox="0 0 240 160">
+    <rect width="240" height="160" fill="#6B4B33"/><rect width="240" height="160" fill="url(#wood)" opacity=".25"/>
+    <circle cx="120" cy="80" r="70" fill="#F3F1EC"/><circle cx="120" cy="80" r="58" fill="#E4E0D6"/>
+    <path d="M70 70 a50 50 0 0 1 50 -46 v56 z" fill="#FBFAF6"/><g fill="#EEEAE0"><circle cx="90" cy="52" r="3"/><circle cx="102" cy="44" r="3"/><circle cx="84" cy="66" r="3"/><circle cx="108" cy="60" r="3"/></g>
+    <g fill="#F08A5D"><rect x="124" y="34" width="44" height="14" rx="6" transform="rotate(18 146 41)"/><rect x="128" y="52" width="44" height="14" rx="6" transform="rotate(18 150 59)"/><rect x="132" y="70" width="40" height="13" rx="6" transform="rotate(18 152 76)"/></g>
+    <g fill="#F7B79A" opacity=".8"><rect x="130" y="38" width="34" height="3" rx="1.5" transform="rotate(18 146 41)"/><rect x="134" y="56" width="34" height="3" rx="1.5" transform="rotate(18 150 59)"/></g>
+    <g><path d="M74 96 q20 -14 42 0 q-20 26 -42 0z" fill="#7DA543"/><path d="M80 96 q14 -8 30 0 q-14 16 -30 0z" fill="#C9DB7A"/></g>
+    <g fill="#5E9E4E"><circle cx="138" cy="108" r="10"/><circle cx="158" cy="98" r="10"/><circle cx="150" cy="122" r="9"/></g>
+    <g fill="#CFE7B2"><circle cx="138" cy="108" r="6"/><circle cx="158" cy="98" r="6"/><circle cx="150" cy="122" r="5.5"/></g>
+    <g fill="#222"><circle cx="112" cy="84" r="1.6"/><circle cx="118" cy="90" r="1.6"/><circle cx="124" cy="82" r="1.6"/></g>
+  </symbol>
+  <linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#000"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
+</defs></svg>
+
+<div class="card" id="start">
+  <div class="card-in">
+    <svg class="logo" aria-hidden="true"><use href="#logo"/></svg>
+    <h2>BISS in 60 Sekunden</h2>
+    <p>Sieben Wege, Essen einzutragen. Mit Ton.<br>Tippe aufs Handy, wenn der Finger tippt, und zähl mit.</p>
+    <button class="big-btn" id="startBtn"><svg width="22" height="22"><use href="#i-play"/></svg>Abspielen</button>
+  </div>
+</div>
+
+<div class="card end" id="end">
+  <div class="card-in">
+    <svg class="logo" aria-hidden="true"><use href="#logo"/></svg>
+    <h2>Weniger tippen. Mehr genießen.</h2>
+    <div class="stats">
+      <div><b class="num" id="stA">7</b><span>Wege</span></div>
+      <div><b class="num" id="stB">17</b><span>Taps</span></div>
+      <div><b class="num" id="stC">2.058</b><span>kcal</span></div>
+    </div>
+    <p id="endScore">Nächstes Mal: Tippe mit.</p>
+    <button class="big-btn" id="againBtn"><svg width="22" height="22"><use href="#i-play"/></svg>Noch einmal</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const T = 60, GOAL = {k:2200, p:130, c:250, f:75};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = p => 1 - Math.pow(1 - p, 3);
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const win = (t, a, b, d = .25) => ease(seg(t, a, a + d)) * (1 - ease(seg(t, b, b + d)));
+const de = n => Math.round(n).toLocaleString('de-DE');
+
+/* ---- Script: scenes, voice-over, taps, entries ---- */
+const SCENES = [
+  {id:'intro', start:0, label:'Start'},
+  {id:'recent', start:6, label:'Zuletzt', title:'Zuletzt-Chip', budget:'1 Tap', desc:'Was du oft isst, wartet schon im Dock.'},
+  {id:'combo', start:12, label:'Schnellzugriff', title:'Schnellzugriff', budget:'1 Tap', desc:'Feste Kombinationen landen als eine Gruppe im Tagebuch.'},
+  {id:'search', start:18, label:'Suche', title:'Suche', budget:'Suche + 2', desc:'Treffer wählen, die Menge ist schon vorbelegt.'},
+  {id:'barcode', start:25, label:'Barcode', title:'Barcode', budget:'Kamera + 1', desc:'Die Kamera erkennt die Packung ohne Auslösen.'},
+  {id:'label', start:31, label:'Etikett', title:'Etikett-Foto', budget:'Kamera + Auslöser + 2', desc:'Unbekanntes Produkt? Die Nährwerte kommen vom Foto.'},
+  {id:'plate', start:37, label:'Teller', title:'Teller', budget:'Kamera + Auslöser + 1', desc:'Ein Foto vom Gericht, die Zutaten werden geschätzt.'},
+  {id:'recipe', start:45, label:'Rezept', title:'Rezept', budget:'Kochbuch + 2', desc:'Selbst Gekochtes, eingetragen in Portionen.'},
+  {id:'finale', start:51, label:'Finale'},
+];
+SCENES.forEach((s, i) => s.end = SCENES[i + 1] ? SCENES[i + 1].start : T);
+
+const VO = [
+  {id:'intro', start:.8, text:'Essen eintragen? Das geht schneller, als du denkst.'},
+  {id:'recent', start:6.5, text:'Einmal tippen, und die Haferflocken sind eingetragen.'},
+  {id:'combo', start:12.5, text:'Dein ganzes Frühstück? Auch nur einmal tippen.'},
+  {id:'search', start:18.5, text:'Etwas Neues? Kurz suchen, Menge wählen, fertig.'},
+  {id:'barcode', start:25.3, text:'Packung vor die Kamera, und die Werte sind sofort da.'},
+  {id:'label', start:31.3, text:'Unbekanntes Produkt? Ein Foto vom Etikett reicht.'},
+  {id:'plate', start:37.3, text:'Sogar dein Teller wird erkannt. Zutaten, Mengen, eine Bestätigung.'},
+  {id:'recipe', start:45.3, text:'Und deine eigenen Rezepte? Einmal anlegen und in Portionen eintragen.'},
+  {id:'finale', start:52.2, text:'BISS. Weniger tippen. Mehr genießen.'},
+];
+
+const TAPS = [
+  [8.2,'#chipOats'], [14.0,'#chipCombo'],
+  [19.0,'#searchBtn'], [21.0,'#hitApple'], [23.0,'#amtGo'],
+  [25.8,'#shootBtn'], [29.6,'#amtGo'],
+  [31.6,'#shootBtn'], [32.4,'#trigLabel'], [35.2,'#edGo'], [36.2,'#amtGo'],
+  [37.6,'#shootBtn'], [38.4,'#trigPlate'], [43.2,'#plateGo'],
+  [45.8,'#chipBook'], [47.0,'#recLasagne'], [48.8,'#amtGo'],
+].map(([t, sel]) => ({t, sel, scene: SCENES.findLast(s => s.start <= t).id}));
+
+const ENTRIES = [
+  {t:8.4,  at:'07:12', pic:'🥣', name:'Haferflocken', d:'60 g', k:222, p:8, c:35, f:4, toast:'Haferflocken eingetragen · 222 kcal'},
+  {t:14.5, at:'08:30', pic:'combo', name:'Frühstück', d:'3 Zutaten · 285 g', k:300, p:19, c:33, f:11, toast:'Frühstück eingetragen · 300 kcal'},
+  {t:23.3, at:'10:20', pic:'🍎', name:'Apfel', d:'1 Apfel (M) · 150 g', k:81, p:0, c:17, f:0, toast:'Apfel eingetragen · 81 kcal'},
+  {t:29.9, at:'11:05', pic:'🍫', name:'Proteinriegel Erdnuss', cls:'nm-scan', d:'1 Riegel · 45 g', k:180, p:15, c:14, f:7, toast:'Proteinriegel eingetragen · 180 kcal'},
+  {t:36.5, at:'11:06', pic:'🥛', name:'Hafer-Drink Barista', cls:'nm-scan', d:'200 g', k:118, p:2, c:13, f:6, toast:'Hafer-Drink eingetragen · 118 kcal'},
+  {t:43.5, at:'13:10', pic:'🥗', name:'Bowl mit Lachs', d:'Gericht · 4 Zutaten', k:547, p:33, c:50, f:22, toast:'Bowl mit Lachs eingetragen · 547 kcal'},
+  {t:49.1, at:'19:30', pic:'🍝', name:'Lasagne', cls:'nm-recipe', d:'1 Portion · 380 g', k:610, p:32, c:52, f:29, toast:'Lasagne eingetragen · 610 kcal'},
+];
+
+const AMOUNT = [
+  {open:21.1, close:23.15, pic:'🍎', name:'Apfel', cls:'', src:'BLS · je 100 g', g:150, chip:'1 Apfel (M) · 150 g', k:81, p:0, c:17, f:0},
+  {open:28.3, close:29.75, pic:'🍫', name:'Proteinriegel Erdnuss', cls:'nm-scan', src:'Open Food Facts · Scan', g:45, chip:'1 Riegel · 45 g', k:180, p:15, c:14, f:7},
+  {open:35.3, close:36.35, pic:'🥛', name:'Hafer-Drink Barista', cls:'nm-scan', src:'Etikett · je 100 ml', g:200, chip:'1 Glas · 200 ml', k:118, p:2, c:13, f:6},
+  {open:47.1, close:48.95, pic:'🍝', name:'Lasagne', cls:'nm-recipe', src:'Rezept · 4 Portionen', g:380, chip:'1 Portion · 380 g', k:610, p:32, c:52, f:29},
+];
+const CAM = [[26.0, 29.9], [31.8, 36.5], [37.8, 43.5]];
+
+/* ---- Build the dynamic parts ---- */
+SCENES.filter(s => s.title).forEach((s, i) => {
+  const n = TAPS.filter(x => x.scene === s.id).length;
+  $(`.panel[data-scene="${s.id}"]`).innerHTML =
+    `<p class="eyebrow">Weg ${i + 1} von 7</p><h2>${s.title}</h2><p>${s.desc}</p>
+     <div class="budget"><span class="pill">${s.budget}</span><span class="taps">${'<i></i>'.repeat(n)}</span></div>`;
+});
+$('#checklist').innerHTML = SCENES.filter(s => s.title).map(s =>
+  `<li><svg width="18" height="18"><use href="#i-check"/></svg><span>${s.title}</span><b>${TAPS.filter(x => x.scene === s.id).length}</b></li>`).join('');
+$('#macros').innerHTML = [['Eiweiß','prot','p'],['Kohlenhydrate','carb','c'],['Fett','fat','f']].map(([n, v, k]) =>
+  `<div class="macro"><div class="row"><span>${n}</span><span class="num" id="m${k}">0 / ${GOAL[k]} g</span></div><div class="bar"><i id="b${k}" style="background:var(--${v})"></i></div></div>`).join('');
+$('#rows').innerHTML = ENTRIES.slice().reverse().map(e => `
+  <div class="entry">${e.pic === 'combo' ? '<span class="pic combo"><svg width="20" height="20"><use href="#i-combo"/></svg></span>' : `<span class="pic">${e.pic}</span>`}
+    <span style="min-width:0"><span class="n ${e.cls || ''}" style="display:block">${e.name}</span><span class="d">${e.at} · ${e.d}</span></span>
+    <span class="k num">${e.k} kcal</span></div>`).join('');
+const rowEls = $$('#rows .entry').reverse();
+const rail = $('#rail');
+SCENES.forEach(s => {
+  const b = document.createElement('button');
+  b.className = 'seg'; b.style.flex = String(s.end - s.start); b.setAttribute('aria-label', `Zu ${s.label} springen`);
+  b.innerHTML = `<span>${s.label}</span><i><b></b></i>`;
+  b.onclick = () => seek(s.start);
+  rail.appendChild(b);
+});
+const segs = $$('.seg');
+const fillEls = $$('#sEditor [data-fill]');
+
+/* ---- Layout: scale the phone to the space it has ---- */
+let scale = 1;
+function layout(){
+  const box = $('#phoneBox'), stage = $('#stage');
+  const narrow = innerWidth <= 860;
+  const h = stage.clientHeight - (narrow ? 124 : 0), w = narrow ? stage.clientWidth : Math.min(stage.clientWidth * .45, 440);
+  scale = clamp(Math.min(h / 780, w / 404), .3, 1.15);
+  box.style.width = 404 * scale + 'px'; box.style.height = 780 * scale + 'px';
+  $('#phone').style.transform = `scale(${scale})`;
+  const cv = $('#confetti'); cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio;
+}
+addEventListener('resize', layout);
+
+/* ---- Render one frame from time t ---- */
+const css = (el, o, tf) => { el.style.opacity = o; if (tf !== undefined) el.style.transform = tf; };
+const center = sel => { const r = $(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+let lastAmount = -1;
+
+function render(t){
+  // Intro
+  const intro = 1 - ease(seg(t, 4.0, 4.6));
+  css($('#intro'), intro, `scale(${1 - .15 * ease(seg(t, 4.0, 4.6))})`);
+  $('#biteC').setAttribute('r', 80 * ease(seg(t, .5, .8)));
+  $('#biteC2').setAttribute('r', 55 * ease(seg(t, .75, 1.05)));
+  $$('#introWord span').forEach((s, i) => css(s, ease(seg(t, 1 + i * .12, 1.35 + i * .12)), `translateY(${(1 - ease(seg(t, 1 + i * .12, 1.4 + i * .12))) * 40}px)`));
+  css($('#introTag'), ease(seg(t, 1.8, 2.3)));
+  const ph = ease(seg(t, 4.1, 5.1));
+  css($('#phoneBox'), ph, `translateY(${(1 - ph) * 50}px)`);
+
+  // Story panels and their tap dots
+  SCENES.forEach(s => {
+    const p = $(`.panel[data-scene="${s.id}"]`);
+    const v = s.id === 'intro' ? win(t, 4.6, 5.7, .4) : win(t, s.start + .1, s.end - .35, .4);
+    css(p, v, `translateY(${(1 - v) * 18}px)`);
+    p.querySelectorAll('.taps i').forEach((d, i) => d.classList.toggle('on', TAPS.filter(x => x.scene === s.id)[i].t <= t));
+  });
+  $$('#checklist li').forEach((li, i) => css(li, ease(seg(t, 51.4 + i * .3, 51.7 + i * .3)), `translateX(${(1 - ease(seg(t, 51.4 + i * .3, 51.8 + i * .3))) * -14}px)`));
+
+  // Day summary
+  let tot = {k:0, p:0, c:0, f:0};
+  ENTRIES.forEach((e, i) => {
+    const q = ease(seg(t, e.t, e.t + .8));
+    for (const k in tot) tot[k] += e[k] * q;
+    const r = ease(seg(t, e.t, e.t + .45));
+    rowEls[i].style.maxHeight = r * 64 + 'px'; css(rowEls[i], r, `translateX(${(1 - r) * -16}px)`);
+  });
+  $('#kcal').textContent = de(tot.k);
+  const C = 2 * Math.PI * 48;
+  $('#arc').setAttribute('stroke-dasharray', `${C * clamp(tot.k / GOAL.k)} ${C}`);
+  for (const k of ['p', 'c', 'f']) { $('#m' + k).textContent = `${Math.round(tot[k])} / ${GOAL[k]} g`; $('#b' + k).style.width = clamp(tot[k] / GOAL[k]) * 100 + '%'; }
+  css($('#emptyline'), 1 - seg(t, 8.2, 8.5));
+  $('#emptyline').style.display = t > 8.5 ? 'none' : '';
+  const glow = win(t, 51.5, 53, .5);
+  $('.ring').style.filter = glow ? `drop-shadow(0 0 ${14 * glow}px var(--accent))` : '';
+
+  // Toast
+  const te = ENTRIES.find(e => t >= e.t - .1 && t < e.t + 2.6);
+  css($('#toast'), te ? win(t, te.t - .1, te.t + 2.3, .2) : 0, te ? `translateY(${(1 - win(t, te.t - .1, te.t + 2.3, .2)) * 12}px)` : undefined);
+  if (te) $('#toastText').textContent = te.toast;
+
+  // Combo ghosts fly from the chip into the diary
+  const sr = $('#screen').getBoundingClientRect(), cr = $('#chipCombo').getBoundingClientRect(), dr = $('#rows').getBoundingClientRect();
+  ['#g0', '#g1', '#g2'].forEach((g, i) => {
+    const a = 14.05 + i * .08, p = ease(seg(t, a, a + .55));
+    const x0 = (cr.left - sr.left) / scale + 20, y0 = (cr.top - sr.top) / scale + 8, x1 = (dr.left - sr.left) / scale + 8, y1 = (dr.top - sr.top) / scale + 6;
+    const x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 80;
+    css($(g), t > a && p < 1 ? 1 : 0, `translate(${x}px,${y}px) scale(${1.2 - .5 * p})`);
+  });
+
+  // Camera
+  let cv = 0, ci = -1;
+  CAM.forEach(([a, b], i) => { const v = win(t, a, b, .25); if (v > cv) { cv = v; ci = i; } });
+  const cam = $('#cam');
+  css(cam, cv, `scale(${.96 + .04 * cv})`);
+  ['#objBar', '#objDrink', '#objPlate'].forEach((o, i) => {
+    const v = i === 0 ? ease(seg(t, 26.2, 27)) : i === 1 ? ease(seg(t, 31.9, 32.3)) : ease(seg(t, 37.9, 38.3));
+    css($(o), ci === i ? v : 0, `translateX(${(1 - v) * 60}%) rotate(${(1 - v) * -8}deg)`);
+  });
+  $('#camHint').textContent = ci === 0 ? 'Barcode in den Rahmen halten' : ci === 1 ? 'Kein Barcode? Etikett fotografieren' : 'Gericht von oben fotografieren';
+  const sl = seg(t, 27, 28.1);
+  css($('#scanline'), ci === 0 && sl > 0 && sl < 1 ? 1 : 0);
+  $('#scanline').style.top = 22 + 56 * (sl < .5 ? sl * 2 : 2 - sl * 2) + '%';
+  css($('#found'), win(t, 28.0, 29.0, .15));
+  $('#trigBar').classList.toggle('on', ci === 0 || (ci === 1 && t < 32.4) || (ci === 2 && t < 38.4));
+  $('#trigLabel').classList.toggle('on', ci === 1 && t >= 32.4);
+  $('#trigPlate').classList.toggle('on', ci === 2 && t >= 38.4);
+  css($('#flash'), Math.max(win(t, 32.45, 32.5, .08), win(t, 38.45, 38.5, .08)) * .9);
+  const lv = Math.max(win(t, 32.6, 34.0, .2), win(t, 38.6, 39.8, .2));
+  css($('#loading'), lv);
+  const isPlate = t > 38;
+  const qs = isPlate ? ['Erkenne Gericht …', 'Wiege Reiskörner …'] : ['Zähle Erbsen …', 'Lese Kleingedrucktes …'];
+  $('#quote').textContent = qs[Math.floor((t - (isPlate ? 38.6 : 32.6)) / .75) % 2 ? 1 : 0];
+  $('#status').textContent = isPlate ? 'Teller-Erkennung läuft' : 'Etikett wird gelesen';
+  $$('.peas i').forEach((p, i) => p.style.transform = `translateY(${-Math.abs(Math.sin(t * 6 + i * .9)) * 14}px)`);
+
+  // Sheets
+  const sheets = {
+    sSearch: win(t, 19.1, 21.1),
+    sAmount: Math.max(...AMOUNT.map(a => win(t, a.open, a.close))),
+    sEditor: win(t, 34.1, 35.3),
+    sPlate: win(t, 39.85, 43.3),
+    sRecipes: win(t, 46.0, 47.1),
+  };
+  for (const id in sheets) $('#' + id).style.transform = `translateY(${(1 - sheets[id]) * 105}%)`;
+  css($('#scrim'), Math.max(...Object.values(sheets)));
+
+  // Search typing
+  const n = Math.floor(seg(t, 19.4, 20.4) * 5 + .001);
+  $('#typed').textContent = 'Apfel'.slice(0, n);
+  css($('#caret'), Math.floor(t * 2.5) % 2 ? .2 : 1);
+  $$('#sSearch .hit').forEach((h, i) => css(h, ease(seg(t, 20.0 + i * .12, 20.3 + i * .12))));
+
+  // Amount sheet content
+  const ai = AMOUNT.findLastIndex(a => t >= a.open - .3);
+  if (ai !== lastAmount && ai >= 0) {
+    const a = AMOUNT[ai]; lastAmount = ai;
+    $('#aPic').textContent = a.pic; $('#aName').textContent = a.name; $('#aName').className = a.cls;
+    $('#aSrc').textContent = a.src; $('#aGrams').textContent = a.g; $('#aChip').textContent = a.chip;
+    $('#aK').textContent = a.k; $('#aP').textContent = a.p; $('#aC').textContent = a.c; $('#aF').textContent = a.f;
+    $('#amtGo').textContent = `Eintragen · ${a.k} kcal`;
+  }
+
+  // Editor fills itself from the label
+  fillEls.forEach((el, i) => {
+    const s = el.dataset.fill, a = 34.3 + i * .14, q = seg(t, a, a + .3);
+    el.textContent = s.slice(0, Math.round(q * s.length));
+  });
+  css($('#okline'), ease(seg(t, 35.0, 35.2)));
+
+  // Plate result
+  $$('#sPlate .bub').forEach((b, i) => { const q = seg(t, 40.1 + i * .22, 40.4 + i * .22); css(b, ease(q), `scale(${.4 + .6 * (q < 1 ? ease(q) * 1.08 : 1)})`); });
+  $$('#sPlate .ing').forEach((r, i) => css(r, ease(seg(t, 40.5 + i * .22, 40.8 + i * .22))));
+  $('#plateK').textContent = Math.round(547 * ease(seg(t, 40.5, 41.8)));
+
+  // Cursor and ripple
+  renderCursor(t);
+
+  // Subtitle
+  const vo = VO.find(v => t >= v.start && t < v.start + (v.dur || 3.5) + .3);
+  $('#subline').textContent = vo ? vo.text : '';
+
+  // Timeline
+  segs.forEach((el, i) => {
+    const s = SCENES[i];
+    el.querySelector('b').style.width = seg(t, s.start, s.end) * 100 + '%';
+    el.classList.toggle('cur', t >= s.start && t < s.end);
+  });
+  const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+  $('#time').textContent = `${fmt(t)} / ${fmt(T)}`;
+
+  // Finale
+  drawConfetti(t);
+  const ev = ease(seg(t, 55.2, 55.9));
+  const end = $('#end');
+  css(end, ev); end.style.pointerEvents = ev > .5 ? 'auto' : 'none';
+  $('#stA').textContent = Math.round(7 * ease(seg(t, 55.5, 56.4)));
+  $('#stB').textContent = Math.round(17 * ease(seg(t, 55.6, 56.6)));
+  $('#stC').textContent = de(2058 * ease(seg(t, 55.7, 56.9)));
+}
+
+function renderCursor(t){
+  const cur = $('#cursor'), rip = $('#ripple');
+  const groups = {};
+  TAPS.forEach(x => (groups[x.scene] ||= []).push(x));
+  const g = Object.values(groups).find(g => t >= g[0].t - 1.1 && t <= g[g.length - 1].t + .6);
+  if (!g) { css(cur, 0); } else {
+    const pr = $('#phoneBox').getBoundingClientRect();
+    const rest = [pr.right - pr.width * .18, pr.bottom - pr.height * .32];
+    let i = g.findIndex(x => x.t >= t - .12); if (i < 0) i = g.length - 1;
+    const inPhone = ([x, y]) => [clamp(x, pr.left + 20, pr.right - 20), clamp(y, pr.top + 20, pr.bottom - 20)];
+    const to = inPhone(center(g[i].sel)), from = i > 0 ? inPhone(center(g[i - 1].sel)) : rest;
+    const m = ease(seg(t, g[i].t - .75, g[i].t - .12));
+    const x = from[0] + (to[0] - from[0]) * m, y = from[1] + (to[1] - from[1]) * m;
+    const press = 1 - .25 * win(t, g[i].t - .08, g[i].t + .02, .06);
+    const v = Math.min(ease(seg(t, g[0].t - 1.1, g[0].t - .8)), 1 - ease(seg(t, g[g.length - 1].t + .3, g[g.length - 1].t + .6)));
+    css(cur, v, `translate(${x}px,${y}px) scale(${press})`);
+  }
+  const last = TAPS.findLast(x => x.t <= t);
+  const rp = last ? seg(t, last.t, last.t + .45) : 1;
+  if (last && rp < 1) { const [x, y] = center(last.sel); css(rip, 1 - rp, `translate(${x}px,${y}px) scale(${.3 + rp})`); }
+  else css(rip, 0);
+}
+
+/* Confetti: positions are a pure function of t, so seeking works */
+const COLORS = () => ['--accent', '--prot', '--carb', '--fat', '--scan'].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+let rnd = 7; const R = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+const BITS = Array.from({length:140}, () => ({x:R(), vx:(R() - .5) * .9, vy:-(.6 + R() * .9), rot:R() * 6, vr:(R() - .5) * 10, c:Math.floor(R() * 5), w:6 + R() * 6}));
+let palette = COLORS();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => palette = COLORS());
+function drawConfetti(t){
+  const cv = $('#confetti'), cx = cv.getContext('2d');
+  cx.clearRect(0, 0, cv.width, cv.height);
+  const dt = t - 52.2;
+  if (dt < 0 || dt > 4) return;
+  const W = cv.width, H = cv.height, s = devicePixelRatio;
+  cx.globalAlpha = 1 - seg(dt, 3, 4);
+  BITS.forEach(b => {
+    const x = (b.x * .6 + .2) * W + b.vx * dt * H * .5;
+    const y = H * .55 + (b.vy * dt + .55 * dt * dt) * H * .6;
+    cx.save(); cx.translate(x, y); cx.rotate(b.rot + b.vr * dt);
+    cx.fillStyle = palette[b.c]; cx.fillRect(-b.w * s / 2, -b.w * s / 4, b.w * s, b.w * s / 2); cx.restore();
+  });
+}
+
+/* ---- Audio ---- */
+const music = new Audio('audio/music.mp3'); music.preload = 'auto';
+VO.forEach(v => { v.el = new Audio(`audio/vo-${v.id}.mp3`); v.el.preload = 'auto'; v.el.addEventListener('loadedmetadata', () => v.dur = v.el.duration); });
+let ac;
+function blip(f = 880, d = .07, g = .12, type = 'sine'){
+  if (!ac) return;
+  const o = ac.createOscillator(), a = ac.createGain(), n = ac.currentTime;
+  o.type = type; o.frequency.setValueAtTime(f, n); o.frequency.exponentialRampToValueAtTime(f * .7, n + d);
+  a.gain.setValueAtTime(g, n); a.gain.exponentialRampToValueAtTime(.0001, n + d);
+  o.connect(a).connect(ac.destination); o.start(n); o.stop(n + d + .02);
+}
+const chime = () => { blip(1047, .12, .06, 'triangle'); setTimeout(() => blip(1568, .18, .05, 'triangle'), 70); };
+
+/* ---- Clock: performance.now() drives, the audio follows ---- */
+let cur = 0, base = 0, playing = false, lastT = 0, started = false;
+const hits = new Set();
+function play(){
+  if (cur >= T - .05) seek(0);
+  ac ||= new (window.AudioContext || window.webkitAudioContext)(); ac.resume();
+  playing = true; base = performance.now() - cur * 1000;
+  music.currentTime = cur; music.play().catch(() => {});
+  setPlayIcon();
+}
+function pause(){ playing = false; music.pause(); VO.forEach(v => v.el.pause()); setPlayIcon(); }
+function seek(x){
+  cur = clamp(x, 0, T); base = performance.now() - cur * 1000; lastT = cur;
+  try { music.currentTime = Math.min(cur, T - .05); } catch {}
+  VO.forEach(v => v.el.pause());
+  if (cur < .5) { hits.clear(); updateScore(); }
+  if (!started) { $('#start').hidden = true; started = true; play(); }
+  render(cur);
+}
+function setPlayIcon(){
+  $('#playBtn').innerHTML = `<svg width="22" height="22"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
+  $('#playBtn').setAttribute('aria-label', playing ? 'Pause' : 'Abspielen');
+}
+function syncAudio(){
+  if (Math.abs(music.currentTime - cur) > .25 && !music.seeking && cur < T - .1) music.currentTime = cur;
+  let speaking = false;
+  VO.forEach(v => {
+    const dur = v.dur || 3.5, active = cur >= v.start && cur < v.start + dur - .05;
+    if (active) {
+      speaking = true;
+      if (v.el.paused) { v.el.currentTime = cur - v.start; v.el.play().catch(() => {}); }
+      else if (Math.abs(v.el.currentTime - (cur - v.start)) > .3) v.el.currentTime = cur - v.start;
+    } else if (!v.el.paused) v.el.pause();
+  });
+  const target = speaking ? .3 : .8;
+  music.volume = clamp(music.volume + (target - music.volume) * .1);
+}
+function fireEvents(a, b){
+  if (!playing || b - a > .3) return;
+  TAPS.forEach(x => { if (x.t > a && x.t <= b) blip(760, .06, .1); });
+  ENTRIES.forEach(e => { if (e.t > a && e.t <= b) chime(); });
+  if (32.45 > a && 32.45 <= b || 38.45 > a && 38.45 <= b) blip(2400, .05, .08, 'square');
+}
+// The clock and audio also tick on a timer, so sound stays in sync when frames are throttled.
+function tick(){
+  if (!playing) return;
+  cur = (performance.now() - base) / 1000;
+  if (cur >= T) { cur = T; pause(); }
+  syncAudio(); fireEvents(lastT, cur); lastT = cur;
+}
+setInterval(tick, 100);
+function frame(){
+  tick(); render(cur);
+  requestAnimationFrame(frame);
+}
+
+/* ---- Tap along ---- */
+function updateScore(){
+  $('#score').textContent = `${hits.size} / ${TAPS.length}`;
+  $('#endScore').textContent = hits.size ? `Du hast ${hits.size} von ${TAPS.length} Taps mitgetippt.` : 'Nächstes Mal: Tippe mit.';
+}
+$('#phoneBox').addEventListener('pointerdown', e => {
+  if (!playing) return;
+  const i = TAPS.findIndex((x, i) => !hits.has(i) && Math.abs(x.t - cur) < .55);
+  const pop = document.createElement('span');
+  pop.className = 'pop'; pop.style.left = e.clientX + 'px'; pop.style.top = e.clientY + 'px';
+  if (i >= 0) { hits.add(i); pop.textContent = '+1'; blip(1320, .08, .1); updateScore(); }
+  else { pop.textContent = '·'; pop.style.color = 'var(--muted)'; }
+  document.body.appendChild(pop); setTimeout(() => pop.remove(), 820);
+});
+
+/* ---- Controls ---- */
+$('#startBtn').onclick = () => { $('#start').hidden = true; started = true; seek(0); play(); };
+$('#againBtn').onclick = () => { seek(0); play(); };
+$('#playBtn').onclick = () => playing ? pause() : (started = true, $('#start').hidden = true, play());
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); $('#playBtn').click(); }
+  const i = SCENES.findLastIndex(s => s.start <= cur);
+  if (e.key === 'ArrowRight' && SCENES[i + 1]) seek(SCENES[i + 1].start);
+  if (e.key === 'ArrowLeft') seek(cur - SCENES[i].start > 1 || i === 0 ? SCENES[i].start : SCENES[i - 1].start);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && playing) pause(); });
+
+layout(); updateScore(); render(0); requestAnimationFrame(frame);
+</script>
