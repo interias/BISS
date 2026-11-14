@@ -79,6 +79,7 @@ class SearchHit(FoodSummary):
         "(POST /entries or log_meal with gtin)"
     )
     gtin: str | None = Field(description="GTIN-14; always set for a cached product")
+    recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
 
 
 class SearchResult(BaseModel):

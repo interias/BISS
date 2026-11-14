@@ -50,7 +50,10 @@ export type FoodSummary = {
  * the barcode chain answers as a draft and which is logged by its GTIN.
  */
 export type SearchHit = Omit<FoodSummary, "id"> &
-  ({ id: number; gtin: string | null } | { id: null; gtin: string });
+  ({ id: number; gtin: string | null } | { id: null; gtin: string }) & {
+    /** The food of an own recipe: the search sets it apart. */
+    recipe?: boolean;
+  };
 
 export type Serving = {
   id: number;

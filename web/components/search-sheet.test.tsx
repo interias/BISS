@@ -107,3 +107,19 @@ test("a Schnellzugriff last used stands in the list and is handed on; a food sea
   expect(within(foods).queryByText("Kaffee")).not.toBeInTheDocument();
   expect(within(foods).getAllByRole("button")).toHaveLength(3);
 });
+
+test("an own recipe stands out with its mark, other foods keep their source", async () => {
+  fakeApi();
+  const own = { ...banana, id: 71, name: "Skyrbrötchen", source: "own" as const, gtin: null, recipe: true };
+  const body = { likely: [], recent: [{ food: own, combo: null }, { food: { ...banana, gtin: null }, combo: null }] };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(body))),
+  );
+  renderSearch();
+  const [first, second] = within(await screen.findByRole("group", { name: "Zuletzt" })).getAllByRole("button");
+  expect(first).toHaveTextContent("Rezept");
+  expect(within(first).getByText("Skyrbrötchen")).toHaveClass("text-primary");
+  expect(second).not.toHaveTextContent("Rezept");
+  expect(within(second).getByText("Banane roh")).not.toHaveClass("text-primary");
+});

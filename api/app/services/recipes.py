@@ -189,6 +189,11 @@ def recipe_id_of(session: Session, food_id: int) -> int | None:
     return session.scalar(select(Recipe.id).where(Recipe.food_id == food_id))
 
 
+def recipe_food_ids(session: Session) -> set[int]:
+    """The foods that are recipes, so the search can mark them."""
+    return set(session.scalars(select(Recipe.food_id)))
+
+
 def create_recipe(
     session: Session,
     name: str,
