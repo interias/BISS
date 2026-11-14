@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getRecipes, imageUrl, type Recipe } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { addPill } from "@/lib/styles";
+import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
 
@@ -47,9 +48,11 @@ export function RecipesSheet({ onPick, onNew }: { onPick: (recipe: Recipe) => vo
               </span>
               <span className="min-w-0 self-end truncate font-semibold text-primary">{recipe.name}</span>
               <span className="self-end text-right font-bold tabular-nums">{fmt(recipe.per_portion.kcal)}</span>
-              <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground tabular-nums">
-                {`${recipe.portions} ${recipe.portions === 1 ? "Portion" : "Portionen"} · je ${fmt(recipe.portion_grams)} g · kcal je Portion`}
+              <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
+                {`${recipe.portions} ${recipe.portions === 1 ? "Portion" : "Portionen"} · je ${fmt(recipe.portion_grams)} g`}
               </span>
+              {/* Like the kcal above: of one portion. */}
+              <MacroLine macros={recipe.per_portion} className="self-start" />
             </button>
           </li>
         ))}

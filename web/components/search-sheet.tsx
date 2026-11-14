@@ -5,8 +5,8 @@ import { getSuggestions, kindColor, photoOf, searchFoods, searchOff, type Combo,
 import { fmt, originLine, per100Unit } from "@/lib/format";
 import { addPill, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
-import { DOTS } from "@/components/amount-sheet";
 import { FoodPic } from "@/components/food-pic";
+import { MacroLine } from "@/components/macro-line";
 import { SheetTitle } from "@/components/sheet";
 
 const DEBOUNCE_MS = 150;
@@ -39,14 +39,8 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
         )}
         je {per100Unit(food.basis)}
       </span>
-      {/* Protein, carbs and fat for the same 100 g as the kcal above, in their colours. */}
-      <span data-testid="hit-macros" className="flex gap-2 self-start text-[12.5px] font-bold tabular-nums">
-        {DOTS.map(({ key, label, color }) => (
-          <span key={key} title={label} style={{ color }}>
-            {label[0]} {fmt(food.per_100[key])}
-          </span>
-        ))}
-      </span>
+      {/* For the same 100 g as the kcal above. */}
+      <MacroLine macros={food.per_100} className="self-start" />
     </button>
   );
 }
@@ -65,9 +59,10 @@ function ComboRow({ combo, onPick }: { combo: Combo; onPick: (combo: Combo) => v
       </span>
       <span className="min-w-0 self-end truncate font-semibold">{combo.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(combo.totals.kcal)}</span>
-      <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground">
+      <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground">
         Schnellzugriff · {fmt(grams)} g · trägt direkt ein
       </span>
+      <MacroLine macros={combo.totals} className="self-start" />
     </button>
   );
 }

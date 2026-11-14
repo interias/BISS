@@ -80,6 +80,12 @@ test("the diary lists entries and groups newest first, each with its time", asyn
   // Both at the fake's time; the later one, the combo, stands first.
   expect(rows.map((row) => row.textContent?.slice(0, 6))).toEqual(["Kaffee", "Banane"]);
   expect(rows[1]).toHaveTextContent("10:05");
+  // Entry and group show E, K and F the same way as the search: in this order, in colour.
+  for (const row of rows) {
+    const macros = within(row).getByTestId("macros");
+    expect(macros).toHaveTextContent(/^E \d+K \d+F \d+$/);
+    expect(within(macros).getByTitle("Eiweiß")).toHaveStyle({ color: "var(--biss-prot)" });
+  }
 });
 
 test("saving in the editor returns to the amount sheet with the new name", async () => {
