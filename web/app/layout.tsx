@@ -39,7 +39,8 @@ export default function RootLayout({
       lang="de"
       className={`${bricolage.variable} ${figtree.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* The page itself does not scroll or bounce; the app scrolls inside (home.tsx). */}
+      <body className="min-h-full flex flex-col overflow-hidden overscroll-none">{children}</body>
     </html>
   );
 }
