@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { searchFoods, searchOff, type SearchHit } from "@/lib/api";
+import { getSuggestions, searchFoods, searchOff, type SearchHit } from "@/lib/api";
 import { brandLine, fmt, per100Unit } from "@/lib/format";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -32,8 +32,23 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
   );
 }
 
+function HitGroup({ label, hits, onPick }: { label: string; hits: SearchHit[]; onPick: (food: SearchHit) => void }) {
+  if (hits.length === 0) return null;
+  return (
+    <div role="group" aria-label={label}>
+      <p className="pt-2 text-[12px] font-semibold text-muted-foreground">{label}</p>
+      {hits.map((food) => (
+        <HitRow key={food.id ?? food.gtin} food={food} onPick={onPick} />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Search sheet: input, hits with picture, name, brand and kcal per 100 g, the empty hint.
+ * Before anything is typed it shows what the backend guesses as the next entry ("Jetzt
+ * wahrscheinlich") and below the foods last used, the latest first. The guesses stay away
+ * while they would only repeat the list below.
  * When the backend says the local search found few hits (`off_more`), the hits of Open Food
  * Facts follow below, with "Suche bei Open Food Facts …" while they load and the source note.
  * `foodsOnly` leaves out the products of Open Food Facts, which have no food yet, and does
@@ -51,7 +66,16 @@ export function SearchSheet({
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<{ query: string; hits: SearchHit[]; offMore: boolean } | null>(null);
   const [off, setOff] = useState<Off | null>(null);
+  const [suggested, setSuggested] = useState<{ likely: SearchHit[]; recent: SearchHit[] } | null>(null);
   const q = query.trim();
+
+  useEffect(() => {
+    let live = true;
+    getSuggestions().then((found) => live && setSuggested(found), console.error);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!q) return;
@@ -117,6 +141,14 @@ export function SearchSheet({
         />
       </div>
       <div aria-label="Treffer">
+        {!q && suggested && (
+          <>
+            {suggested.recent.length > suggested.likely.length && (
+              <HitGroup label="Jetzt wahrscheinlich" hits={suggested.likely} onPick={onPick} />
+            )}
+            <HitGroup label="Zuletzt" hits={suggested.recent} onPick={onPick} />
+          </>
+        )}
         {hits?.map((food) => <HitRow key={food.id ?? food.gtin} food={food} onPick={onPick} />)}
         {!settled && (
           <div aria-live="polite" className="py-2.5 text-[13px] text-muted-foreground">

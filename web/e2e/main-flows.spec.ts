@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { Entries, entryIdFrom, findFood, totalKcal } from "./helpers";
+import { countTaps, Entries, entryIdFrom, findFood, totalKcal } from "./helpers";
 
 // Core flows of SPEC 8 against the compose stack: the web app proxies /api/v1 to the api.
 
@@ -67,6 +67,23 @@ test("searching banane and logging 120 g shows the entry on top of the diary", a
   await expect(diary.getByText("Frühstück")).toHaveCount(0);
   await expect(entry).toContainText("Banane roh");
   await expect(entry).toContainText("120 g");
+});
+
+test("the empty search lists the foods last used; one of them is logged within the budget", async ({ page }) => {
+  await entries.create(bananaId, 120, "snack");
+  const taps = await countTaps(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  const sheet = page.getByRole("dialog");
+  // The banana was logged just now: it stands first among the foods last used.
+  await sheet.getByRole("group", { name: "Zuletzt" }).getByRole("button").first().click();
+  await expect(sheet.getByRole("heading", { name: "Banane roh" })).toBeVisible();
+
+  const created = await entryIdFrom(page, "POST", /^\/api\/v1\/entries$/, () =>
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  );
+  entries.track(created.id);
+  expect(await taps(), "Suche + 2").toBe(3);
 });
 
 test("an unknown product comes from Open Food Facts, opens the amount sheet and is logged", async ({ page, request }) => {

@@ -13,6 +13,7 @@ from app.domain.atwater import atwater
 from app.models import Food
 from app.search.off_search import search_off, wants_off
 from app.search.search import search_foods
+from app.search.suggest import suggestions
 from app.services import foods
 from app.services.foods import (
     FALLBACK_SERVING,
@@ -61,6 +62,21 @@ def search_open_food_facts(
     return schemas.OffSearchResult(
         hits=[convert.search_hit(hit) for hit in found.hits], reason=found.reason
     )
+
+
+@router.get("/suggestions")
+def suggest(session: SessionDep, now: NowDep) -> schemas.Suggestions:
+    """The empty search: guesses for the next entry by habit, time of day and what was
+    logged just now, then the foods last used. Only foods that were logged before."""
+    found = suggestions(session, now)
+
+    def hits(foods: list[tuple[Food, StandardServing]]) -> list[schemas.SearchHit]:
+        return [
+            convert.food_summary(food, serving, schemas.SearchHit, gtin=food.gtin)
+            for food, serving in foods
+        ]
+
+    return schemas.Suggestions(likely=hits(found.likely), recent=hits(found.recent))
 
 
 @router.get(
