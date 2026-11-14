@@ -122,9 +122,9 @@ export function Camera({
   /**
    * The draft read from the label, or nothing to go on by hand; with the GTIN-14 of a miss,
    * without one after the shutter "Etikett". `known` is the name and brand of a product
-   * Open Food Facts has without values.
+   * Open Food Facts has without values, `photo` the picture the draft was read from.
    */
-  onLabel: (gtin: string | undefined, label?: LabelExtraction, known?: Known) => void;
+  onLabel: (gtin: string | undefined, label?: LabelExtraction, known?: Known, photo?: Blob) => void;
   /** The dish read from the plate photo, with the photo for the result sheet. */
   onPlate: (plate: PlateExtraction, photo: Blob) => void;
   onClose: () => void;
@@ -221,8 +221,9 @@ export function Camera({
     busy.current = true;
     setStatus({ kind: "reading" });
     try {
-      const label = await extractLabel(await photo(), gtin);
-      handlers.current.onLabel(gtin, label, known);
+      const image = await photo();
+      const label = await extractLabel(image, gtin);
+      handlers.current.onLabel(gtin, label, known, image);
       return; // the overlay closes
     } catch (failure) {
       console.error(failure);

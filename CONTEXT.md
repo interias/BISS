@@ -18,12 +18,12 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Tagesziel | `goal` | Sollwerte eines Tages; ohne eigenen Wert gilt das Standardziel |
 | Zuletzt-Chip | `recent` | Lebensmittel im Dock, ein Tap trägt die Standardportion ein |
 | Wirt | `suggest` | Die Vorhersage der leeren Suche: Wie der Wirt einer Stammkneipe, der morgens den Kaffee und abends das Bier hinstellt, rät er den nächsten Eintrag aus Häufigkeit, Uhrzeit und dem eben Eingetragenen |
-| Etikett | `label` | Foto der Nährwerttabelle. Es wird nur ausgelesen und nicht gespeichert |
-| Teller | `plate` | Foto eines Gerichts. Es wird nur ausgelesen und nicht gespeichert |
+| Etikett | `label` | Foto der Nährwerttabelle. Es wird ausgelesen und ist das erste Produktfoto des neuen Lebensmittels |
+| Teller | `plate` | Foto eines Gerichts. Eingetragen wird es zu einem Rezept mit einer Portion, den erkannten Zutaten und dem Foto als Produktfoto |
 | Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |
 | Rezept | `recipe` | Selbst Gekochtes oder Gebackenes aus rohen Zutaten, mit Portionen, optionalem Fertiggewicht, Zubereitung und Foto. Es hat ein eigenes Lebensmittel mit den Werten je 100 g des fertigen Gerichts und der Portion „1 Portion“ |
 | Fertiggewicht | `cooked_grams` | Gewicht des fertigen Gerichts nach dem Backen oder Braten. Ohne Angabe gilt die Summe der Zutaten |
-| Gericht | `group` | Die Einträge eines Tellers oder Schnellzugriffs mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
+| Gericht | `group` | Die Einträge eines Schnellzugriffs mit gemeinsamer `group_id` und `group_name`; jeder Eintrag behält seinen eigenen Snapshot |
 | Kategorie | `category` | Symbolgruppe eines Lebensmittels, z. B. Obst oder Wurst. Ein Lebensmittel ohne Foto zeigt ihr Symbol |
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |

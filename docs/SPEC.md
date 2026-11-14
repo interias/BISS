@@ -1,6 +1,6 @@
 # BISS – Spezifikation
 
-Stand: 29.10.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+Stand: 14.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
 
 ## 1. Ziel und Leitprinzipien
 
@@ -79,7 +79,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Ein Foto erscheint überall, wo das Lebensmittel gelistet ist: Tagebuch, Suche, Dock-Chip, Mengen-Sheet, Rezeptliste (`image_path` an jedem Lebensmittel).
   - Abschnitts- und Blatt-Kennzeilen stehen klein, in Großbuchstaben und gesperrt. Blatt-Titel sind 21 px groß.
   - „Etwas Neues hinzufügen“ ist überall eine gestrichelte Pille in der Akzentfarbe („+ Schnellzugriff“, „+ Zutat suchen“, „+ Zutat“, „+ Neues Rezept“, „Neu anlegen“).
-  - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“.
+  - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“. Rechts daneben, unter den kcal, stehen Eiweiß, Kohlenhydrate und Fett für dieselbe Menge, immer in dieser Reihenfolge und in den Farben der Makro-Balken („E 11 K 4 F 0“).
   - Kleine Knöpfe in Zutatenzeilen (−, +, ✕, „tauschen“) reagieren auf etwa 40 px, ohne größer auszusehen.
   - Lange Namen brechen um, bevorzugt nach einem Schrägstrich, und überdecken nichts. Ein Hauptknopf, der noch nicht geht, ist grau.
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
@@ -94,6 +94,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „zuletzt“-Chips: die bis zu drei zuletzt eingetragenen Mengen, die keine Portion sind. Es zählen nur Einzeleinträge, keine Zutaten eines Tellers oder Schnellzugriffs.
   - kcal/E/K/F live.
   - „Eintragen · X kcal“, im Bearbeitungsmodus „Speichern“ und „Entfernen“.
+  - Zurück aus „Bearbeiten“ rechnet „Speichern“ den Eintrag mit den geänderten Werten neu, auch bei gleicher Menge. Nach einem geänderten Rezept behält die Menge ihre Anzahl Portionen.
 - **Schritte von − und +** (Mengen-, Teller- und Schnellzugriff-Blatt):
   - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
   - + springt zum nächsten Wert des Rasters, − zum vorigen. Hin und zurück ergibt wieder den Ausgangswert, kein Wert wird übersprungen.
@@ -115,7 +116,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Das Live-Bild wird mit 1920 × 1080 angefragt, damit das Standbild für Etikett und Teller scharf genug ist.
   - Der Auslöser „Etikett“ braucht keinen Barcode. Das Foto geht ohne GTIN an die Extraktion.
   - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
-  - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet.
+  - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet. Das Etikett-Foto ist im Editor als Produktfoto vorbelegt und wird mit dem Lebensmittel gespeichert; ein anderes Foto ersetzt es.
   - Der Auslöser „Teller“ schickt das Foto an die Teller-Erkennung („Erkenne Gericht …“) und öffnet das Ergebnis-Sheet. Ohne Kamera öffnet er die Fotoauswahl.
   - **Ladebildschirm:** Solange das Backend ein Etikett oder einen Teller liest, verdeckt er das Kamerabild: eine von vier Animationen, je Foto zufällig, und ein kurzer Spruch, der alle 2 s wechselt („Zähle Erbsen …“). Die Statuszeile darunter sagt weiter, was läuft.
 - **Teller-Ergebnis-Sheet** (E7):
@@ -123,8 +124,9 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ (mindestens 1 g) und ✕.
   - Der Hinweis „Mengen sind geschätzt. Fehlt etwas?“ und Vorschläge: die Zuletzt-Chips, die noch nicht auf dem Teller liegen. Ein Tap fügt das Lebensmittel mit seiner Standardportion als „manuell“ hinzu.
   - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
-  - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“. Eingetragen wird ein Gericht (`POST /entries/group`) mit dem Toast „Rückgängig“.
-- **Gericht im Tagebuch:** Die Einträge eines Gerichts stehen als eine Gruppe mit der Summe des Backends in der Liste, zur Uhrzeit des Gerichts. Die Gruppe klappt auf und zeigt ihre Einträge. Ein Tap auf einen Eintrag öffnet das Mengen-Sheet zum Ändern oder Entfernen. „+ Zutat“ öffnet die Suche (nur Lebensmittel) und trägt die Wahl als weiteren Eintrag des Gerichts ein, mit dessen Name, Mahlzeit und Zeitpunkt (`POST /entries` mit `group_id`). „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
+  - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“.
+  - „Eintragen“ speichert den Teller als eigenes Lebensmittel und trägt es ein (Abschnitt 7a): ein Rezept mit einer Portion, den zugeordneten Zutaten und dem Tellerfoto als Produktfoto. Im Tagebuch steht eine Zeile. Ein Tap öffnet das Mengen-Sheet: Die Anzahl ändert der Chip „1 Portion“ („2 × 1 Portion“), „Bearbeiten“ öffnet das Rezept-Blatt mit den Zutaten. „Rückgängig“ im Toast entfernt den Eintrag, das Lebensmittel bleibt.
+- **Gericht im Tagebuch:** Die Einträge eines Gerichts (Schnellzugriff oder `POST /entries/group`) stehen als eine Gruppe mit der Summe des Backends in der Liste, zur Uhrzeit des Gerichts. Die Gruppe klappt auf und zeigt ihre Einträge. Ein Tap auf einen Eintrag öffnet das Mengen-Sheet zum Ändern oder Entfernen. „+ Zutat“ öffnet die Suche (nur Lebensmittel) und trägt die Wahl als weiteren Eintrag des Gerichts ein, mit dessen Name, Mahlzeit und Zeitpunkt (`POST /entries` mit `group_id`). „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
 - **Als Schnellzugriff merken:** Jede Gruppe im Tagebuch, zu der es keinen Schnellzugriff gleichen Namens gibt, zeigt „als Schnellzugriff merken“. Ein Tap legt die Vorlage mit Name, Lebensmitteln und Gramm der Gruppe an.
 
 ## 4. Domänenmodell
@@ -136,7 +138,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `food` | `id`, `name`, `brand`, `gtin` (GTIN-14, eindeutig, nullable), `basis` (`g`/`ml`), `density` (g/ml, Standard 1,0), `kcal`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sat_fat`, `salt`, `image_path`, `category` (Symbolgruppe, nullable), `source` (`own`/`bls`/`off`), `source_id`, `fetched_at`, `overridden` (Liste geänderter Felder), `name_norm` (normalisiert, Trigram-Index), `created_at`, `updated_at` |
 | `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
-| `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Tellers (Abschnitt 7a) |
+| `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Gerichts |
 | `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
 | `combo` | `id`, `name`, `position` (Reihenfolge im Dock), `created_at`, `updated_at` – Vorlage eines Schnellzugriffs (E8) |
 | `combo_item` | `id`, `combo_id` (löscht mit), `food_id`, `grams` (> 0 und ≤ 1.500), `position` – Zutaten der Vorlage in Reihenfolge |
@@ -148,7 +150,7 @@ Regeln:
 
 - **Tag und Mahlzeit:** Zeitzone `Europe/Berlin`. Ein Eintrag bis 04:00 Uhr zählt zum Vortag. Ohne Angabe schlägt das Backend die Mahlzeit nach Uhrzeit vor: < 10:30 Frühstück, < 14:30 Mittag, < 17:30 Snack, sonst Abend.
 - **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
-- **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
+- **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht. Nur der Eintrag, aus dessen Mengen-Sheet das Lebensmittel oder Rezept bearbeitet wurde, wird mit „Speichern“ neu berechnet.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
 - **Rezept:** Werte je 100 g = Summe der Zutaten ÷ Fertiggewicht × 100, auf 0,1 gerundet. Fertiggewicht ist `cooked_grams`, sonst die Summe der Zutaten. Eine Zutat mit Basis ml zählt mit ihrem Volumen. Fehlt einer Zutat ein Zusatzwert (Ballaststoffe, Zucker, gesättigte Fettsäuren, Salz), bleibt er beim Gericht leer. „1 Portion“ = Fertiggewicht ÷ `portions`. `GET /foods/{id}` nennt bei einem Rezept-Lebensmittel `recipe_id`.
 - **Geschätzte Portionen:** `data/bls/servings.csv` hält typische Portionen für Grundlebensmittel, die erste je Lebensmittel ist der Standard. Jeder API-Start ergänzt neue Zeilen. Ein BLS-Lebensmittel, dessen Portionen im Editor geändert wurden (`servings` in `overridden`) oder das eine eigene Portion hat, bekommt keine dazu.
@@ -159,7 +161,7 @@ Regeln:
   - Eigene Lebensmittel: aus dem Editor, ohne Wahl leer.
   - Die Zuordnung liegt im Backend (`app/domain/category.py`, [ADR-0003](adr/0003-logic-in-backend.md)). Eine geänderte Kategorie eines BLS- oder OFF-Lebensmittels steht im Overlay.
 - **Flüssigkeiten:** `basis = ml`. Gramm werden über `density` umgerechnet, eingetragen wird immer in Gramm.
-- **Schnellzugriff:** Eine Vorlage ist kein Eintrag. Eintragen legt eine Gruppe wie beim Teller an, mit `group_name` = Name der Vorlage und eigenem Snapshot je Eintrag. Angepasste Zutaten ändern die Vorlage nicht.
+- **Schnellzugriff:** Eine Vorlage ist kein Eintrag. Eintragen legt eine Gruppe an, mit `group_name` = Name der Vorlage und eigenem Snapshot je Eintrag. Angepasste Zutaten ändern die Vorlage nicht.
 
 ## 5. API
 
@@ -170,8 +172,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET | `/days/{date}` | Tagesbilanz, Ziele, `rows` (das Tagebuch: Einträge und Gerichte neueste zuerst, Gerichte mit Summe), dazu `meals` (Einträge nach Mahlzeit für andere Clients) und `suggested_meal` |
 | POST | `/entries` | Eintrag anlegen. Ohne `grams` gilt die Standardportion, ohne `meal` der Vorschlag. Mit `group_id` wird er eine weitere Zutat dieses Gerichts |
 | PATCH / DELETE | `/entries/{id}` | Menge oder Mahlzeit ändern, entfernen (auch für „Rückgängig“) |
-| POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` (E7) |
-| PATCH / DELETE | `/entries/group/{id}` | Mahlzeit oder Name aller Einträge des Gerichts ändern, alle entfernen (E7) |
+| POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` |
+| PATCH / DELETE | `/entries/group/{id}` | Mahlzeit oder Name aller Einträge des Gerichts ändern, alle entfernen |
 | GET | `/recent` | Zuletzt-Chips: Lebensmittel nach Nutzung und Aktualität, mit Standardportion |
 | GET | `/combos` | Schnellzugriffe nach `position`, je Zutat Lebensmittel, Gramm und Makros, dazu die Summe (E8) |
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
@@ -267,14 +269,14 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 **Modelle:**
 - Ein schnelles Modell als Standard und ein stärkeres als Fallback, beide konfigurierbar.
 - Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem stärkeren Modell. Bleibt der Verstoß, zeigt der Editor die Warnung. Liefert das stärkere Modell keinen brauchbaren Entwurf, bleibt der des schnellen mit seiner Warnung.
-- Das Etikett-Foto wird nach der Extraktion verworfen.
+- Das Backend liest das Etikett-Foto nur aus und speichert es bei der Extraktion nicht. Die App legt dasselbe Foto beim Speichern des Lebensmittels als Produktfoto ab (`PUT /foods/{id}/image`).
 
 ## 7a. Teller-Erkennung (E7)
 
 [ADR-0009](adr/0009-plate-recognition.md)
 
 **Ein- und Ausgabe:**
-- Eingabe ist das Foto eines Tellers. Es wird nur ausgelesen und nach der Erkennung verworfen.
+- Eingabe ist das Foto eines Tellers. Die Erkennung liest es nur aus und speichert es nicht.
 - Das Modell antwortet nach festem JSON-Schema: `dish, ingredients [{name, grams, confidence}], notes`.
 - `POST /plates/extract` liefert `dish`, `items`, `totals` und `notes`. Ein Item hat `food_id` (oder `null`), `name`, `grams`, `confidence`, `certainty` (`recognized`/`guessed`, in der App „erkannt“/„vermutet“, ab `confidence` 0,7 erkannt), das zugeordnete Lebensmittel, dessen `basis` und `density`, dessen Werte je 100 g bzw. 100 ml und `macros` für die Menge. Mit `basis` und `density` rechnet die Vorschau der App wie das Backend.
 - `totals` summiert die zugeordneten Items. Eingetragen wird erst nach der Bestätigung.
@@ -291,7 +293,12 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 **Modelle:** wie beim Etikett (Abschnitt 7). Das schnelle Modell liest zuerst. Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem starken. Liefert das starke keinen brauchbaren Entwurf, bleibt der des schnellen.
 
-**Gericht:**
+**Eintragen als eigenes Lebensmittel** ([ADR-0012](adr/0012-recipe-as-food.md), Nachtrag in ADR-0009):
+- Die App legt aus Name und zugeordneten Zutaten ein Rezept mit einer Portion an (`POST /recipes`), lädt das Tellerfoto als Produktfoto seines Lebensmittels hoch (`PUT /foods/{id}/image`) und trägt die Standardportion ein (`POST /entries`). Das Rezept gilt auch ohne Foto.
+- Scheitert der Eintrag, ändert ein zweiter Versuch dasselbe Rezept (`PATCH /recipes/{id}`), statt es doppelt anzulegen.
+- Der Teller steht danach in Suche, leerer Suche und „Meine Rezepte“ und lässt sich wieder eintragen.
+
+**Gericht** (Gruppe eines Schnellzugriffs oder der API):
 - `POST /entries/group` legt je Zutat einen Eintrag an. Alle Einträge teilen `group_id`, `group_name`, Mahlzeit und Zeitpunkt.
 - Die Snapshot-Regel gilt je Eintrag (Abschnitt 4). Eine geänderte Menge (`PATCH /entries/{id}`) ändert nur den Snapshot dieses Eintrags.
 - `PATCH /entries/group/{id}` ändert Mahlzeit oder Name aller Einträge. `DELETE /entries/group/{id}` entfernt sie, auch für „Rückgängig“.
@@ -318,7 +325,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
 
 ## 9. Betrieb
 

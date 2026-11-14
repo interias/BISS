@@ -37,7 +37,7 @@ Die Anmeldung liegt danach im Volume `tailscale-state`, der Key wird nur für de
 
 Der Dienst `backup` sichert jede Nacht um 03:00 Uhr Datenbank und Produktfotos nach `BACKUP_DIR` (Standard `./backups`) und behält die letzten 14 Sicherungen. Wiederherstellung und Skripttest: [`docs/backup.md`](docs/backup.md).
 
-Die Etikett-Extraktion (`POST /api/v1/labels/extract`, [ADR-0004](docs/adr/0004-llm-extraction.md)) braucht in `.env` den Token aus `claude setup-token` als `CLAUDE_CODE_OAUTH_TOKEN` oder einen `ANTHROPIC_API_KEY`. Die Modelle stehen in `LLM_MODEL_FAST` und `LLM_MODEL_STRONG`. Die Claude-Code-CLI kommt mit dem Python-Paket `claude-agent-sdk` ins Image, Node ist nicht nötig. Das Etikett-Foto wird nicht gespeichert.
+Die Etikett-Extraktion (`POST /api/v1/labels/extract`, [ADR-0004](docs/adr/0004-llm-extraction.md)) braucht in `.env` den Token aus `claude setup-token` als `CLAUDE_CODE_OAUTH_TOKEN` oder einen `ANTHROPIC_API_KEY`. Die Modelle stehen in `LLM_MODEL_FAST` und `LLM_MODEL_STRONG`. Die Claude-Code-CLI kommt mit dem Python-Paket `claude-agent-sdk` ins Image, Node ist nicht nötig. Die Extraktion speichert das Etikett-Foto nicht; die App legt es als Produktfoto des neuen Lebensmittels ab.
 
 ## Tests
 

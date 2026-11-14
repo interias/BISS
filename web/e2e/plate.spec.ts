@@ -1,15 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 import { barcodePng } from "./barcode-image";
 import { MISS_CODE } from "./camera-setup";
-import { countTaps, Entries } from "./helpers";
+import { countTaps, Entries, findFood } from "./helpers";
 
 // Plate flow of SPEC 3 and 7a: the photo goes to the fake plate extractor (PLATE_EXTRACTOR in
 // compose.test.yaml), which always reads "Hähnchen mit Reis und Brokkoli" with three
-// ingredients; the e2e stack loads the full BLS, so all three are matched.
+// ingredients; the e2e stack loads the full BLS, so all three are matched. "Eintragen" stores
+// the dish as a recipe of one portion with the photo and logs that portion.
 
 const DISH = "Hähnchen mit Reis und Brokkoli";
 
-type Group = { group_id: string; totals: { kcal: number }; entries: { id: number }[] };
+type Logged = { id: number; grams: number; food: { id: number }; macros: { kcal: number } };
+type Dish = { id: number; food_id: number; portions: number; portion_grams: number; items: unknown[] };
 
 let entries: Entries;
 
@@ -41,27 +43,28 @@ async function photographPlate(page: Page) {
   return page.getByRole("dialog");
 }
 
-/** The confirmation: Eintragen. Returns the group and the kcal the button showed. */
+const posted = (page: Page, path: string) =>
+  page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === path);
+
+/** The confirmation: Eintragen. Returns the stored dish, its entry and the kcal the button showed. */
 async function logPlate(page: Page) {
   const sheet = page.getByRole("dialog");
   const button = sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ });
   const shown = Number(/(\d+) kcal/.exec((await button.textContent()) ?? "")![1]);
-  const [response] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries/group",
-    ),
+  const [stored, photo, logged] = await Promise.all([
+    posted(page, "/api/v1/recipes"),
+    page.waitForResponse((r) => r.request().method() === "PUT" && /\/foods\/\d+\/image$/.test(r.url())),
+    posted(page, "/api/v1/entries"),
     button.click(),
   ]);
-  expect(response.status()).toBe(201);
-  const group: Group = await response.json();
-  entries.trackGroup(group.group_id);
-  return { group, shown };
+  expect(stored.status()).toBe(201);
+  expect(photo.status()).toBe(200);
+  expect(logged.status()).toBe(201);
+  const dish: Dish = await stored.json();
+  const entry: Logged = await logged.json();
+  entries.track(entry.id);
+  return { dish, entry, shown };
 }
-
-const deletion = (page: Page, groupId: string) =>
-  page.waitForResponse(
-    (r) => r.request().method() === "DELETE" && new URL(r.url()).pathname === `/api/v1/entries/group/${groupId}`,
-  );
 
 test("tap budget: a plate is logged with Kamera + Teller + 1 confirmation", async ({ page }) => {
   const taps = await countTaps(page);
@@ -81,95 +84,103 @@ test("tap budget: a plate is logged with Kamera + Teller + 1 confirmation", asyn
   await expect(sheet.getByText("nicht zugeordnet", { exact: true })).toHaveCount(0);
   await expect(sheet.getByText("Mengen sind geschätzt. Fehlt etwas?")).toBeVisible();
 
-  const { group, shown } = await logPlate(page);
-  expect(group.entries).toHaveLength(3);
-  // The preview ("Wert je 100 g × Gramm / 100") is the backend's sum within rounding.
-  expect(Math.abs(group.totals.kcal - shown)).toBeLessThanOrEqual(1);
+  const { dish, entry, shown } = await logPlate(page);
+  // The dish is a food of its own: one portion of all three ingredients.
+  expect(dish.items).toHaveLength(3);
+  expect(dish.portions).toBe(1);
+  expect(entry.food.id).toBe(dish.food_id);
+  expect(entry.grams).toBe(dish.portion_grams);
+  // The preview ("Wert je 100 g × Gramm / 100") is the backend's snapshot within rounding of
+  // the dish's values per 100 g.
+  expect(Math.abs(entry.macros.kcal - shown)).toBeLessThanOrEqual(2);
 
-  const row = page.locator(`[data-group-id="${group.group_id}"]`);
+  // One row in the diary, with the plate photo; no group of ingredients.
+  const row = page.locator(`[data-entry-id="${entry.id}"]`);
   await expect(row).toContainText(DISH);
-  await expect(row).toContainText("3 Zutaten");
-  await expect(row).toContainText(String(Math.round(group.totals.kcal)));
+  await expect(row.locator("img")).toHaveCount(1);
+  await expect(page.locator("[data-group-id]")).toHaveCount(0);
   await expect(page.getByText(`${DISH} eingetragen`)).toBeVisible();
   expect(await taps(), "Kamera + Teller + Eintragen").toBe(3);
 });
 
-test("a plate unfolds in the diary; entfernen and Rückgängig bring the group back", async ({ page }) => {
+test("a logged plate is counted in portions and its dish can be changed", async ({ page }) => {
   await page.goto("/");
   await photographPlate(page);
-  const { group } = await logPlate(page);
+  const { dish, entry } = await logPlate(page);
 
-  const row = page.locator(`[data-group-id="${group.group_id}"]`);
-  const toggle = row.getByRole("button", { name: new RegExp(DISH) });
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(row.locator("[data-entry-id]")).toHaveCount(0);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(row.locator("[data-entry-id]")).toHaveCount(3);
-  await expect(row).toContainText("Reis gekocht");
+  await page.locator(`[data-entry-id="${entry.id}"]`).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: DISH })).toBeVisible();
+  const portion = sheet.getByRole("button", { name: /1 Portion \d/ });
+  await expect(portion).toHaveAttribute("aria-pressed", "true");
 
-  const [removed] = await Promise.all([
-    deletion(page, group.group_id),
-    row.getByRole("button", { name: "Gericht entfernen" }).click(),
+  // The count: one more portion.
+  await portion.click();
+  await expect(portion).toContainText("2 × 1 Portion");
+  const [changed] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "PATCH" && /\/entries\/\d+$/.test(r.url())),
+    sheet.getByRole("button", { name: /^Speichern · \d+ kcal$/ }).click(),
   ]);
-  expect(removed.status()).toBe(204);
-  await expect(page.locator("[data-group-id]")).toHaveCount(0);
-  await expect(page.getByText(`${DISH} entfernt`)).toBeVisible();
+  expect((await changed.json()).grams).toBe(dish.portion_grams * 2);
 
-  // Rückgängig logs the Gericht again as a new group with the same amounts.
-  const [again] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries/group",
-    ),
-    page.getByRole("button", { name: "Rückgängig" }).click(),
-  ]);
-  expect(again.status()).toBe(201);
-  const restored: Group = await again.json();
-  entries.trackGroup(restored.group_id);
-  expect(restored.entries).toHaveLength(3);
-  expect(Math.abs(restored.totals.kcal - group.totals.kcal)).toBeLessThanOrEqual(1);
-  await expect(page.locator(`[data-group-id="${restored.group_id}"]`)).toContainText(DISH);
+  // "Bearbeiten" opens the dish with its ingredients.
+  await page.locator(`[data-entry-id="${entry.id}"]`).click();
+  await sheet.getByRole("button", { name: "Bearbeiten" }).click();
+  await expect(sheet.getByRole("heading", { name: "Rezept bearbeiten" })).toBeVisible();
+  await expect(sheet.getByRole("list", { name: "Zutaten" }).getByRole("listitem")).toHaveCount(3);
 });
 
-test("tap budget: a logged Gericht takes one more ingredient with aufklappen + 3", async ({ page }) => {
+test("tap budget: a logged Gericht takes one more ingredient with aufklappen + 3", async ({ page, request }) => {
+  // A Gericht as a Schnellzugriff logs it: a group of two ingredients.
+  const logged = await request.post("/api/v1/entries/group", {
+    data: {
+      group_name: "Reis mit Brokkoli",
+      items: [
+        { food_id: await findFood(request, "Reis gekocht", "Reis gekocht"), grams: 150 },
+        { food_id: await findFood(request, "Broccoli gekocht", "Broccoli gekocht"), grams: 80 },
+      ],
+    },
+  });
+  expect(logged.status()).toBe(201);
+  const group: { group_id: string } = await logged.json();
+  entries.trackGroup(group.group_id);
+
   const taps = await countTaps(page);
   await page.goto("/");
-  await photographPlate(page);
-  const { group } = await logPlate(page);
-  const logged = await taps();
-
   const row = page.locator(`[data-group-id="${group.group_id}"]`);
-  await row.getByRole("button", { name: new RegExp(DISH) }).click();
+  await row.getByRole("button", { name: /Reis mit Brokkoli/ }).click();
   await row.getByRole("button", { name: "+ Zutat" }).click();
   const sheet = page.getByRole("dialog");
   // Any food last used will do as the ingredient.
   await sheet.getByRole("group", { name: "Zuletzt" }).getByRole("button").first().click();
   const [created] = await Promise.all([
-    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    posted(page, "/api/v1/entries"),
     sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
   ]);
   expect(created.status()).toBe(201);
   expect((await created.json()).group_id).toBe(group.group_id);
 
-  await expect(row).toContainText("4 Zutaten");
-  await expect(row.locator("[data-entry-id]")).toHaveCount(4);
-  expect((await taps()) - logged, "aufklappen + Zutat + Treffer + Eintragen").toBe(4);
+  await expect(row).toContainText("3 Zutaten");
+  await expect(row.locator("[data-entry-id]")).toHaveCount(3);
+  expect(await taps(), "aufklappen + Zutat + Treffer + Eintragen").toBe(4);
 });
 
-test("Rückgängig after logging a plate removes the group again", async ({ page }) => {
+test("Rückgängig after logging a plate removes its entry again", async ({ page }) => {
   await page.goto("/");
   await photographPlate(page);
-  const { group } = await logPlate(page);
-  await expect(page.locator(`[data-group-id="${group.group_id}"]`)).toBeVisible();
+  const { entry } = await logPlate(page);
+  await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toBeVisible();
   const [removed] = await Promise.all([
-    deletion(page, group.group_id),
+    page.waitForResponse(
+      (r) => r.request().method() === "DELETE" && new URL(r.url()).pathname === `/api/v1/entries/${entry.id}`,
+    ),
     page.getByRole("button", { name: "Rückgängig" }).click(),
   ]);
   expect(removed.status()).toBe(204);
-  await expect(page.locator(`[data-group-id="${group.group_id}"]`)).toHaveCount(0);
+  await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toHaveCount(0);
 });
 
-test("an ingredient the backend could not match is marked and left out of the entry", async ({ page }) => {
+test("an ingredient the backend could not match is marked and left out of the dish", async ({ page }) => {
   // The fake matches all three on the full BLS: the answer is changed on its way.
   await page.route("**/api/v1/plates/extract", async (route) => {
     const response = await route.fetch();
@@ -183,7 +194,7 @@ test("an ingredient the backend could not match is marked and left out of the en
   await expect(sheet.getByText("Nicht zugeordnete Zutaten werden nicht eingetragen.")).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Broccoli gekocht zuordnen" })).toBeVisible();
 
-  const { group } = await logPlate(page);
-  expect(group.entries).toHaveLength(2);
-  await expect(page.locator(`[data-group-id="${group.group_id}"]`)).toContainText("2 Zutaten");
+  const { dish, entry } = await logPlate(page);
+  expect(dish.items).toHaveLength(2);
+  await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toContainText(DISH);
 });

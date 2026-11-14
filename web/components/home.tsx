@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   createCombo,
   createEntry,
   createEntryGroup,
+  createRecipe,
   deleteEntry,
   deleteCombo,
   deleteEntryGroup,
@@ -16,6 +17,8 @@ import {
   scanBarcode,
   updateCombo,
   updateEntry,
+  updateRecipe,
+  uploadFoodImage,
   type BarcodeFood,
   type Combo,
   type ComboItemWrite,
@@ -49,9 +52,16 @@ const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
 
 /**
  * The amount sheet with the grams it comes back with from the editor. With `groupId` the new
- * entry joins that Gericht of the diary.
+ * entry joins that Gericht of the diary. `refresh`: the food was just changed, so "Speichern"
+ * takes a new snapshot of the entry even for the same grams.
  */
-type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number }; groupId?: string };
+type AmountState = {
+  foodId: number;
+  entry?: Entry;
+  initial?: { grams: number };
+  groupId?: string;
+  refresh?: boolean;
+};
 
 type SheetState =
   // With `groupId` the search picks one more ingredient for that Gericht.
@@ -61,9 +71,17 @@ type SheetState =
   | { kind: "draft"; food: BarcodeFood }
   // `back` is the amount sheet "Bearbeiten" came from; a new food has none. `gtin` is a
   // scanned barcode without a hit, `label` the draft read from its label photo, `known` the
-  // name and brand Open Food Facts has for it.
-  | { kind: "editor"; foodId?: number; gtin?: string; label?: LabelExtraction; known?: Known; back?: AmountState }
-  // The dish read from a plate photo; nothing is logged before "Eintragen" (SPEC 7a).
+  // name and brand Open Food Facts has for it, `photo` the label photo as the product photo.
+  | {
+      kind: "editor";
+      foodId?: number;
+      gtin?: string;
+      label?: LabelExtraction;
+      known?: Known;
+      photo?: Blob;
+      back?: AmountState;
+    }
+  // The dish read from a plate photo; nothing is stored before "Eintragen" (SPEC 7a).
   | { kind: "plate"; plate: PlateExtraction; photo: Blob }
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
   | { kind: "combo"; combo?: Combo }
@@ -83,6 +101,9 @@ export function Home() {
   // The first load failed: without the backend the screen would stay empty without a word.
   const [offline, setOffline] = useState(false);
   const { toast, show, hide } = useToast();
+  // The dish of the open plate sheet once it is stored: a second try after a failure updates
+  // it instead of storing it twice.
+  const plateDish = useRef<{ plate: PlateExtraction; recipe: Recipe } | null>(null);
 
   // Every change reloads the day from the backend, which computes all values (ADR-0003).
   const apply = useCallback(([today, foods, saved]: [Day, FoodSummary[], Combo[]]) => {
@@ -211,10 +232,11 @@ export function Home() {
    * meal is the backend's suggestion; the app does not show meals.
    */
   const submit =
-    (target: { food_id: number; group_id?: string } | { gtin: string }, entry: Entry | undefined) => (grams: number) =>
+    (target: { food_id: number; group_id?: string } | { gtin: string }, entry: Entry | undefined, refresh = false) =>
+    (grams: number) =>
     write(async () => {
       if (entry) {
-        if (grams !== entry.grams) await updateEntry(entry.id, { grams });
+        if (grams !== entry.grams || refresh) await updateEntry(entry.id, { grams });
         show("Gespeichert");
       } else {
         const created = await createEntry({ ...target, grams });
@@ -225,14 +247,22 @@ export function Home() {
   const edited = (back?: AmountState) => (food: FoodDetail) => {
     reload().catch(fail); // names and values in the diary may have changed
     if (back) show("Lebensmittel gespeichert");
-    setSheet({ kind: "amount", ...(back ?? { foodId: food.id }) });
+    setSheet({ kind: "amount", ...(back ? { ...back, refresh: true } : { foodId: food.id }) });
   };
 
-  /** A saved recipe leads to the amount sheet of its food, ready to log portions. */
-  const recipeSaved = (back?: AmountState) => (recipe: Recipe) => {
+  /**
+   * A saved recipe leads to the amount sheet of its food, ready to log portions. Back from
+   * "Bearbeiten" the amount keeps its number of portions when a portion now weighs more or less.
+   */
+  const recipeSaved = (back?: AmountState) => (recipe: Recipe, before?: Recipe) => {
     reload().catch(fail); // names and values in the diary may have changed
     show("Rezept gespeichert");
-    setSheet({ kind: "amount", ...(back ?? { foodId: recipe.food_id }) });
+    if (!back) return setSheet({ kind: "amount", foodId: recipe.food_id });
+    const grams =
+      back.initial && before
+        ? Math.round((back.initial.grams / before.portion_grams) * recipe.portion_grams * 10) / 10
+        : undefined;
+    setSheet({ kind: "amount", ...back, initial: grams ? { grams } : back.initial, refresh: true });
   };
 
   const scanned = (food: BarcodeFood) => {
@@ -246,13 +276,27 @@ export function Home() {
     else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), fail);
   };
 
-  /** A Gericht is logged in one call; "Rückgängig" removes the whole group again. */
-  const submitPlate = (name: string, items: { food_id: number; grams: number }[]) =>
+  /**
+   * A plate becomes a dish of its own: a recipe of one portion with the plate photo, logged
+   * as one entry of that portion. So it can be counted ("2 × 1 Portion"), changed and found
+   * again like any recipe. "Rückgängig" removes the entry; the dish stays.
+   */
+  const submitPlate = (
+    plate: PlateExtraction,
+    photo: Blob,
+    name: string,
+    items: { food_id: number; grams: number }[],
+  ) =>
     write(async () => {
-      const group = await createEntryGroup({ group_name: name, items });
-      show(`${name} eingetragen`, () => {
-        deleteEntryGroup(group.group_id).then(reload).catch(fail);
-      });
+      const body = { name, description: "", items, portions: 1, cooked_grams: null };
+      const stored = plateDish.current?.plate === plate ? plateDish.current.recipe : null;
+      const recipe = stored ? await updateRecipe(stored.id, body) : await createRecipe(body);
+      plateDish.current = { plate, recipe };
+      // The dish counts without its photo too.
+      await uploadFoodImage(recipe.food_id, photo).catch(console.error);
+      // Without grams: the standard serving, which is the one portion.
+      const entry = await createEntry({ food_id: recipe.food_id });
+      show(`${name} eingetragen`, undo(entry.id));
     }).catch(fail);
 
   /**
@@ -336,9 +380,9 @@ export function Home() {
       {camera && (
         <Camera
           onFound={scanned}
-          onLabel={(gtin, label, known) => {
+          onLabel={(gtin, label, known, photo) => {
             setCamera(false);
-            setSheet({ kind: "editor", gtin, label, known });
+            setSheet({ kind: "editor", gtin, label, known, photo });
           }}
           onPlate={(plate, photo) => {
             setCamera(false);
@@ -368,7 +412,7 @@ export function Home() {
               entry={sheet.entry}
               initial={sheet.initial}
               busy={busy}
-              onSubmit={submit({ food_id: sheet.foodId, group_id: sheet.groupId }, sheet.entry)}
+              onSubmit={submit({ food_id: sheet.foodId, group_id: sheet.groupId }, sheet.entry, sheet.refresh)}
               onRemove={sheet.entry && remove(sheet.entry)}
               onEdit={(grams, recipeId) => {
                 const back = { foodId: sheet.foodId, entry: sheet.entry, initial: { grams }, groupId: sheet.groupId };
@@ -393,7 +437,7 @@ export function Home() {
               photo={sheet.photo}
               recent={recent}
               busy={busy}
-              onSubmit={submitPlate}
+              onSubmit={(name, items) => submitPlate(sheet.plate, sheet.photo, name, items)}
               onDiscard={() => setSheet(null)}
             />
           )}
@@ -431,6 +475,7 @@ export function Home() {
               gtin={sheet.gtin}
               label={sheet.label}
               known={sheet.known}
+              labelPhoto={sheet.photo}
               onSaved={edited(sheet.back)}
               onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />

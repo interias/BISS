@@ -60,12 +60,14 @@ type New = {
   label?: LabelExtraction;
   /** Name and brand Open Food Facts has for the scanned code; they go before the label's. */
   known?: { name: string | null; brand: string | null };
+  /** The photo the label was read from; it starts as the product photo of the new food. */
+  labelPhoto?: Blob;
 };
 
 /**
  * Editor sheet; with a food id it loads the food and edits it, without one it creates.
  */
-export function FoodEditor({ foodId, gtin, label, known, ...actions }: Actions & New & { foodId?: number }) {
+export function FoodEditor({ foodId, gtin, label, known, labelPhoto, ...actions }: Actions & New & { foodId?: number }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     if (foodId === undefined) return;
@@ -79,7 +81,9 @@ export function FoodEditor({ foodId, gtin, label, known, ...actions }: Actions &
   if (foodId !== undefined && !food) {
     return <SheetTitle className="sr-only">Lebensmittel bearbeiten</SheetTitle>;
   }
-  return <EditorForm food={food ?? undefined} gtin={gtin} label={label} known={known} {...actions} />;
+  return (
+    <EditorForm food={food ?? undefined} gtin={gtin} label={label} known={known} labelPhoto={labelPhoto} {...actions} />
+  );
 }
 
 type Row = { key: number; label: string; grams: string };
@@ -101,7 +105,15 @@ const inputClass =
  * list (star = standard, origin tag). Validation and the change of origin are the backend's
  * (ADR-0003); the `eigene` tag while typing is a preview.
  */
-export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Actions & New & { food?: FoodDetail }) {
+export function EditorForm({
+  food,
+  gtin,
+  label,
+  known,
+  labelPhoto,
+  onSaved,
+  onCancel,
+}: Actions & New & { food?: FoodDetail }) {
   const draft = food ? undefined : label?.draft;
   // The label servings as read; the row of the i-th has the key -(i + 1).
   const [fromLabel] = useState(() => (draft ? servingsOfLabel(draft) : { servings: [], skipped: [] }));
@@ -121,6 +133,14 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
   const [star, setStar] = useState(() => defaultKeyOf(food?.servings ?? []));
   const [added, setAdded] = useState<number | null>(null);
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
+  // The label photo starts as the product photo until another one is chosen. Its URL is
+  // released when it is replaced, else with the page.
+  const [labelShot] = useState(() =>
+    labelPhoto && !food && typeof URL.createObjectURL === "function"
+      ? { file: labelPhoto, url: URL.createObjectURL(labelPhoto) }
+      : null,
+  );
+  const shot = photo ?? labelShot;
   const [atwater, setAtwater] = useState<Atwater | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -178,6 +198,7 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
     if (!file) return;
     if (file.size > MAX_IMAGE_BYTES) return setError("Das Foto ist größer als 10 MB.");
     setError(null);
+    if (labelShot && !photo) URL.revokeObjectURL(labelShot.url);
     setPhoto({ file, url: URL.createObjectURL(file) });
   };
 
@@ -227,9 +248,9 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
       setBusy(false);
       return;
     }
-    if (photo) {
+    if (shot) {
       try {
-        saved = await uploadFoodImage(saved.id, photo.file);
+        saved = await uploadFoodImage(saved.id, shot.file);
       } catch (failure) {
         console.error(failure);
         // Saved without the photo: later tries update this food, so no duplicate arises.
@@ -244,7 +265,7 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
     onSaved(saved);
   };
 
-  const photoSrc = photo?.url ?? (base?.image_path ? imageUrl(base.image_path) : null);
+  const photoSrc = shot?.url ?? (base?.image_path ? imageUrl(base.image_path) : null);
   const unit = per100Unit(basis);
 
   return (
@@ -309,18 +330,6 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
         </div>
       </div>
 
-      {draft && (
-        <div className="mb-3 flex items-center gap-2.5 rounded-xl border bg-surface-2 px-2.5 py-2 text-[12.5px] text-muted-foreground">
-          <span
-            aria-hidden="true"
-            className="size-[34px] flex-none rounded-lg border bg-[repeating-linear-gradient(0deg,var(--biss-surface)_0_5px,var(--biss-line)_5px_6px)]"
-          />
-          <span>
-            <b className="text-foreground">Etikett-Foto</b> wird nur zum Auslesen genutzt und nicht gespeichert. Das
-            Foto links ist separat.
-          </span>
-        </div>
-      )}
       {draft && (draft.per_100.state === "prepared" || draft.notes) && (
         // What the model noticed while reading; a food does not store it.
         <div data-testid="label-notes" className="mb-3 grid gap-1 rounded-xl border bg-surface-2 px-3 py-2.5 text-[13px]">

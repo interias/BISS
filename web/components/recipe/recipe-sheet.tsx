@@ -78,7 +78,8 @@ export function RecipeSheet({
 }: {
   recipeId?: number;
   recent: FoodSummary[];
-  onSaved: (recipe: Recipe) => void;
+  /** The saved recipe and, when it was edited, the recipe as it was before. */
+  onSaved: (recipe: Recipe, before?: Recipe) => void;
   onCancel: () => void;
 }) {
   const [loaded, setLoaded] = useState<Recipe | null>(null);
@@ -103,7 +104,7 @@ function RecipeForm({
 }: {
   recipe?: Recipe;
   recent: FoodSummary[];
-  onSaved: (recipe: Recipe) => void;
+  onSaved: (recipe: Recipe, before?: Recipe) => void;
   onCancel: () => void;
 }) {
   // The last saved state: after a save whose photo upload failed, a retry must update.
@@ -195,7 +196,7 @@ function RecipeForm({
         return;
       }
     }
-    onSaved(saved);
+    onSaved(saved, recipe);
   };
 
   if (searching !== null) {

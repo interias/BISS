@@ -230,17 +230,18 @@ test("a failed photo upload keeps the sheet open and a retry updates instead of 
 
 const GTIN = "02000000013022";
 
-test("a label draft fills the new food and says that the label photo is not stored", () => {
+test("a label draft fills the new food and its photo starts as the product photo", () => {
+  stubObjectUrls();
   fakeBackend();
   const label = biscuitLabel(GTIN);
   label.draft.servings.push(
     { label: "1 Teller zubereitet", amount: 125, unit: "ml", source: "package" },
     { label: "1 Handvoll", amount: 30, unit: "g", source: "estimated" },
   );
-  inDialog(<EditorForm gtin={GTIN} label={label} onSaved={noop} onCancel={noop} />);
+  const labelPhoto = new File(["jpeg"], "etikett.jpg", { type: "image/jpeg" });
+  inDialog(<EditorForm gtin={GTIN} label={label} labelPhoto={labelPhoto} onSaved={noop} onCancel={noop} />);
 
   expect(screen.getByText("Neu · aus Etikett gelesen")).toBeInTheDocument();
-  expect(screen.getByText(/wird nur zum Auslesen genutzt und nicht gespeichert/)).toBeInTheDocument();
   expect(field("Name")).toHaveValue("Haferkeks Dinkel");
   expect(field("Marke")).toHaveValue("Testmühle");
   expect(field("GTIN")).toHaveValue(GTIN);
@@ -262,8 +263,8 @@ test("a label draft fills the new food and says that the label photo is not stor
   expect(rowOf(1).getByTestId("origin")).toHaveTextContent("eigene");
   expect(screen.queryByTestId("label-warning")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Verwerfen" })).toBeInTheDocument();
-  // The label photo is no product photo.
-  expect(screen.getByRole("button", { name: "Foto aufnehmen oder wählen" }).querySelector("img")).toBeNull();
+  // The label photo shows as the product photo.
+  expect(screen.getByRole("button", { name: "Foto aufnehmen oder wählen" }).querySelector("img")).not.toBeNull();
 });
 
 test("violations of the backend's label check show as a warning", () => {
@@ -291,7 +292,11 @@ test("violations of the backend's label check show as a warning", () => {
 test("Speichern & eintragen creates the food with the GTIN, basis and servings of the label", async () => {
   const calls = fakeBackend({ ...bananaDetail, id: 99, gtin: GTIN });
   const onSaved = vi.fn();
-  inDialog(<EditorForm gtin={GTIN} label={biscuitLabel(GTIN)} onSaved={onSaved} onCancel={noop} />);
+  stubObjectUrls();
+  const labelPhoto = new File(["jpeg"], "etikett.jpg", { type: "image/jpeg" });
+  inDialog(
+    <EditorForm gtin={GTIN} label={biscuitLabel(GTIN)} labelPhoto={labelPhoto} onSaved={onSaved} onCancel={noop} />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Speichern & eintragen" }));
 
   await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
@@ -313,8 +318,10 @@ test("Speichern & eintragen creates the food with the GTIN, basis and servings o
       },
     ],
   });
-  // No upload: the label photo never becomes the product photo.
-  expect(calls.some((c) => c.method === "PUT")).toBe(false);
+  // The label photo is stored as the product photo of the new food.
+  const upload = calls.find((c) => c.method === "PUT");
+  expect(upload?.url).toBe("/api/v1/foods/99/image");
+  expect((upload?.body as FormData).get("file")).toEqual(labelPhoto);
 });
 
 test("a label without a barcode shows an empty GTIN and saves the food without one", async () => {

@@ -97,6 +97,16 @@ Auftrag des Menschen: Die Erkennung soll vor allem die richtigen Lebensmittel fi
 
   Die beiden letzten Zeilen unterscheiden sich nur im Zufall (einmal erkannter Tofu). Als falsch zugeordnet bleibt allein der Algensalat der Poke Bowl: Der BLS kennt kein solches Lebensmittel. Die Öl-Regel für Gebratenes blieb verworfen (siehe 13.11.). **Offen:** Die kcal-Abweichung der fünf gewogenen Teller stieg in beiden Läufen von 9,5 % auf 18,3 %; ob das an den neuen Namen, an mehr zugeordneten Zutaten oder am Zufall liegt, ist nicht gemessen. Der Benchmark zeigt jetzt bei einem falschen Lebensmittel, was jeder Zutat des Fotos zugeordnet wurde.
 
+## Nachtrag (14.11.2026): Teller wird ein eigenes Lebensmittel
+Entscheidung des Menschen: Ein eingetragener Teller soll sich danach ändern lassen, auch in der Anzahl, und mit seinem Foto in der Lebensmitteldatenbank stehen.
+
+- **Ersetzt „Gericht: ein Eintrag je Zutat“ für den Teller.** „Eintragen“ legt ein Rezept mit einer Portion an ([ADR-0012](0012-recipe-as-food.md)), speichert das Tellerfoto als Produktfoto seines Lebensmittels und trägt diese Portion als einen Eintrag ein. Das Tap-Budget bleibt Kamera + Auslöser + 1 Bestätigung.
+- **Ändern:** Das Mengen-Sheet zählt Portionen („2 × 1 Portion“), „Bearbeiten“ öffnet das Rezept-Blatt mit den Zutaten. „Speichern“ danach rechnet den Eintrag neu.
+- **Das Foto** speichert weiterhin nicht die Erkennung, sondern die App über `PUT /foods/{id}/image` (mittiges Quadrat, WebP, höchstens 384 px).
+- **Entfällt für Teller:** die aufklappbare Gruppe im Tagebuch, „+ Zutat“ an der Gruppe und „als Schnellzugriff merken“. Gruppen gibt es weiter für Schnellzugriffe und über `POST /entries/group`.
+- **Folge:** Jeder eingetragene Teller bleibt als Rezept bestehen, auch nach „Rückgängig“, denn Rezepte lassen sich nicht löschen (ADR-0012). Wer dasselbe Gericht wieder isst, trägt es aus der Suche ein, statt es neu zu fotografieren.
+- **Verworfen:** Gruppe wie bisher und zusätzlich ein Lebensmittel. Dann gäbe es im Tagebuch keine Anzahl, und derselbe Teller stünde in zwei Formen da.
+
 ## Folgen
 - Die kcal eines Tellers hängen an zwei Schätzungen, der Menge und der Zuordnung. Die App zeigt deshalb jede Zutat mit „erkannt“ oder „vermutet“, mit ihrem Lebensmittel und mit ±. Vor dem Eintragen lässt sich alles korrigieren.
 - Der Fake-Teller setzt voraus, dass der E2E-Stack den vollen BLS lädt. Der Abnahmelauf prüft das vorab ohne Modellaufruf.

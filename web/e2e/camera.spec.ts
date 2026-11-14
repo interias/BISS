@@ -92,7 +92,8 @@ test("without camera the label of an unknown barcode fills the editor and is log
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByText("Neu · aus Etikett gelesen")).toBeVisible();
   await expect(camera).toHaveCount(0);
-  await expect(sheet.getByText(/Etikett-Foto\s*wird nur zum Auslesen genutzt und nicht gespeichert/)).toBeVisible();
+  // The label photo starts as the product photo.
+  await expect(sheet.getByRole("button", { name: "Foto aufnehmen oder wählen" }).locator("img")).toHaveCount(1);
   await expect(sheet.getByLabel("GTIN")).toHaveValue("0" + code);
   await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("Haferkeks Dinkel");
   await expect(sheet.getByLabel("Marke")).toHaveValue("Testmühle");
@@ -114,7 +115,10 @@ test("without camera the label of an unknown barcode fills the editor and is log
     servings: { label: string; grams: number; origin: string }[];
   } = await saved.json();
   expect(food.gtin).toBe("0" + code);
-  expect(food.image_path).toBeNull(); // the label photo is no product photo
+  // The label photo is stored as the product photo.
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/foods/${food.id}`)).json()).image_path)
+    .toMatch(/\.webp$/);
   expect(food.servings.map(({ label, grams, origin }) => ({ label, grams, origin }))).toEqual([
     { label: "1 Keks (12,5 g)", grams: 12.5, origin: "package" },
   ]);
@@ -241,7 +245,10 @@ test("tap budget: a label without a barcode is logged with Kamera + Etikett + 2 
   expect(saved.status()).toBe(201);
   const food: { id: number; gtin: string | null; image_path: string | null } = await saved.json();
   expect(food.gtin).toBeNull();
-  expect(food.image_path).toBeNull(); // the label photo is no product photo
+  // The label photo is stored as the product photo.
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/foods/${food.id}`)).json()).image_path)
+    .toMatch(/\.webp$/);
   await expect(sheet.getByRole("heading", { name: "Haferkeks Dinkel" })).toBeVisible();
 
   // Second confirmation: the entry of this food.

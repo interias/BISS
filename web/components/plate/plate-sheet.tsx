@@ -52,7 +52,7 @@ function sum(rows: Row[]) {
  * "vermutet" (from the backend), grams by − and + or typed, remove, a search that matches an
  * unmatched ingredient, swaps a wrong one or adds a new one, suggestions from the recent
  * foods and the local preview of the sum (ADR-0003). An unmatched ingredient has no food and
- * is not logged; "Eintragen" logs the matched ones.
+ * is left out; "Eintragen" hands on the matched ones, which become a dish of their own.
  */
 export function PlateSheet({
   plate,
