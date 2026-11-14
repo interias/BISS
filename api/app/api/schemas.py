@@ -70,6 +70,7 @@ class FoodSummary(BaseModel):
     per_100: Macros
     standard_serving: StandardServing
     recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
+    scanned: bool = Field(default=False, description="a product with a barcode (GTIN)")
 
 
 class SearchHit(FoodSummary):
@@ -331,6 +332,7 @@ class FoodRef(BaseModel):
     source: Source
     category: Category | None
     recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
+    scanned: bool = Field(default=False, description="a product with a barcode (GTIN)")
 
 
 class Entry(BaseModel):

@@ -134,3 +134,22 @@ test("the cookbook opens the own recipes, and the chip of a recipe stands in the
   expect(screen.getByText("Skyrbrötchen")).toHaveClass("text-primary");
   expect(screen.getByRole("button", { name: /^Banane roh/ })).not.toHaveClass("border-primary");
 });
+
+test("the chip of a scanned product stands in turquoise, a recipe wins over it", () => {
+  const actions = {
+    onCombo: vi.fn(),
+    onComboHold: vi.fn(),
+    onNewCombo: vi.fn(),
+    onRecipes: vi.fn(),
+    onRecent: vi.fn(),
+    onSearch: vi.fn(),
+    onCamera: vi.fn(),
+  };
+  const bar = { ...banana, id: 80, name: "Testriegel", scanned: true };
+  const both = { ...banana, id: 81, name: "Eigenes Brot", scanned: true, recipe: true };
+  render(<Dock combos={[]} recent={[bar, both, banana]} {...actions} />);
+  expect(screen.getByRole("button", { name: /^Testriegel/ })).toHaveClass("border-scan");
+  expect(screen.getByText("Testriegel")).toHaveClass("text-scan");
+  expect(screen.getByText("Eigenes Brot")).toHaveClass("text-primary");
+  expect(screen.getByText("Banane roh")).not.toHaveClass("text-scan");
+});

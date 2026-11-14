@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSuggestions, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
+import { getSuggestions, kindColor, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
 import { brandLine, fmt, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -24,8 +24,8 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
       <span className="row-span-2">
         <FoodPic size={40} category={food.category} />
       </span>
-      {/* An own recipe stands out in the accent colour. */}
-      <span className={cn("min-w-0 self-end truncate font-semibold", food.recipe && "text-primary")}>{food.name}</span>
+      {/* An own recipe stands out in the accent colour, a scanned product in turquoise. */}
+      <span className={cn("min-w-0 self-end truncate font-semibold", kindColor(food))}>{food.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(food.per_100.kcal)}</span>
       <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground">
         {food.recipe ? (

@@ -135,6 +135,7 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
         "standard_serving": {"label": "1 Banane", "grams": 120, "origin": "estimated"},
         "gtin": None,
         "recipe": False,
+        "scanned": False,
     }
     assert results[1]["standard_serving"] == FALLBACK
 

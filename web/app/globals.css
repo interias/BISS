@@ -23,6 +23,8 @@
   --biss-prot: #2f64d6;
   --biss-carb: #c98e00;
   --biss-fat: #23926a;
+  /* Scanned products (with a barcode): apart from the accent of the own recipes. */
+  --biss-scan: #0e7c86;
   --biss-ok: #23926a;
   --biss-warn: #b86e00;
   --biss-frame: #c9cfc4;
@@ -47,6 +49,7 @@
     --biss-prot: #7aa2ff;
     --biss-carb: #f0c04a;
     --biss-fat: #52c99a;
+    --biss-scan: #38c6d9;
     --biss-ok: #52c99a;
     --biss-warn: #f0a63a;
     --biss-frame: #2b332e;
@@ -132,6 +135,7 @@
   --color-prot: var(--biss-prot);
   --color-carb: var(--biss-carb);
   --color-fat: var(--biss-fat);
+  --color-scan: var(--biss-scan);
   --color-ok: var(--biss-ok);
   --color-warn: var(--biss-warn);
   --color-frame: var(--biss-frame);
