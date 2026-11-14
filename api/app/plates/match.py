@@ -3,8 +3,14 @@
 An ingredient takes the best search hit that is a food and scores at least MIN_SCORE.
 Without one it stays unmatched: no food, no values, nothing invented. The values of a
 matched ingredient are those an entry of that amount would store (services.entries).
+
+The search goes by letters, so it takes "Trüffel gebraten" for "Falafel gebraten" and a
+"Kichererbsen-Eintopf" for seasoned chickpeas. Where the best hit does not carry the very
+name of the ingredient, plate_asks() lists candidates and the model chooses among them or
+none (extract.pick_foods); it still cannot invent a food.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -13,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.domain.macros import Macros, total
 from app.models import Food
 from app.plates.draft import PlateDraft
+from app.search.normalize import normalize
 from app.search.search import search_foods
 from app.services.entries import snapshot
 
@@ -62,18 +69,63 @@ def certainty(confidence: float) -> Certainty:
     return "recognized" if confidence >= RECOGNIZED else "guessed"
 
 
-def match_plate(session: Session, draft: PlateDraft) -> Plate:
+@dataclass(frozen=True)
+class Ask:
+    """An ingredient whose food is not certain: candidates, and what match_food would take."""
+
+    name: str
+    candidates: list[Food]
+    # Index into candidates; None: match_food finds no food.
+    default: int | None
+
+
+def _candidates(session: Session, name: str) -> list[Food]:
+    """Foods for the whole name and for its first word ("Falafel" of "Falafel gebraten")."""
+    head = re.split(r"[ ,]", name.strip(), maxsplit=1)[0]
+    found: dict[int, Food] = {}
+    for query in dict.fromkeys([name, head]):
+        if not normalize(query):
+            continue
+        for hit in search_foods(session, query, limit=CANDIDATES):
+            if hit.id is not None and hit.id not in found:
+                found[hit.id] = session.get(Food, hit.id)
+    return list(found.values())
+
+
+def plate_asks(session: Session, draft: PlateDraft) -> dict[int, Ask]:
+    """Per index of an ingredient the question for the model; none where the best hit has
+    the very name of the ingredient, and none without any candidate."""
+    asks = {}
+    for index, ingredient in enumerate(draft.ingredients):
+        best = match_food(session, ingredient.name)
+        if best is not None and normalize(best.name) == normalize(ingredient.name):
+            continue
+        candidates = _candidates(session, ingredient.name)
+        if best is not None and best not in candidates:
+            candidates.insert(0, best)
+        if candidates:
+            default = None if best is None else candidates.index(best)
+            asks[index] = Ask(ingredient.name, candidates, default)
+    return asks
+
+
+def match_plate(
+    session: Session, draft: PlateDraft, picked: dict[int, Food | None] | None = None
+) -> Plate:
     """Each ingredient with a positive amount, matched or not, and the totals of the matched.
 
-    Amounts are rounded to whole grams (at least 0.1 g). An amount of 0 g or less, left in a
-    draft the strong model could not replace, is no food on the plate and is left out.
+    `picked` gives the food per index of an ingredient where the model chose it (None: no
+    food); the others take the best search hit. Amounts are rounded to whole grams (at least
+    0.1 g). An amount of 0 g or less, left in a draft the strong model could not replace, is
+    no food on the plate and is left out.
     """
+    picked = picked or {}
     items = []
-    for ingredient in draft.ingredients:
+    for index, ingredient in enumerate(draft.ingredients):
         if ingredient.grams <= 0:
             continue
         grams = float(round(ingredient.grams)) or round(max(ingredient.grams, 0.1), 1)
-        food = match_food(session, ingredient.name)
+        food = picked[index] if index in picked else match_food(session, ingredient.name)
         items.append(
             PlateItem(
                 name=ingredient.name,

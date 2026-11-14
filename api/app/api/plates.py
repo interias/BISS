@@ -8,9 +8,9 @@ from app.api import convert, schemas
 from app.api.deps import PlateExtractorDep, SessionDep
 from app.config import get_settings
 from app.labels import photo
-from app.plates.extract import extract_plate
+from app.plates.extract import extract_plate, pick_foods
 from app.plates.extractor import ExtractionFailed
-from app.plates.match import match_plate
+from app.plates.match import match_plate, plate_asks
 
 router = APIRouter(prefix="/plates", tags=["plates"])
 
@@ -33,7 +33,9 @@ async def extract(
     """Plate photo → dish with ingredients matched by the search; the photo is not stored.
 
     The fast model reads first; at a rule violation the strong model tries exactly once
-    more. An ingredient without a food is returned with food_id null and no values.
+    more. Each ingredient is matched to a food by the search; where its best hit does not
+    carry the name of the ingredient, the model chooses among the candidates or none. An
+    ingredient without a food is returned with food_id null and no values.
     Nothing is logged: POST /entries/group does that after the confirmation.
     """
     try:
@@ -47,5 +49,8 @@ async def extract(
         )
     except ExtractionFailed as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
-    found = await run_in_threadpool(match_plate, session, result.draft)
+    # Where the search is not sure of the food, the model chooses among its candidates.
+    asks = await run_in_threadpool(plate_asks, session, result.draft)
+    picked = await pick_foods(extractor, asks, settings.llm_model_fast)
+    found = await run_in_threadpool(match_plate, session, result.draft, picked)
     return convert.plate(found, result.model, result.attempts)

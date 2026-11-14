@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.config import get_settings
+from app.importers.bls import import_bls
 from app.main import app
 
 TEST_DATABASE = "biss_test"
@@ -57,3 +58,19 @@ def client(session: Session) -> Iterator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="module")
+def bls(engine: Engine) -> Iterator[Session]:
+    """The test database with the full BLS seed (data/bls), rolled back after the module.
+
+    The kcal of a plate come from the matched foods, so the real plate photos need the real
+    seed; the other tests keep their small fixtures.
+    """
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        session = Session(bind=connection, join_transaction_mode="create_savepoint")
+        import_bls(session)
+        yield session
+        session.close()
+        transaction.rollback()

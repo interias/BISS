@@ -7,6 +7,7 @@ import pytest
 from tests.label_scoring import photo_set
 from tests.plate_scoring import (
     Truth,
+    detail,
     expected_plate,
     names_match,
     p95,
@@ -31,6 +32,7 @@ def test_expected_plate_reads_main_ingredients_and_kcal() -> None:
         {"main": "Brot|"},
         {"main": "Brot", "kcal": "1,5"},
         {"main": "Brot", "kcal": "0"},
+        {"main": "Brot", "also": "Butter;"},
     ],
 )
 def test_expected_plate_refuses_a_broken_ground_truth(truth: dict[str, str]) -> None:
@@ -80,6 +82,29 @@ def test_without_draft_nothing_is_found_and_kcal_is_off() -> None:
     assert score_plate(Truth([["apfel"]], None), [], None).kcal_ok is None
 
 
+def test_detail_tells_the_right_food_made_up_ingredients_and_unmatched_ones() -> None:
+    truth = expected_plate(
+        {"main": "Falafel; Kichererbse; Tomate", "also": "Petersilie|Kräuter; Öl"}, "x.yaml"
+    )
+    items = [
+        ("Falafel gebraten", None),  # seen, but no food
+        ("Kichererbsen gewürzt", "Linsen-Eintopf"),  # seen, the wrong food
+        ("Tomate roh", "Tomate roh"),
+        ("Petersilie", "Petersilie roh"),  # allowed
+        ("Tempeh", None),  # made up
+        ("Mais", "Zuckermais gekocht"),  # made up
+    ]
+    found = detail(truth, items)
+    assert found.logged == [("falafel", False), ("kichererbse", False), ("tomate", True)]
+    assert found.extras == ["Tempeh", "Mais"]
+    assert found.unmatched == ["Falafel gebraten", "Tempeh"]
+
+
+def test_detail_without_also_cannot_judge_extras() -> None:
+    truth = expected_plate({"main": "Apfel"}, "x.yaml")
+    assert detail(truth, [("Birne roh", "Birne roh")]).extras is None
+
+
 def test_p95_by_nearest_rank() -> None:
     assert p95([5.0]) == 5.0
     assert p95([float(i) for i in range(1, 21)]) == 19.0
@@ -98,7 +123,9 @@ def test_table_lists_ingredients_and_kcal() -> None:
 def test_repo_plate_set_is_complete_and_its_ground_truth_reads() -> None:
     plates = photo_set(REPO, "plates")
     assert plates.problems == []
-    assert len(plates.photos) == 20
+    assert len(plates.photos) == 45
     truths = {p.file: expected_plate(p.truth, p.file) for p in plates.photos}
     assert sum(t.kcal is not None for t in truths.values()) == 5
     assert all(p.truth["license"] for p in plates.photos)
+    # Nearly every plate says what else may be on it, so made-up ingredients can be counted.
+    assert sum(t.also is not None for t in truths.values()) == 42

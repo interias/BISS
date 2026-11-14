@@ -4,6 +4,7 @@ from typing import Protocol
 
 from app.labels.extractor import ExtractionFailed
 from app.plates.draft import PlateDraft, PlateIngredient
+from app.plates.match import Ask
 
 __all__ = ["FAKE_PLATE", "ExtractionFailed", "FakePlateExtractor", "PlateExtractor"]
 
@@ -11,6 +12,11 @@ __all__ = ["FAKE_PLATE", "ExtractionFailed", "FakePlateExtractor", "PlateExtract
 class PlateExtractor(Protocol):
     async def extract(self, photo: bytes, model: str) -> PlateDraft:
         """Read the plate in a JPEG photo with the given model. Raises ExtractionFailed."""
+        ...
+
+    async def pick(self, asks: list[Ask], model: str) -> list[int | None]:
+        """Per ask the index of the candidate that is the ingredient, or None for none.
+        Raises ExtractionFailed."""
         ...
 
 
@@ -37,3 +43,7 @@ class FakePlateExtractor:
     async def extract(self, photo: bytes, model: str) -> PlateDraft:
         self.calls.append(model)
         return self.drafts.get(model, FAKE_PLATE)
+
+    async def pick(self, asks: list[Ask], model: str) -> list[int | None]:
+        """What the search alone would take."""
+        return [ask.default for ask in asks]

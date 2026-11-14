@@ -8,7 +8,7 @@ Ein Nährwert-Etikett soll in wenigen Sekunden als strukturierter Entwurf vorlie
 ## Entscheidung
 - Der Backend-Container nutzt `claude-agent-sdk`, authentifiziert über `CLAUDE_CODE_OAUTH_TOKEN` (erzeugt mit `claude setup-token`).
 - Alternativ funktioniert `ANTHROPIC_API_KEY`. Beides ist reine Konfiguration und ändert keinen Code.
-- Modelle per `.env`: `LLM_MODEL_FAST=claude-haiku-5-5`, `LLM_MODEL_STRONG=claude-sonnet-5-5`.
+- Modelle per `.env`: `LLM_MODEL_FAST=claude-sonnet-5-5`, `LLM_MODEL_STRONG=claude-opus-5-5` (bis 14.11.2026 Haiku und Sonnet; Wechsel nach dem Vergleich in [ADR-0009](0009-plate-recognition.md), Nachtrag).
 - Das Bild geht dem Agenten als Datei im Arbeitsverzeichnis zu (Werkzeug `Read`, sonst keine Werkzeuge). Ob ein Base64-Content-Block über den Streaming-Input besser ist, klärt der erste Spike in E4.
 - Die Validierung (Atwater, kJ/kcal, Zucker ≤ KH, gesättigte Fettsäuren ≤ Fett) läuft im Code. Bei einem Verstoß gibt es einen zweiten Versuch mit dem starken Modell.
 - Die Extraktion hängt hinter einer Schnittstelle `LabelExtractor`. Tests nutzen einen Fake.

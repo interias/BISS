@@ -15,16 +15,13 @@ when the test passes.
 import asyncio
 import os
 import time
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.importers.bls import import_bls
 from app.labels.photo import prepare
 from app.plates.agent import AgentPlateExtractor
 from app.plates.draft import PlateDraft
@@ -59,22 +56,6 @@ SETS = {
     "repo": Path(__file__).resolve().parent / "fixtures" / "real",
     "local": Path(_local) if _local else None,
 }
-
-
-@pytest.fixture(scope="module")
-def bls(engine: Engine) -> Iterator[Session]:
-    """The test database with the full BLS seed (data/bls), rolled back after this module.
-
-    The kcal of a plate come from the matched foods, so the matching needs the real seed;
-    the other tests keep their small fixtures.
-    """
-    with engine.connect() as connection:
-        transaction = connection.begin()
-        session = Session(bind=connection, join_transaction_mode="create_savepoint")
-        import_bls(session)
-        yield session
-        session.close()
-        transaction.rollback()
 
 
 @dataclass

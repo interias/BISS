@@ -1,5 +1,6 @@
 # Main ingredients (at least 10 % of the mass, no oil or dressing) and kcal from the Nutrition5k annotation.
 main: "Speck|Bacon|Pute|Truthahn; Pak Choi|Pak-Choi|Chinakohl|Mangold; Rührei|Hühnerei|Ei; Beere|Brombeere|Himbeere"
+also: "Olivenöl|Öl|Fett; Wurst|Würstchen|Bratwurst; Butter; Milch; Salz|Pfeffer"
 kcal: "494"
 annotation: "turkey bacon 40 g, bok choy 70 g, olive oil 2 g, scrambled eggs 185 g, berries 77 g; 374 g"
 source: "https://github.com/google-research-datasets/Nutrition5k (dish_1562949541)"

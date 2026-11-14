@@ -7,8 +7,10 @@ a confidence outside 0 to 1.
 
 from dataclasses import dataclass
 
+from app.models import Food
 from app.plates.draft import PlateDraft
 from app.plates.extractor import ExtractionFailed, PlateExtractor
+from app.plates.match import Ask
 
 # More than a person eats of one food or of one plate; the model misjudged the scale.
 MAX_GRAMS = 1500.0
@@ -61,3 +63,25 @@ async def extract_plate(
     except ExtractionFailed:
         return PlateExtraction(draft, found, fast, 2)
     return PlateExtraction(strong_draft, violations(strong_draft), strong, 2)
+
+
+async def pick_foods(
+    extractor: PlateExtractor, asks: dict[int, Ask], model: str
+) -> dict[int, Food | None]:
+    """The food the model chooses per asked ingredient, for match_plate.
+
+    Without a usable answer every ingredient keeps what the search alone would take.
+    """
+    if not asks:
+        return {}
+    order = list(asks)
+    try:
+        chosen = await extractor.pick([asks[index] for index in order], model)
+    except ExtractionFailed:
+        chosen = []
+    if len(chosen) != len(order):
+        chosen = [asks[index].default for index in order]
+    return {
+        index: asks[index].candidates[choice] if choice is not None else None
+        for index, choice in zip(order, chosen, strict=True)
+    }

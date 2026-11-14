@@ -8,10 +8,12 @@ from pathlib import Path
 import pytest
 from claude_agent_sdk import ClaudeSDKError, ResultMessage
 
-from app.plates.agent import PROMPT, AgentPlateExtractor
+from app.models import Food
+from app.plates.agent import PICK_PROMPT, PROMPT, AgentPlateExtractor
 from app.plates.draft import PlateDraft, PlateIngredient, json_schema
 from app.plates.extract import extract_plate, violations
 from app.plates.extractor import FAKE_PLATE, ExtractionFailed, FakePlateExtractor
+from app.plates.match import Ask
 
 FAST, STRONG = "fast-model", "strong-model"
 PHOTO = b"\xff\xd8 plate photo"
@@ -184,3 +186,60 @@ def test_sdk_error_fails() -> None:
     extractor = AgentPlateExtractor(fake_query({}, error=ClaudeSDKError("cli gone")))
     with pytest.raises(ExtractionFailed, match="cli gone"):
         asyncio.run(extractor.extract(PHOTO, FAST))
+
+
+def asks() -> list[Ask]:
+    foods = [Food(name="Kichererbsen-Eintopf"), Food(name="Kichererbse reif, gekocht")]
+    return [Ask("Kichererbsen gewürzt", foods, 0), Ask("Falafel gebraten", foods[:1], None)]
+
+
+def choices(*pairs: tuple[int, int]) -> ResultMessage:
+    return answer(
+        structured_output={"choices": [{"ingredient": i, "candidate": c} for i, c in pairs]}
+    )
+
+
+def test_pick_sends_the_candidates_as_text_and_reads_one_choice_per_ingredient() -> None:
+    seen: dict = {}
+    extractor = AgentPlateExtractor(fake_query(seen, choices((1, -1), (0, 1))))
+    assert asyncio.run(extractor.pick(asks(), FAST)) == [1, None]
+    options = seen["options"]
+    assert (options.model, options.tools, options.system_prompt) == (FAST, [], PICK_PROMPT)
+    [message] = seen["prompt"]
+    [text] = message["message"]["content"]
+    assert text == {
+        "type": "text",
+        "text": "\n".join(
+            [
+                "Ingredient 0: Kichererbsen gewürzt",
+                "  0: Kichererbsen-Eintopf",
+                "  1: Kichererbse reif, gekocht",
+                "Ingredient 1: Falafel gebraten",
+                "  0: Kichererbsen-Eintopf",
+            ]
+        ),
+    }
+
+
+def test_pick_takes_a_number_that_is_no_candidate_as_none() -> None:
+    extractor = AgentPlateExtractor(fake_query({}, choices((0, 7), (1, 0))))
+    assert asyncio.run(extractor.pick(asks(), FAST)) == [None, 0]
+
+
+@pytest.mark.parametrize(
+    "result",
+    [None, choices((0, 1)), choices((0, 1), (5, 0)), answer(structured_output={"x": 1})],
+)
+def test_pick_without_one_choice_per_ingredient_fails(result: ResultMessage | None) -> None:
+    extractor = AgentPlateExtractor(fake_query({}, result))
+    with pytest.raises(ExtractionFailed):
+        asyncio.run(extractor.pick(asks(), FAST))
+
+
+def test_thinking_is_passed_on_when_set() -> None:
+    seen: dict = {}
+    off = {"type": "disabled"}
+    asyncio.run(AgentPlateExtractor(fake_query(seen, answer()), off).extract(PHOTO, FAST))
+    assert seen["options"].thinking == off
+    asyncio.run(AgentPlateExtractor(fake_query(seen, answer())).extract(PHOTO, FAST))
+    assert seen["options"].thinking is None
