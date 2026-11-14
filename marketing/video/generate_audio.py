@@ -1,8 +1,8 @@
-"""Generate the voice-over and music for docs/video/index.html via OpenRouter.
+"""Generate the voice-over and music for marketing/video/index.html via OpenRouter.
 
-Usage: python docs/video/generate_audio.py [vo [scene ...] | music | bundle]   (default: vo and music)
-Reads OPENROUTER_API_KEY from the repo's .env, needs ffmpeg. Writes MP3 files to docs/video/audio/.
-"bundle" writes docs/video/biss-in-60-sekunden.html: one file with all audio inlined, no server needed.
+Usage: python marketing/video/generate_audio.py [vo [scene ...] | music | bundle]   (default: vo and music)
+Reads OPENROUTER_API_KEY from the repo's .env, needs ffmpeg. Writes MP3 files to marketing/video/audio/.
+"bundle" writes marketing/video/biss-in-60-sekunden.html: one file with all audio inlined, no server needed.
 """
 import base64
 import json
