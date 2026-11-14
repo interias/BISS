@@ -293,6 +293,18 @@ export const skyrRecipe: Recipe = {
   totals: { kcal: 926.1, protein: 60, carbs: 130, fat: 14 },
 };
 
+/** A Gericht already in the diary: the fake plate's ingredients as the group "group-200". */
+export const dishGroup = (): Entry[] =>
+  fakePlate().items.map((item, index) => ({
+    ...bananaEntry,
+    id: 200 + index,
+    food: item.food!,
+    grams: item.grams,
+    macros: item.macros!,
+    group_id: "group-200",
+    group_name: fakePlate().dish,
+  }));
+
 /** The diary rows as the backend orders them: newest first, a group at its first entry. */
 function dayRows(entries: Entry[], sum: (list: Entry[]) => Macros): DayRow[] {
   const byTime = [...entries].sort((a, b) => a.eaten_at.localeCompare(b.eaten_at) || a.id - b.id);
@@ -360,14 +372,21 @@ const json = (body: unknown, status = 200) =>
  * The barcode chain knows only the pudding draft, by any form of its code; any other code is
  * a miss. The label
  * extraction answers the fake extractor's draft with the GTIN sent. The plate extraction
- * answers `fakePlate()`; POST /entries/group logs one entry per item in the meal "snack"
+ * answers `fakePlate()`. POST /recipes answers `skyrRecipe` with the name and the sum of the
+ * items sent, and its food 71 takes them as its one portion; PUT /foods/{id}/image gives that
+ * food a photo; an entry of food 71 is one of that dish. The diary starts with `entries`.
+ * POST /entries/group logs one entry per item in the meal "snack"
  * (kcal from per 100 g) and DELETE /entries/group/{id} removes them. /combos keeps the given
  * combos: POST from items or a group_id, PATCH, DELETE and POST /combos/{id}/log, which logs
  * a group named like the combo with its items or the ones sent.
  */
-export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExtraction; combos?: Combo[] } = {}) {
-  let entries: Entry[] = [];
-  let nextId = 200;
+export function fakeApi({
+  plate = fakePlate(),
+  combos = [],
+  entries: logged = [],
+}: { plate?: PlateExtraction; combos?: Combo[]; entries?: Entry[] } = {}) {
+  let entries: Entry[] = [...logged];
+  let nextId = 200 + logged.length;
   let saved = [...combos];
   let nextCombo = 50;
   const catalog = [banana, riceDetail, chicken, broccoli, sugar, coffee];
@@ -503,7 +522,23 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     if (url === "/api/v1/recipes" && method === "GET") return json([skyrRecipe]);
     if (url === "/api/v1/recipes" && method === "POST") {
       if (body.name === "kaputt") return json({ detail: "broken" }, 500);
-      return json({ ...skyrRecipe, ...body, items: skyrRecipe.items }, 201);
+      const items: Item[] = body.items;
+      const totals = sum(items.map((item) => scale(byId(item.food_id).per_100, item.grams)));
+      const grams = (body.cooked_grams ?? items.reduce((all, item) => all + item.grams, 0)) / body.portions;
+      const serving = { label: "1 Portion", grams, origin: "own" as const };
+      foods[skyrRecipe.food_id] = {
+        ...foods[skyrRecipe.food_id],
+        name: body.name,
+        per_100: { ...scale(totals, 100 / (grams * body.portions) * 100), fiber: null, sugar: null, sat_fat: null, salt: null },
+        servings: [{ id: 9, ...serving, is_default: true }],
+        standard_serving: serving,
+      };
+      return json({ ...skyrRecipe, ...body, items: skyrRecipe.items, portion_grams: grams, totals }, 201);
+    }
+    const image = url.match(/^\/api\/v1\/foods\/(\d+)\/image$/);
+    if (image && method === "PUT" && foods[Number(image[1])]) {
+      foods[Number(image[1])] = { ...foods[Number(image[1])], image_path: "photo.webp" };
+      return json(foods[Number(image[1])]);
     }
     if (url === `/api/v1/recipes/${skyrRecipe.id}`) {
       return json(method === "PATCH" ? { ...skyrRecipe, ...body, items: skyrRecipe.items } : skyrRecipe);
@@ -514,12 +549,29 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
       foods[7] = { ...foods[7], name: body.name };
       return json(foods[7]);
     }
+    if (url === "/api/v1/entries" && method === "POST" && body.food_id === skyrRecipe.food_id) {
+      const dish = foods[skyrRecipe.food_id];
+      const grams = body.grams ?? dish.standard_serving.grams;
+      const entry = {
+        ...bananaEntry,
+        id: 100 + calls.length,
+        food: { ...ref(dish), recipe: true, image_path: dish.image_path },
+        grams,
+        macros: scale(dish.per_100, grams),
+      };
+      entries = [...entries, entry];
+      return json(entry, 201);
+    }
     if (url === "/api/v1/entries" && method === "POST") {
       const entry = { ...bananaEntry, id: 100 + calls.length };
       entries = [...entries, entry];
       return json(entry, 201);
     }
     const match = url.match(/^\/api\/v1\/entries\/(\d+)$/);
+    if (match && method === "PATCH") {
+      entries = entries.map((e) => (e.id === Number(match[1]) ? { ...e, grams: body.grams } : e));
+      return json(entries.find((e) => e.id === Number(match[1])));
+    }
     if (match && method === "DELETE") {
       entries = entries.filter((e) => e.id !== Number(match[1]));
       return json(null, 204);

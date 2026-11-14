@@ -140,7 +140,7 @@ test("without a hit the shutter sends the live picture with the GTIN-14 to the e
 
   const label = biscuitLabel("0" + MISS_CODE);
   await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
-  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, label, undefined);
+  expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, label, undefined, expect.any(Blob));
   expect(onFound).not.toHaveBeenCalled();
 });
 
@@ -160,7 +160,7 @@ test("the shutter Etikett sends the live picture without a barcode and without G
 
   const label = biscuitLabel(null);
   await answer(new Response(JSON.stringify(label), { headers: { "Content-Type": "application/json" } }));
-  expect(onLabel).toHaveBeenCalledWith(undefined, label, undefined);
+  expect(onLabel).toHaveBeenCalledWith(undefined, label, undefined, expect.any(Blob));
 });
 
 test("without camera the shutter Etikett opens the photo choice; a failure offers the hand", async () => {
@@ -384,10 +384,12 @@ test("a product Open Food Facts has without values is named and its name goes on
   expect(screen.queryByRole("button", { name: "Noch einmal versuchen" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Etikett fotografieren" }));
   await waitFor(() =>
-    expect(onLabel).toHaveBeenCalledWith("0" + MISS_CODE, biscuitLabel("0" + MISS_CODE), {
-      name: "Quellwasser Medium",
-      brand: "Testquelle",
-    }),
+    expect(onLabel).toHaveBeenCalledWith(
+      "0" + MISS_CODE,
+      biscuitLabel("0" + MISS_CODE),
+      { name: "Quellwasser Medium", brand: "Testquelle" },
+      expect.any(Blob),
+    ),
   );
 });
 

@@ -338,9 +338,9 @@ export const updateFood = (id: number, body: FoodWrite) =>
   request<FoodDetail>(`/foods/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 
 /** The backend keeps the centred square as WebP (384 px) and answers with the new `image_path`. */
-export function uploadFoodImage(id: number, file: File) {
+export function uploadFoodImage(id: number, file: Blob) {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", file, file instanceof File ? file.name : "photo.jpg");
   return request<FoodDetail>(`/foods/${id}/image`, { method: "PUT", body: form });
 }
 
@@ -383,7 +383,7 @@ export const updateRecipe = (id: number, body: RecipeWrite) =>
 
 /**
  * Label photo plus the scanned GTIN, if any → draft with validation (SPEC 7). The backend
- * only reads the photo and does not store it; the GTIN never comes from the photo.
+ * only reads the photo; the GTIN never comes from the photo.
  */
 export function extractLabel(photo: Blob, gtin?: string) {
   const form = new FormData();

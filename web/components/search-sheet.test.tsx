@@ -133,3 +133,12 @@ test("a hit says its origin in one word, shows its photo and stands under a capi
   expect(row).toHaveTextContent("BLS · je 100 g");
   expect(row).not.toHaveTextContent("generisch");
 });
+
+test("a hit shows protein, carbs and fat per 100 g beside the kcal, in this order", async () => {
+  fakeApi();
+  renderSearch();
+  type("banane");
+  const hit = await screen.findByRole("button", { name: /^Banane roh/ });
+  expect(within(hit).getByTestId("hit-macros")).toHaveTextContent("E 1K 20F 0");
+  expect(within(hit).getByTitle("Eiweiß")).toHaveStyle({ color: "var(--biss-prot)" });
+});

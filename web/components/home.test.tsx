@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { coffeeCombo, fakeApi, muesliDraft, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
+import { coffeeCombo, dishGroup, fakeApi, muesliDraft, PUDDING_CODE, puddingDraft } from "@/test/fixtures";
 import { Home } from "./home";
 
 // No camera in jsdom: the overlay takes a photo, and ZXing "reads" this code from it.
@@ -222,14 +222,14 @@ async function photographPlate() {
   fireEvent.change(screen.getByTestId("plate-photo"), { target: { files: [file] } });
 }
 
-/** The Gericht logged from the fake plate: the diary shows it as a group. */
+/** The fake plate logged: the diary shows it as one entry of its dish. */
 async function logPlate() {
   await photographPlate();
   fireEvent.click(await screen.findByRole("button", { name: "Eintragen · 399 kcal" }));
   return await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
 }
 
-test("the plate photo opens the result sheet; Eintragen logs one group and the diary shows its sum", async () => {
+test("the plate photo opens the result sheet; Eintragen stores the dish with its photo and logs one portion", async () => {
   const { calls } = fakeApi();
   render(<Home />);
   await photographPlate();
@@ -244,49 +244,94 @@ test("the plate photo opens the result sheet; Eintragen logs one group and the d
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
   await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
-  // One call, no meal: the backend suggests it (ADR-0003); the sheet is closed.
-  expect(calls.filter((c) => c.method === "POST" && c.url === "/api/v1/entries/group")).toEqual([
-    {
-      method: "POST",
-      url: "/api/v1/entries/group",
-      body: {
-        group_name: "Hähnchen mit Reis und Brokkoli",
-        items: [
-          { food_id: 9, grams: 120 },
-          { food_id: 8, grams: 150 },
-          { food_id: 10, grams: 80 },
-        ],
-      },
-    },
+  // The dish is stored as a recipe of one portion, gets the plate photo and is logged as
+  // that portion: no grams and no meal, the backend takes its defaults (ADR-0003).
+  const writes = calls.filter((c) => c.method === "POST" || c.method === "PUT").slice(1);
+  expect(writes.map((c) => `${c.method} ${c.url}`)).toEqual([
+    "POST /api/v1/recipes",
+    "PUT /api/v1/foods/71/image",
+    "POST /api/v1/entries",
   ]);
-  expect(calls.some((c) => c.method === "POST" && c.url === "/api/v1/entries")).toBe(false);
+  expect(writes[0].body).toEqual({
+    name: "Hähnchen mit Reis und Brokkoli",
+    description: "",
+    items: [
+      { food_id: 9, grams: 120 },
+      { food_id: 8, grams: 150 },
+      { food_id: 10, grams: 80 },
+    ],
+    portions: 1,
+    cooked_grams: null,
+  });
+  expect((writes[1].body as FormData).get("file")).toBeInstanceOf(File);
+  expect(writes[2].body).toEqual({ food_id: 71 });
   expect(screen.queryByText("Erkannt · bitte prüfen")).not.toBeInTheDocument();
 
-  // The group stands in the diary with the sum of the day response, folded.
+  // One row in the diary: the dish with its sum, not a group of ingredients.
   const diary = screen.getByRole("region", { name: "Tagebuch" });
-  const group = within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ });
-  expect(group).toHaveAttribute("aria-expanded", "false");
-  expect(group).toHaveTextContent("399");
-  expect(group).toHaveTextContent("3 Zutaten");
-  expect(within(diary).queryByText("Reis gekocht")).not.toBeInTheDocument();
+  const row = within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ });
+  expect(row).toHaveTextContent("399");
+  expect(row).toHaveTextContent("350 g");
+  expect(row).not.toHaveAttribute("aria-expanded");
+  expect(within(diary).queryByText(/Zutaten/)).not.toBeInTheDocument();
   expect(screen.getByTestId("kcal-total")).toHaveTextContent("399");
 
-  fireEvent.click(group);
-  expect(group).toHaveAttribute("aria-expanded", "true");
-  expect(within(diary).getByText("Reis gekocht")).toBeInTheDocument();
-  expect(within(diary).getByText("Broccoli gekocht")).toBeInTheDocument();
+  // A tap opens the amount sheet: the portions can be counted, "Bearbeiten" opens the dish.
+  fireEvent.click(row);
+  expect(await screen.findByRole("heading", { name: "Hähnchen mit Reis und Brokkoli" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /1 Portion/ })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
 });
 
-test("Rückgängig after logging a plate removes the whole group", async () => {
+test("Rückgängig after logging a plate removes its entry", async () => {
   const { calls } = fakeApi();
   render(<Home />);
   await logPlate();
   fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
 
-  await waitFor(() => expect(screen.queryByText(/3 Zutaten/)).not.toBeInTheDocument());
-  expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/v1/entries/group/group-200")).toBe(true);
-  expect(calls.some((c) => c.method === "DELETE" && /^\/api\/v1\/entries\/\d+$/.test(c.url))).toBe(false);
-  expect(screen.getByTestId("kcal-total")).toHaveTextContent("0");
+  await waitFor(() => expect(screen.getByTestId("kcal-total")).toHaveTextContent("0"));
+  expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual([
+    expect.stringMatching(/^\/api\/v1\/entries\/\d+$/),
+  ]);
+});
+
+test("a second try after a failed entry updates the stored dish instead of storing it twice", async () => {
+  const { calls } = fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  let down = true;
+  vi.mocked(fetch).mockImplementation(async (url, init) => {
+    if (down && url === "/api/v1/entries" && init?.method === "POST") throw new TypeError("Failed to fetch");
+    return fake(url, init);
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<Home />);
+  await photographPlate();
+  fireEvent.click(await screen.findByRole("button", { name: "Eintragen · 399 kcal" }));
+  expect(await screen.findByText("Das hat nicht geklappt. Verbindung prüfen.")).toBeInTheDocument();
+
+  down = false;
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  expect(calls.filter((c) => c.url.startsWith("/api/v1/recipes")).map((c) => `${c.method} ${c.url}`)).toEqual([
+    "POST /api/v1/recipes",
+    "PATCH /api/v1/recipes/70",
+  ]);
+});
+
+test("Speichern after Bearbeiten takes a new snapshot of the entry for the same grams", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: /Banane roh\s*120 g/ }));
+  await screen.findByText("Banane roh eingetragen");
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  fireEvent.click(within(diary).getByRole("button", { name: /Banane roh/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Speichern" }));
+  await screen.findByText("Lebensmittel gespeichert");
+  fireEvent.click(await screen.findByRole("button", { name: /^Speichern · / }));
+
+  await waitFor(() => expect(calls.some((c) => c.method === "PATCH" && c.url.startsWith("/api/v1/entries/"))).toBe(true));
+  expect(calls.find((c) => c.method === "PATCH" && c.url.startsWith("/api/v1/entries/"))?.body).toEqual({ grams: 120 });
 });
 
 test("Verwerfen closes the plate sheet and logs nothing", async () => {
@@ -360,10 +405,9 @@ test("the back button of the phone closes the open sheet", async () => {
 });
 
 test("+ Zutat adds one more ingredient to a logged Gericht", async () => {
-  const { calls } = fakeApi();
+  const { calls } = fakeApi({ entries: dishGroup() });
   render(<Home />);
-  await logPlate();
-  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const diary = await screen.findByRole("region", { name: "Tagebuch" });
   fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
   fireEvent.click(within(diary).getByRole("button", { name: "+ Zutat" }));
 
@@ -380,10 +424,9 @@ test("+ Zutat adds one more ingredient to a logged Gericht", async () => {
 });
 
 test("Gericht entfernen deletes the group; Rückgängig logs it again with name, meal, time and amounts", async () => {
-  const { calls } = fakeApi();
+  const { calls } = fakeApi({ entries: dishGroup() });
   render(<Home />);
-  await logPlate();
-  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const diary = await screen.findByRole("region", { name: "Tagebuch" });
   fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
   fireEvent.click(within(diary).getByRole("button", { name: "Gericht entfernen" }));
 
@@ -395,8 +438,8 @@ test("Gericht entfernen deletes the group; Rückgängig logs it again with name,
   fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
   await waitFor(() => expect(within(diary).getByText(/3 Zutaten/)).toBeInTheDocument());
   const posts = calls.filter((c) => c.method === "POST" && c.url === "/api/v1/entries/group");
-  expect(posts).toHaveLength(2);
-  expect(posts[1].body).toEqual({
+  expect(posts).toHaveLength(1);
+  expect(posts[0].body).toEqual({
     group_name: "Hähnchen mit Reis und Brokkoli",
     meal: "snack",
     eaten_at: "2026-10-28T10:05:00+01:00",
@@ -410,10 +453,9 @@ test("Gericht entfernen deletes the group; Rückgängig logs it again with name,
 });
 
 test("an entry of a Gericht opens the amount sheet without a meal", async () => {
-  const { calls } = fakeApi();
+  const { calls } = fakeApi({ entries: dishGroup() });
   render(<Home />);
-  await logPlate();
-  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  const diary = await screen.findByRole("region", { name: "Tagebuch" });
   fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
   fireEvent.click(within(diary).getByText("Reis gekocht"));
 
@@ -526,11 +568,10 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
 });
 
 test("als Schnellzugriff merken creates a combo from a diary group", async () => {
-  const { calls } = fakeApi();
+  const { calls } = fakeApi({ entries: dishGroup() });
   render(<Home />);
-  await logPlate();
-  const diary = screen.getByRole("region", { name: "Tagebuch" });
-  fireEvent.click(within(diary).getByRole("button", { name: "als Schnellzugriff merken" }));
+  const diary = await screen.findByRole("region", { name: "Tagebuch" });
+  fireEvent.click(await within(diary).findByRole("button", { name: "als Schnellzugriff merken" }));
 
   await screen.findByText("Hähnchen mit Reis und Brokkoli als Schnellzugriff gespeichert");
   expect(calls.find((c) => c.method === "POST" && c.url === "/api/v1/combos")?.body).toEqual({
