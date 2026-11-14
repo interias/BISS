@@ -1,7 +1,8 @@
 """Generate the voice-over and music for docs/video/index.html via OpenRouter.
 
-Usage: python docs/video/generate_audio.py [vo [scene ...] | music]   (default: both)
+Usage: python docs/video/generate_audio.py [vo [scene ...] | music | bundle]   (default: vo and music)
 Reads OPENROUTER_API_KEY from the repo's .env, needs ffmpeg. Writes MP3 files to docs/video/audio/.
+"bundle" writes docs/video/biss-in-60-sekunden.html: one file with all audio inlined, no server needed.
 """
 import base64
 import json
@@ -17,6 +18,7 @@ VOICE_MODEL = "elevenlabs/eleven-v4"
 VOICE = "sarah"
 MUSIC_MODEL = "google/lyria-3-pro-preview"
 MUSIC_OFFSET = 6
+BUNDLE = "biss-in-60-sekunden.html"
 
 # One line per scene; the ids match the scenes in index.html.
 LINES = {
@@ -106,9 +108,23 @@ def music() -> None:
               ["-ss", str(MUSIC_OFFSET), "-t", "60"])
 
 
+def bundle() -> None:
+    """Write a single HTML file with all audio inlined, playable offline from disk."""
+    page = (OUT.parent / "index.html").read_text(encoding="utf-8")
+    audio = {f.stem: base64.b64encode(f.read_bytes()).decode() for f in sorted(OUT.glob("*.mp3"))}
+    marker = "<script>\n'use strict';"
+    assert marker in page
+    page = page.replace(marker, f"<script>window.BISS_AUDIO={json.dumps(audio)};</script>\n{marker}", 1)
+    target = OUT.parent / BUNDLE
+    target.write_text("<!doctype html>\n<html lang=\"de\">\n" + page, encoding="utf-8")
+    print("bundle", target, target.stat().st_size)
+
+
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
     what = sys.argv[1] if len(sys.argv) > 1 else "both"
+    if what == "bundle":
+        bundle()
     if what in ("vo", "both"):
         voice(sys.argv[2:])
     if what in ("music", "both"):

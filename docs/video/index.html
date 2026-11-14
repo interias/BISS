@@ -772,12 +772,22 @@ function drawConfetti(t){
   });
 }
 
-/* ---- Audio ---- */
-const music = new Audio('audio/music.mp3'); music.preload = 'auto';
-VO.forEach(v => { v.el = new Audio(`audio/vo-${v.id}.mp3`); v.el.preload = 'auto'; v.el.addEventListener('loadedmetadata', () => v.dur = v.el.duration); });
-let ac;
+/* ---- Audio: one Web Audio graph, unlocked by the first click ----
+   Browsers allow sound only right after a click, so <audio> elements that the timeline starts
+   later are blocked. Every sound is decoded into a buffer and scheduled on one context instead. */
+const ac = new (window.AudioContext || window.webkitAudioContext)();
+const musicGain = ac.createGain(), voGain = ac.createGain();
+musicGain.connect(ac.destination); voGain.connect(ac.destination);
+const buffers = {}, NAMES = ['music', ...VO.map(v => 'vo-' + v.id)];
+async function loadBuffer(name){
+  const inline = window.BISS_AUDIO && window.BISS_AUDIO[name];   // set in the single-file build
+  let data;
+  if (inline) { const bin = atob(inline); data = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i); data = data.buffer; }
+  else data = await (await fetch(`audio/${name}.mp3`)).arrayBuffer();
+  buffers[name] = await new Promise((ok, no) => ac.decodeAudioData(data, ok, no));
+}
+const ready = Promise.allSettled(NAMES.map(loadBuffer)).then(() => VO.forEach(v => v.dur = buffers['vo-' + v.id]?.duration));
 function blip(f = 880, d = .07, g = .12, type = 'sine'){
-  if (!ac) return;
   const o = ac.createOscillator(), a = ac.createGain(), n = ac.currentTime;
   o.type = type; o.frequency.setValueAtTime(f, n); o.frequency.exponentialRampToValueAtTime(f * .7, n + d);
   a.gain.setValueAtTime(g, n); a.gain.exponentialRampToValueAtTime(.0001, n + d);
@@ -785,42 +795,44 @@ function blip(f = 880, d = .07, g = .12, type = 'sine'){
 }
 const chime = () => { blip(1047, .12, .06, 'triangle'); setTimeout(() => blip(1568, .18, .05, 'triangle'), 70); };
 
-/* ---- Clock: performance.now() drives, the audio follows ---- */
-let cur = 0, base = 0, playing = false, lastT = 0, started = false;
+/* ---- Clock: the audio context drives, the picture follows ---- */
+let cur = 0, playing = false, lastT = 0, started = false, t0 = Infinity, off = 0, srcs = [];
 const hits = new Set();
-function play(){
-  if (cur >= T - .05) seek(0);
-  ac ||= new (window.AudioContext || window.webkitAudioContext)(); ac.resume();
-  playing = true; base = performance.now() - cur * 1000;
-  music.currentTime = cur; music.play().catch(() => {});
-  setPlayIcon();
+function schedule(){
+  const now = ac.currentTime + .05, at = x => now + Math.max(0, x - cur);
+  t0 = now; off = cur;
+  const start = (name, gain, when, offset) => {
+    const s = ac.createBufferSource(); s.buffer = buffers[name]; s.connect(gain); s.start(when, offset); srcs.push(s);
+  };
+  if (buffers.music && cur < buffers.music.duration) start('music', musicGain, now, cur);
+  const g = musicGain.gain;   // duck the music while the voice speaks
+  g.cancelScheduledValues(0); g.setValueAtTime(.85, ac.currentTime);
+  VO.forEach(v => {
+    const b = buffers['vo-' + v.id];
+    if (!b || v.start + b.duration <= cur) return;
+    start('vo-' + v.id, voGain, at(v.start), Math.max(0, cur - v.start));
+    g.setTargetAtTime(.3, Math.max(now, at(v.start) - .15), .06);
+    g.setTargetAtTime(.85, at(v.start + b.duration), .25);
+  });
 }
-function pause(){ playing = false; music.pause(); VO.forEach(v => v.el.pause()); setPlayIcon(); }
+function stopAll(){ srcs.forEach(s => { try { s.stop(); } catch {} }); srcs = []; musicGain.gain.cancelScheduledValues(0); }
+function play(){
+  if (cur >= T - .05) { cur = lastT = 0; hits.clear(); updateScore(); }
+  ac.resume();   // called inside the click, which unlocks sound for the whole session
+  playing = true; off = cur; t0 = Infinity; setPlayIcon();
+  ready.then(() => { if (playing) { stopAll(); schedule(); } });
+}
+function pause(){ playing = false; stopAll(); setPlayIcon(); }
 function seek(x){
-  cur = clamp(x, 0, T); base = performance.now() - cur * 1000; lastT = cur;
-  try { music.currentTime = Math.min(cur, T - .05); } catch {}
-  VO.forEach(v => v.el.pause());
+  cur = lastT = clamp(x, 0, T);
   if (cur < .5) { hits.clear(); updateScore(); }
   if (!started) { $('#start').hidden = true; started = true; play(); }
+  else if (playing) { stopAll(); off = cur; t0 = Infinity; ready.then(() => { if (playing) { stopAll(); schedule(); } }); }
   render(cur);
 }
 function setPlayIcon(){
   $('#playBtn').innerHTML = `<svg width="22" height="22"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`;
   $('#playBtn').setAttribute('aria-label', playing ? 'Pause' : 'Abspielen');
-}
-function syncAudio(){
-  if (Math.abs(music.currentTime - cur) > .25 && !music.seeking && cur < T - .1) music.currentTime = cur;
-  let speaking = false;
-  VO.forEach(v => {
-    const dur = v.dur || 3.5, active = cur >= v.start && cur < v.start + dur - .05;
-    if (active) {
-      speaking = true;
-      if (v.el.paused) { v.el.currentTime = cur - v.start; v.el.play().catch(() => {}); }
-      else if (Math.abs(v.el.currentTime - (cur - v.start)) > .3) v.el.currentTime = cur - v.start;
-    } else if (!v.el.paused) v.el.pause();
-  });
-  const target = speaking ? .3 : .8;
-  music.volume = clamp(music.volume + (target - music.volume) * .1);
 }
 function fireEvents(a, b){
   if (!playing || b - a > .3) return;
@@ -828,12 +840,12 @@ function fireEvents(a, b){
   ENTRIES.forEach(e => { if (e.t > a && e.t <= b) chime(); });
   if (32.45 > a && 32.45 <= b || 38.45 > a && 38.45 <= b) blip(2400, .05, .08, 'square');
 }
-// The clock and audio also tick on a timer, so sound stays in sync when frames are throttled.
+// The clock also ticks on a timer, so sound effects stay on time when frames are throttled.
 function tick(){
   if (!playing) return;
-  cur = (performance.now() - base) / 1000;
-  if (cur >= T) { cur = T; pause(); }
-  syncAudio(); fireEvents(lastT, cur); lastT = cur;
+  cur = Math.min(T, off + Math.max(0, ac.currentTime - t0));
+  if (cur >= T) pause();
+  fireEvents(lastT, cur); lastT = cur;
 }
 setInterval(tick, 100);
 function frame(){
