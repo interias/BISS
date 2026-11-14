@@ -27,6 +27,7 @@ import {
   type FoodSummary,
   type LabelExtraction,
   type PlateExtraction,
+  type Recipe,
   type SearchHit,
 } from "@/lib/api";
 import { fmt, headerDate, shortName } from "@/lib/format";
@@ -38,6 +39,7 @@ import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
 import { PlateSheet } from "@/components/plate/plate-sheet";
+import { RecipeSheet } from "@/components/recipe/recipe-sheet";
 import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
@@ -63,7 +65,9 @@ type SheetState =
   // The dish read from a plate photo; nothing is logged before "Eintragen" (SPEC 7a).
   | { kind: "plate"; plate: PlateExtraction; photo: Blob }
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
-  | { kind: "combo"; combo?: Combo };
+  | { kind: "combo"; combo?: Combo }
+  // A new recipe, or the one of the amount sheet "Bearbeiten" came from (ADR-0012).
+  | { kind: "recipe"; recipeId?: number; back?: AmountState };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
@@ -221,6 +225,13 @@ export function Home() {
     setSheet({ kind: "amount", ...(back ?? { foodId: food.id }) });
   };
 
+  /** A saved recipe leads to the amount sheet of its food, ready to log portions. */
+  const recipeSaved = (back?: AmountState) => (recipe: Recipe) => {
+    reload().catch(fail); // names and values in the diary may have changed
+    show("Rezept gespeichert");
+    setSheet({ kind: "amount", ...(back ?? { foodId: recipe.food_id }) });
+  };
+
   const scanned = (food: BarcodeFood) => {
     setCamera(false);
     setSheet(food.id === null ? { kind: "draft", food } : { kind: "amount", foodId: food.id });
@@ -353,13 +364,14 @@ export function Home() {
               busy={busy}
               onSubmit={submit({ food_id: sheet.foodId, group_id: sheet.groupId }, sheet.entry)}
               onRemove={sheet.entry && remove(sheet.entry)}
-              onEdit={(grams) =>
-                setSheet({
-                  kind: "editor",
-                  foodId: sheet.foodId,
-                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams }, groupId: sheet.groupId },
-                })
-              }
+              onEdit={(grams, recipeId) => {
+                const back = { foodId: sheet.foodId, entry: sheet.entry, initial: { grams }, groupId: sheet.groupId };
+                setSheet(
+                  recipeId === undefined
+                    ? { kind: "editor", foodId: sheet.foodId, back }
+                    : { kind: "recipe", recipeId, back },
+                );
+              }}
             />
           )}
           {sheet.kind === "draft" && (
@@ -389,6 +401,16 @@ export function Home() {
               onSave={saveCombo(sheet.combo)}
               onDelete={sheet.combo && removeCombo(sheet.combo)}
               onCancel={() => setSheet(null)}
+              onRecipe={() => setSheet({ kind: "recipe" })}
+            />
+          )}
+          {sheet.kind === "recipe" && (
+            <RecipeSheet
+              key={sheet.recipeId ?? "new"}
+              recipeId={sheet.recipeId}
+              recent={recent}
+              onSaved={recipeSaved(sheet.back)}
+              onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />
           )}
           {sheet.kind === "editor" && (

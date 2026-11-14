@@ -38,6 +38,8 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
+Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen.
+
 **Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Spracheingabe, Statistiken jeder Art.
 
 ## 3. Abläufe
@@ -67,6 +69,12 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel und Schnellzugriffe, das neueste zuerst. Diese Reihenfolge ist fest, damit jedes an der erwarteten Stelle steht.
   - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
   - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
+- **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):
+  - Das Blatt „+ Neu“ führt mit „Stattdessen ein Rezept mit Portionen anlegen“ zum Rezept-Blatt.
+  - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
+  - Ohne Fertiggewicht gilt das Gewicht der Zutaten, etwa bei Suppe. Nach dem Backen oder Braten wird gewogen und nachgetragen.
+  - „Speichern“ legt das Rezept an und öffnet das Mengen-Sheet seines Lebensmittels. Dort zählt der Chip „1 Portion“ wie jede Portion („2 × 1 Portion“).
+  - Ein Rezept steht in Suche und leerer Suche wie jedes Lebensmittel. „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt.
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
   - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
@@ -121,6 +129,8 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
 | `combo` | `id`, `name`, `position` (Reihenfolge im Dock), `created_at`, `updated_at` – Vorlage eines Schnellzugriffs (E8) |
 | `combo_item` | `id`, `combo_id` (löscht mit), `food_id`, `grams` (> 0 und ≤ 1.500), `position` – Zutaten der Vorlage in Reihenfolge |
+| `recipe` | `id`, `food_id` (eindeutig), `description`, `portions` (1–100), `cooked_grams` (optional, ≤ 50.000) – Rezept; sein Lebensmittel trägt die Werte je 100 g des fertigen Gerichts ([ADR-0012](adr/0012-recipe-as-food.md)) |
+| `recipe_item` | `id`, `recipe_id` (löscht mit), `food_id`, `grams` (> 0 und ≤ 10.000), `position` – rohe Zutaten in Reihenfolge |
 | `off_cache` | `gtin`, `payload`, `fetched_at`, `name_norm` und `brand_norm` (aus `payload` normalisiert, Trigram-Index auf `name_norm`) – Kurzzeit-Cache angezeigter Treffer, 30 Tage, durchsuchbar (Abschnitt 6) |
 
 Regeln:
@@ -129,6 +139,7 @@ Regeln:
 - **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
 - **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
+- **Rezept:** Werte je 100 g = Summe der Zutaten ÷ Fertiggewicht × 100, auf 0,1 gerundet. Fertiggewicht ist `cooked_grams`, sonst die Summe der Zutaten. Eine Zutat mit Basis ml zählt mit ihrem Volumen. Fehlt einer Zutat ein Zusatzwert (Ballaststoffe, Zucker, gesättigte Fettsäuren, Salz), bleibt er beim Gericht leer. „1 Portion“ = Fertiggewicht ÷ `portions`. `GET /foods/{id}` nennt bei einem Rezept-Lebensmittel `recipe_id`.
 - **Geschätzte Portionen:** `data/bls/servings.csv` hält typische Portionen für Grundlebensmittel, die erste je Lebensmittel ist der Standard. Jeder API-Start ergänzt neue Zeilen. Ein BLS-Lebensmittel, dessen Portionen im Editor geändert wurden (`servings` in `overridden`) oder das eine eigene Portion hat, bekommt keine dazu.
 - **Eintragen heißt speichern:** Ein externer Treffer wird beim ersten Eintrag dauerhaft als `food` angelegt, mit Herkunft.
 - **Kategorie:** Eine feste Liste von 16 Symbolgruppen (`bread`, `grains`, `fruit`, `vegetables`, `legumes`, `potatoes`, `dairy`, `eggs`, `meat`, `sausage`, `fish`, `fats`, `sweets`, `drinks`, `dishes`, `other`).
@@ -154,6 +165,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | GET | `/combos` | Schnellzugriffe nach `position`, je Zutat Lebensmittel, Gramm und Makros, dazu die Summe (E8) |
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
+| POST | `/recipes` | Rezept anlegen: `name`, `items`, `portions`, optional `cooked_grams` und `description`; legt sein Lebensmittel an ([ADR-0012](adr/0012-recipe-as-food.md)) |
+| GET / PATCH | `/recipes/{id}` | Rezept lesen oder ändern; Ändern berechnet das Lebensmittel neu, `cooked_grams: null` nimmt das Fertiggewicht zurück |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
 | GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
 | GET | `/foods/suggestions` | leere Suche (Abschnitt 6, der Wirt): `likely` (Tipps für jetzt) und `recent` (zuletzt verwendet), je Eintrag `food` oder `combo` |
@@ -293,7 +306,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3.
 
 ## 9. Betrieb
 

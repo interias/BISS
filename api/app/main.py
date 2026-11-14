@@ -6,7 +6,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import VERSION, mcp
-from app.api import combos, days, entries, foods, goals, health, images, labels, plates
+from app.api import (
+    combos,
+    days,
+    entries,
+    foods,
+    goals,
+    health,
+    images,
+    labels,
+    plates,
+    recipes,
+)
 
 mcp_http = mcp.StreamableHttp(mcp.build_server())
 
@@ -27,5 +38,6 @@ app.include_router(goals.router, prefix="/api/v1")
 app.include_router(images.router, prefix="/api/v1")
 app.include_router(labels.router, prefix="/api/v1")
 app.include_router(plates.router, prefix="/api/v1")
+app.include_router(recipes.router, prefix="/api/v1")
 # MCP server (ADR-0007), outside /api/v1 and the OpenAPI schema.
 app.router.add_route(mcp.PATH, mcp_http, include_in_schema=False)

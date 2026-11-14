@@ -11,6 +11,7 @@ import type {
   Macros,
   PlateExtraction,
   PlateItem,
+  Recipe,
   SearchHit,
 } from "@/lib/api";
 
@@ -273,6 +274,25 @@ const sum = (list: Macros[]) =>
     ZERO,
   );
 
+/** A baked recipe: 540 g of ingredients weigh 450 g out of the oven, in five portions. */
+export const skyrRecipe: Recipe = {
+  id: 70,
+  food_id: 71,
+  name: "Skyrbrötchen",
+  description: "Verrühren, 20 Minuten bei 200 °C Umluft.",
+  image_path: null,
+  portions: 5,
+  cooked_grams: 450,
+  raw_grams: 540,
+  portion_grams: 90,
+  items: [
+    { food: riceDetail, grams: 290, density: 1, macros: scale(riceDetail.per_100, 290) },
+    { food: chicken, grams: 250, density: 1, macros: scale(chicken.per_100, 250) },
+  ],
+  per_portion: { kcal: 185.2, protein: 12, carbs: 26, fat: 2.8 },
+  totals: { kcal: 926.1, protein: 60, carbs: 130, fat: 14 },
+};
+
 /** The diary rows as the backend orders them: newest first, a group at its first entry. */
 function dayRows(entries: Entry[], sum: (list: Entry[]) => Macros): DayRow[] {
   const byTime = [...entries].sort((a, b) => a.eaten_at.localeCompare(b.eaten_at) || a.id - b.id);
@@ -383,6 +403,17 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
   });
   const foods: Record<number, FoodDetail> = {
     7: bananaDetail,
+    // The food of skyrRecipe: logged in portions, edited as a recipe.
+    [skyrRecipe.food_id]: {
+      ...bananaDetail,
+      id: skyrRecipe.food_id,
+      name: skyrRecipe.name,
+      source: "own",
+      category: "dishes",
+      recipe_id: skyrRecipe.id,
+      servings: [{ id: 9, label: "1 Portion", grams: 90, origin: "own", is_default: true }],
+      standard_serving: { label: "1 Portion", grams: 90, origin: "own" },
+    },
     8: detail(riceDetail),
     9: detail(chicken),
     10: detail(broccoli),
@@ -468,6 +499,13 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
       const gtin = body.gtin ? String(body.gtin).padStart(14, "0") : null;
       foods[55] = { ...bananaDetail, id: 55, name: body.name, brand: body.brand, gtin, source: "own" };
       return json(foods[55], 201);
+    }
+    if (url === "/api/v1/recipes" && method === "POST") {
+      if (body.name === "kaputt") return json({ detail: "broken" }, 500);
+      return json({ ...skyrRecipe, ...body, items: skyrRecipe.items }, 201);
+    }
+    if (url === `/api/v1/recipes/${skyrRecipe.id}`) {
+      return json(method === "PATCH" ? { ...skyrRecipe, ...body, items: skyrRecipe.items } : skyrRecipe);
     }
     const food = url.match(/^\/api\/v1\/foods\/(\d+)$/);
     if (food && method === "GET" && foods[Number(food[1])]) return json(foods[Number(food[1])]);

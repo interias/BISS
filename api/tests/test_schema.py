@@ -185,6 +185,25 @@ def test_migration_0005_creates_and_drops_the_combo_tables(engine: Engine) -> No
     assert key["options"]["ondelete"] == "CASCADE"
 
 
+def test_migration_0007_creates_and_drops_the_recipe_tables(engine: Engine) -> None:
+    config = Config(API_DIR / "alembic.ini")
+    config.attributes["database_url"] = engine.url.render_as_string(hide_password=False)
+    try:
+        command.downgrade(config, "0006")
+        schema = inspect(engine)
+        schema.clear_cache()
+        assert not {"recipe", "recipe_item"} & set(schema.get_table_names())
+    finally:
+        command.upgrade(config, "head")
+    schema = inspect(engine)
+    schema.clear_cache()
+    assert {"recipe", "recipe_item"} <= set(schema.get_table_names())
+    checks = {c["name"]: c["sqltext"] for c in schema.get_check_constraints("recipe")}
+    assert "50000" in checks["recipe_cooked_grams"]
+    [key] = [k for k in schema.get_foreign_keys("recipe_item") if k["referred_table"] == "recipe"]
+    assert key["options"]["ondelete"] == "CASCADE"
+
+
 def test_combo_item_grams_are_checked_and_follow_their_combo(session: Session) -> None:
     food = Food(name="Zucker", kcal=400, protein=0, carbs=100, fat=0, source="own")
     combo = Combo(name="Kaffee")

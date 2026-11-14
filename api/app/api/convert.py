@@ -6,7 +6,7 @@ from app.api import schemas
 from app.models import Entry, Food
 from app.plates.match import Plate
 from app.search.search import Hit
-from app.services import foods
+from app.services import foods, recipes
 from app.services.combos import ComboView
 from app.services.days import DaySummary, EntryRow
 from app.services.entries import EntryGroup
@@ -63,6 +63,33 @@ def food_detail(session: Session, food: Food) -> schemas.FoodDetail:
         servings=[schemas.Serving.model_validate(s) for s in foods.servings_of(session, food.id)],
         standard_serving=schemas.StandardServing.model_validate(standard_serving(session, food.id)),
         last_grams=foods.last_grams(session, food.id),
+        recipe_id=recipes.recipe_id_of(session, food.id),
+    )
+
+
+def recipe(view: recipes.RecipeView) -> schemas.Recipe:
+    return schemas.Recipe(
+        id=view.id,
+        food_id=view.food.id,
+        name=view.food.name,
+        description=view.description,
+        image_path=view.food.image_path,
+        portions=view.portions,
+        cooked_grams=view.cooked_grams,
+        raw_grams=view.raw_grams,
+        portion_grams=view.portion_grams,
+        items=[
+            schemas.ComboItem(
+                food=food_summary(item.food, item.serving),
+                grams=item.grams,
+                density=item.food.density,
+                macros=schemas.Macros.model_validate(item.macros),
+            )
+            for item in view.items
+        ],
+        per_100=schemas.Nutrients.model_validate(view.food),
+        per_portion=schemas.Macros.model_validate(view.per_portion),
+        totals=schemas.Macros.model_validate(view.totals),
     )
 
 

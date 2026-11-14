@@ -127,6 +127,34 @@ class ComboItem(Base):
     position: Mapped[int] = mapped_column(Integer, server_default="0")
 
 
+class Recipe(Base):
+    """Rezept: an own dish made from foods (ADR-0012). Its food carries the values per
+    100 g of the finished dish and the serving "1 Portion"."""
+
+    __tablename__ = "recipe"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    food_id: Mapped[int] = mapped_column(ForeignKey("food.id"), unique=True)
+    description: Mapped[str] = mapped_column(Text, server_default="")
+    portions: Mapped[int] = mapped_column(Integer, server_default="1")
+    # The weighed finished dish; null: not weighed, the sum of the ingredients applies.
+    cooked_grams: Mapped[float | None] = mapped_column(Double)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RecipeItem(Base):
+    __tablename__ = "recipe_item"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id", ondelete="CASCADE"))
+    food_id: Mapped[int] = mapped_column(ForeignKey("food.id"))
+    grams: Mapped[float] = mapped_column(Double)
+    position: Mapped[int] = mapped_column(Integer, server_default="0")
+
+
 class Goal(Base):
     __tablename__ = "goal"
 

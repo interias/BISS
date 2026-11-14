@@ -198,3 +198,66 @@ test("als Schnellzugriff merken makes a combo of a diary group", async ({ page, 
   await expect(chipOf(page, name)).toBeVisible();
   await expect(row.getByRole("button", { name: "als Schnellzugriff merken" })).toHaveCount(0);
 });
+
+test("a recipe is created, logged in two portions and weighed afterwards", async ({ page, request }) => {
+  const name = unique("Bananenreis");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Neuer Schnellzugriff" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("button", { name: "Stattdessen ein Rezept mit Portionen anlegen" }).click();
+  await expect(sheet.getByRole("heading", { name: "Neues Rezept" })).toBeVisible();
+
+  await sheet.getByRole("textbox", { name: "Name" }).fill(name);
+  for (const [query, food] of [
+    ["banane", "Banane roh"],
+    ["reis gekocht", "Reis gekocht"],
+  ]) {
+    await sheet.getByRole("button", { name: "+ Zutat suchen" }).click();
+    await sheet.getByRole("textbox", { name: "Suchen" }).fill(query);
+    await sheet.getByRole("button", { name: new RegExp(`^${food}`) }).first().click();
+  }
+  await sheet.getByRole("spinbutton", { name: "Banane roh Gramm" }).fill("200");
+  await sheet.getByRole("spinbutton", { name: "Reis gekocht Gramm" }).fill("300");
+  await sheet.getByRole("button", { name: "mehr Portionen" }).click();
+  await sheet.getByRole("button", { name: "mehr Portionen" }).click();
+  await sheet.getByRole("button", { name: "mehr Portionen" }).click();
+  await sheet.getByRole("textbox", { name: "Zubereitung" }).fill("Mischen und warm machen.");
+  // 500 g of ingredients in four portions.
+  await expect(sheet.getByText("1 Portion · 125 g")).toBeVisible();
+
+  const [saved] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/recipes"),
+    sheet.getByRole("button", { name: "Speichern" }).click(),
+  ]);
+  expect(saved.status()).toBe(201);
+  const recipe: { id: number; food_id: number; totals: { kcal: number } } = await saved.json();
+
+  // The amount sheet of the recipe's food: one portion, a second tap makes two.
+  await expect(sheet.getByRole("heading", { name })).toBeVisible();
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("125");
+  await sheet.getByRole("button", { name: /1 Portion/ }).click();
+  await expect(sheet.getByRole("spinbutton", { name: "Menge" })).toHaveValue("250");
+  const [logged] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  ]);
+  const entry: { id: number; macros: { kcal: number } } = await logged.json();
+  entries.track(entry.id);
+  // Two of four portions are half of the dish.
+  expect(Math.abs(entry.macros.kcal - recipe.totals.kcal / 2)).toBeLessThanOrEqual(1);
+  await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toContainText(name);
+
+  // Weighed after cooking: 400 g, so a portion is 100 g and 100 g carry more.
+  await page.locator(`[data-entry-id="${entry.id}"]`).click();
+  await sheet.getByRole("button", { name: "Bearbeiten" }).click();
+  await expect(sheet.getByRole("heading", { name: "Rezept bearbeiten" })).toBeVisible();
+  await sheet.getByRole("textbox", { name: "Fertiggewicht in g" }).fill("400");
+  await expect(sheet.getByText("1 Portion · 100 g")).toBeVisible();
+  await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "PATCH" && new URL(r.url()).pathname === `/api/v1/recipes/${recipe.id}`),
+    sheet.getByRole("button", { name: "Speichern" }).click(),
+  ]);
+  const food = await (await request.get(`/api/v1/foods/${recipe.food_id}`)).json();
+  expect(food.standard_serving).toMatchObject({ label: "1 Portion", grams: 100 });
+  expect(food.recipe_id).toBe(recipe.id);
+});

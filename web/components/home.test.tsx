@@ -310,6 +310,30 @@ test("a Schnellzugriff in the empty search is logged with one tap and closes the
   expect(screen.queryByRole("textbox", { name: "Suchen" })).not.toBeInTheDocument();
 });
 
+test("+ Neu leads on to a new recipe; saved, its food opens to log portions", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: /Neu/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Stattdessen ein Rezept mit Portionen anlegen" }));
+
+  expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Skyrbrötchen" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+
+  // The amount sheet of the recipe's food, with its portion.
+  expect(await screen.findByRole("heading", { name: "Skyrbrötchen" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /1 Portion/ })).toHaveAttribute("aria-pressed", "true");
+  expect(calls.some((c) => c.method === "POST" && c.url === "/api/v1/recipes")).toBe(true);
+
+  // Bearbeiten opens the recipe again, not the food editor.
+  fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+  expect(await screen.findByRole("textbox", { name: "Zubereitung" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Rezept bearbeiten" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+  expect(await screen.findByRole("heading", { name: "Skyrbrötchen" })).toBeInTheDocument();
+});
+
 test("the back button of the phone closes the open sheet", async () => {
   fakeApi();
   render(<Home />);

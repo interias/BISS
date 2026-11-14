@@ -106,6 +106,13 @@ test("Bearbeiten hands over the current grams", () => {
   expect(onEdit).toHaveBeenCalledWith(130);
 });
 
+test("Bearbeiten of a recipe's food hands over the recipe", () => {
+  const onEdit = vi.fn();
+  inDialog(<AmountForm food={{ ...bananaDetail, recipe_id: 70 }} onSubmit={() => {}} onEdit={onEdit} />);
+  fireEvent.click(screen.getByRole("button", { name: "Bearbeiten" }));
+  expect(onEdit).toHaveBeenCalledWith(120, 70);
+});
+
 test("without onEdit there is no Bearbeiten, and initial grams win over the entry", () => {
   inDialog(
     <AmountForm

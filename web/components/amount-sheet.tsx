@@ -13,8 +13,11 @@ type Actions = {
   busy?: boolean;
   onSubmit: (grams: number) => void;
   onRemove?: () => void;
-  /** Opens the editor; gets the current grams so the sheet can come back as it was. */
-  onEdit?: (grams: number) => void;
+  /**
+   * Opens the editor; gets the current grams so the sheet can come back as it was, and the
+   * recipe when the food is one (then the recipe is edited, not the food).
+   */
+  onEdit?: (grams: number, recipeId?: number) => void;
 };
 
 /** Grams to start with, e.g. when the sheet comes back from the editor. */
@@ -33,6 +36,7 @@ export type AmountFood = Pick<
   | "per_100"
   | "standard_serving"
   | "last_grams"
+  | "recipe_id"
 > & { servings: Omit<Serving, "id">[] };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
@@ -110,7 +114,7 @@ export function AmountForm({
           {onEdit && (
             <button
               type="button"
-              onClick={() => onEdit(grams)}
+              onClick={() => (food.recipe_id ? onEdit(grams, food.recipe_id) : onEdit(grams))}
               className="inline-flex items-center gap-1 text-[12.5px] font-bold text-primary"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
