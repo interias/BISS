@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { kindColor, photoOf, type DayGroupRow, type DayRow, type Entry, type Macros } from "@/lib/api";
+import { kindColor, photoOf, type DayGroupRow, type DayRow, type Entry } from "@/lib/api";
 import { clockTime, fmt } from "@/lib/format";
 import { addPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
+import { MacroLine } from "@/components/macro-line";
 
 
 function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Entry) => void; nested?: boolean }) {
@@ -27,15 +28,13 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
         {entry.food.name}
       </span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(entry.macros.kcal)}</span>
-      <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground tabular-nums">
-        {`${fmt(entry.grams)} g · ${clockTime(entry.eaten_at)} · E ${fmt(entry.macros.protein)} · K ${fmt(entry.macros.carbs)} · F ${fmt(entry.macros.fat)}`}
+      <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
+        {`${fmt(entry.grams)} g · ${clockTime(entry.eaten_at)}`}
       </span>
+      <MacroLine macros={entry.macros} className="self-start" />
     </button>
   );
 }
-
-const macroLine = (totals: Macros) =>
-  `E ${fmt(totals.protein)} · K ${fmt(totals.carbs)} · F ${fmt(totals.fat)}`;
 
 /**
  * A plate: one row with the sum from the backend, unfolds to its entries (SPEC 3): a tap on
@@ -70,9 +69,10 @@ function GroupRow({
         <span className="min-w-0 self-end truncate font-semibold">{group.group_name}</span>
         <span className="self-end text-right font-bold tabular-nums">{fmt(group.totals.kcal)}</span>
         <span className="col-[2/-1] flex min-w-0 items-center justify-between gap-2 self-start text-[12.5px] text-muted-foreground tabular-nums">
-          <span className="truncate">
-            {`${group.entries.length} Zutaten · ${clockTime(group.eaten_at)} · ${macroLine(group.totals)}`}
+          <span className="min-w-0 flex-1 truncate">
+            {`${group.entries.length} Zutaten · ${clockTime(group.eaten_at)}`}
           </span>
+          <MacroLine macros={group.totals} />
           <svg
             width="14"
             height="14"

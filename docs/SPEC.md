@@ -79,7 +79,8 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Ein Foto erscheint überall, wo das Lebensmittel gelistet ist: Tagebuch, Suche, Dock-Chip, Mengen-Sheet, Rezeptliste (`image_path` an jedem Lebensmittel).
   - Abschnitts- und Blatt-Kennzeilen stehen klein, in Großbuchstaben und gesperrt. Blatt-Titel sind 21 px groß.
   - „Etwas Neues hinzufügen“ ist überall eine gestrichelte Pille in der Akzentfarbe („+ Schnellzugriff“, „+ Zutat suchen“, „+ Zutat“, „+ Neues Rezept“, „Neu anlegen“).
-  - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“. Rechts daneben, unter den kcal, stehen Eiweiß, Kohlenhydrate und Fett für dieselbe Menge, immer in dieser Reihenfolge und in den Farben der Makro-Balken („E 11 K 4 F 0“).
+  - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“.
+  - **Eiweiß, Kohlenhydrate, Fett** stehen überall in dieser Reihenfolge und in denselben drei Farben (`MacroLine`, `DOTS`). In jeder Liste steht rechts unter den kcal dieselbe Kurzzeile „E 11 K 4 F 0“, für dieselbe Menge wie die kcal: Suchtreffer (je 100 g), Schnellzugriff in der Suche (Summe), Tagebuch-Eintrag und Gericht (eingetragene Menge), „Meine Rezepte“ (je Portion). Tagesbilanz und Blätter zeigen die drei Werte groß mit Farbe und Wort.
   - Kleine Knöpfe in Zutatenzeilen (−, +, ✕, „tauschen“) reagieren auf etwa 40 px, ohne größer auszusehen.
   - Lange Namen brechen um, bevorzugt nach einem Schrägstrich, und überdecken nichts. Ein Hauptknopf, der noch nicht geht, ist grau.
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
