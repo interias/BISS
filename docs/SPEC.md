@@ -14,6 +14,7 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | Schnellzugriff | 1 |
 | Suche | + 2 |
 | Schnellzugriff aus der leeren Suche | Suche + 1 |
+| Rezept aus „Meine Rezepte“ | Kochbuch + 2 |
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
@@ -54,7 +55,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
   - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
 - **Chips im Dock:**
-  - „+ Neu“ steht vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. „+ Neu“ braucht nie Scrollen.
+  - „+ Neu“ und das Kochbuch-Symbol stehen vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. Beide brauchen nie Scrollen.
   - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
   - Lange Namen enden nach etwa 14 Zeichen mit „…“. Der volle Name steht im Tooltip und für Screenreader.
 - **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
@@ -71,7 +72,8 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
   - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
 - **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):
-  - Das Blatt „+ Neu“ führt mit „Stattdessen ein Rezept mit Portionen anlegen“ zum Rezept-Blatt.
+  - Im Dock steht neben „+ Neu“ ein Kochbuch-Symbol. Es öffnet „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
+  - Ein Rezept steht überall in der Akzentfarbe: in der Suche mit der Marke „Rezept“, als Chip im Dock und im Tagebuch (`recipe` am Lebensmittel).
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
   - Ohne Fertiggewicht gilt das Gewicht der Zutaten, etwa bei Suppe. Nach dem Backen oder Braten wird gewogen und nachgetragen.
   - „Speichern“ legt das Rezept an und öffnet das Mengen-Sheet seines Lebensmittels. Dort zählt der Chip „1 Portion“ wie jede Portion („2 × 1 Portion“).
@@ -167,6 +169,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/recipes` | Rezept anlegen: `name`, `items`, `portions`, optional `cooked_grams` und `description`; legt sein Lebensmittel an ([ADR-0012](adr/0012-recipe-as-food.md)) |
+| GET | `/recipes` | alle Rezepte, das zuletzt gespeicherte zuerst („Meine Rezepte“) |
 | GET / PATCH | `/recipes/{id}` | Rezept lesen oder ändern; Ändern berechnet das Lebensmittel neu, `cooked_grams: null` nimmt das Fertiggewicht zurück |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
 | GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
@@ -307,7 +310,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
 
 ## 9. Betrieb
 

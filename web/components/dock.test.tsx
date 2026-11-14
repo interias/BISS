@@ -10,6 +10,7 @@ function renderDock() {
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
+    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
     onCamera: vi.fn(),
@@ -23,6 +24,7 @@ test("+ Neu stands first, then the combo chips and the recent ones", () => {
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
     "Neuer Schnellzugriff",
+    "Meine Rezepte",
     "Schnellzugriff Kaffee",
     "Banane roh 120 g",
   ]);
@@ -48,6 +50,7 @@ test("long names are cut to about 14 characters, the full name stays in the labe
       onCombo={vi.fn()}
       onComboHold={vi.fn()}
       onNewCombo={vi.fn()}
+      onRecipes={vi.fn()}
       onRecent={vi.fn()}
       onSearch={vi.fn()}
       onCamera={vi.fn()}
@@ -110,4 +113,24 @@ test("a recent chip without a photo shows the symbol of its category", () => {
   renderDock();
   const chip = screen.getByRole("button", { name: "Banane roh 120 g" });
   expect(chip.querySelector('[data-category="fruit"]')).not.toBeNull();
+});
+
+test("the cookbook opens the own recipes, and the chip of a recipe stands in the accent colour", () => {
+  const actions = {
+    onCombo: vi.fn(),
+    onComboHold: vi.fn(),
+    onNewCombo: vi.fn(),
+    onRecipes: vi.fn(),
+    onRecent: vi.fn(),
+    onSearch: vi.fn(),
+    onCamera: vi.fn(),
+  };
+  const rolls = { ...banana, id: 71, name: "Skyrbrötchen", recipe: true };
+  render(<Dock combos={[]} recent={[rolls, banana]} {...actions} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Meine Rezepte" }));
+  expect(actions.onRecipes).toHaveBeenCalledOnce();
+  expect(screen.getByRole("button", { name: /^Skyrbrötchen/ })).toHaveClass("border-primary");
+  expect(screen.getByText("Skyrbrötchen")).toHaveClass("text-primary");
+  expect(screen.getByRole("button", { name: /^Banane roh/ })).not.toHaveClass("border-primary");
 });

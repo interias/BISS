@@ -21,6 +21,7 @@ def food_summary(
     food, serving: StandardServing, model=schemas.FoodSummary, **fields
 ) -> schemas.FoodSummary:
     """From a Food or a search hit, both carry the values per 100."""
+    fields.setdefault("recipe", bool(getattr(food, "recipe", False)))
     return model(
         id=food.id,
         name=food.name,

@@ -15,7 +15,7 @@ Der Schnellzugriff ([ADR-0010](0010-combo-template.md)) passt dafür nicht: Er t
 - **Eintragen wie jedes Lebensmittel:** Suche, Vorhersage, Mengen-Sheet, Portions-Chip („2 × 1 Portion“) und Snapshot gelten unverändert. Ein Eintrag ist eine Zeile im Tagebuch.
 - **Ändern rechnet neu:** Jede Änderung am Rezept berechnet das Lebensmittel und seine Portion neu. Eingetragene Einträge behalten ihren Snapshot.
 - **Beschreibung und Foto:** `description` ist freier Text zur Zubereitung. Das Foto ist das Produktfoto des Lebensmittels.
-- **Oberfläche:** Das Blatt „+ Neu“ für einen Schnellzugriff führt weiter zu „Rezept mit Portionen“. „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt statt des Lebensmittel-Editors.
+- **Oberfläche:** Ein Kochbuch-Symbol im Dock öffnet „Meine Rezepte“ mit allen Rezepten und „+ Neues Rezept“ (zuerst ein Link im Blatt „+ Neu“, am 14.11.2026 ersetzt). „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt statt des Lebensmittel-Editors.
 
 ## Alternativen verworfen
 - **Schnellzugriff mit Anteil:** Eintragen als Gruppe aller Zutaten, jede mit ihrem Anteil. Das Tagebuch zeigt dann sechs rohe Zutaten für zwei Brötchen, das Fertiggewicht hat keinen Ort, und „180 g vom Fertigen“ lässt sich nicht eintragen.

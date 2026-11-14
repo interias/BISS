@@ -21,7 +21,10 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       <span className="row-span-2">
         <FoodPic size={nested ? 36 : 44} category={entry.food.category} />
       </span>
-      <span className="min-w-0 self-end truncate font-semibold">{entry.food.name}</span>
+      {/* An own recipe stands in the accent colour, as in the search. */}
+      <span className={cn("min-w-0 self-end truncate font-semibold", entry.food.recipe && "text-primary")}>
+        {entry.food.name}
+      </span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(entry.macros.kcal)}</span>
       <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground tabular-nums">
         {`${fmt(entry.grams)} g · ${clockTime(entry.eaten_at)} · E ${fmt(entry.macros.protein)} · K ${fmt(entry.macros.carbs)} · F ${fmt(entry.macros.fat)}`}

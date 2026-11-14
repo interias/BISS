@@ -135,6 +135,33 @@ def test_weighing_later_and_changing_portions_computes_the_food_anew(
     assert day["totals"]["kcal"] == entry["macros"]["kcal"] == 185.2
 
 
+def test_recipes_are_listed_newest_first_and_marked_wherever_their_food_shows(
+    client: TestClient, session: Session
+) -> None:
+    flour, skyr, egg = ingredients(session)
+    assert client.get(RECIPES).json() == []
+    rolls = create(client, flour, skyr, egg)
+    soup = client.post(
+        RECIPES, json={"name": "Suppe", "items": [{"food_id": skyr.id, "grams": 500}]}
+    ).json()
+
+    assert [r["name"] for r in client.get(RECIPES).json()] == ["Suppe", "Skyrbrötchen"]
+
+    # Logged, the recipe is marked in the diary and on its chip; a plain food is not.
+    entry = client.post("/api/v1/entries", json={"food_id": rolls["food_id"]}).json()
+    client.post("/api/v1/entries", json={"food_id": flour.id})
+    assert entry["food"]["recipe"] is True
+    chips = {chip["name"]: chip["recipe"] for chip in client.get("/api/v1/recent").json()}
+    assert chips == {"Skyrbrötchen": True, "Weizen Vollkornmehl": False}
+    rows = client.get(f"/api/v1/days/{entry['day']}").json()["rows"]
+    assert {r["entry"]["food"]["name"]: r["entry"]["food"]["recipe"] for r in rows} == chips
+    # An ingredient that is a recipe itself is marked in the other recipe.
+    nested = client.post(
+        RECIPES, json={"name": "Menü", "items": [{"food_id": soup["food_id"], "grams": 100}]}
+    ).json()
+    assert nested["items"][0]["food"]["recipe"] is True
+
+
 def test_an_ml_ingredient_counts_by_its_volume(client: TestClient, session: Session) -> None:
     milk = add_food(
         session, "Milch", kcal=64, protein=3, carbs=5, fat=3.5, basis="ml", density=1.03

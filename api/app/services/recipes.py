@@ -184,6 +184,12 @@ def get_recipe(session: Session, recipe_id: int) -> RecipeView:
     )
 
 
+def list_recipes(session: Session) -> list[RecipeView]:
+    """All recipes, the one saved last first."""
+    ids = session.scalars(select(Recipe.id).order_by(Recipe.updated_at.desc(), Recipe.id.desc()))
+    return [get_recipe(session, recipe_id) for recipe_id in ids]
+
+
 def recipe_id_of(session: Session, food_id: int) -> int | None:
     """The recipe whose food this is, so the app opens the recipe instead of the food."""
     return session.scalar(select(Recipe.id).where(Recipe.food_id == food_id))

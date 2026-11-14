@@ -43,6 +43,8 @@ export type FoodSummary = {
   category: Category | null;
   per_100: Macros;
   standard_serving: StandardServing;
+  /** The food of an own recipe: the app sets it apart in the accent colour. */
+  recipe?: boolean;
 };
 
 /**
@@ -50,10 +52,7 @@ export type FoodSummary = {
  * the barcode chain answers as a draft and which is logged by its GTIN.
  */
 export type SearchHit = Omit<FoodSummary, "id"> &
-  ({ id: number; gtin: string | null } | { id: null; gtin: string }) & {
-    /** The food of an own recipe: the search sets it apart. */
-    recipe?: boolean;
-  };
+  ({ id: number; gtin: string | null } | { id: null; gtin: string });
 
 export type Serving = {
   id: number;
@@ -153,7 +152,7 @@ export type LabelExtraction = {
 
 export type Entry = {
   id: number;
-  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null };
+  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null; recipe?: boolean };
   grams: number;
   meal: Meal;
   eaten_at: string;
@@ -371,6 +370,8 @@ export type RecipeWrite = {
 };
 
 export const getRecipe = (id: number) => request<Recipe>(`/recipes/${id}`);
+/** All recipes, the one saved last first. */
+export const getRecipes = () => request<Recipe[]>("/recipes");
 export const createRecipe = (body: RecipeWrite) =>
   request<Recipe>("/recipes", { method: "POST", body: JSON.stringify(body) });
 export const updateRecipe = (id: number, body: RecipeWrite) =>
