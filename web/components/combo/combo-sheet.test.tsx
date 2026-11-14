@@ -105,7 +105,7 @@ test("Löschen asks inline first; Behalten keeps the combo", () => {
 
 test("create needs a name and an item; suggestions add a recent food with its serving", () => {
   const { onSave, onCancel } = renderSheet(undefined, [banana, sugar]);
-  expect(screen.getByRole("dialog", { name: "Schnellzugriff anlegen" })).toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Neuer Schnellzugriff" })).toBeInTheDocument();
   expect(screen.getByText("Noch keine Zutat.")).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Mahlzeit" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();

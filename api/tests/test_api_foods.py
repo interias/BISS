@@ -136,6 +136,7 @@ def test_search_returns_summaries(client: TestClient, session: Session) -> None:
         "gtin": None,
         "recipe": False,
         "scanned": False,
+        "image_path": None,
     }
     assert results[1]["standard_serving"] == FALLBACK
 

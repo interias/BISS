@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { Basis, Combo, ComboItemWrite, FoodSummary, Macros, SearchHit, Source } from "@/lib/api";
+import { kindColor, type Basis, type Combo, type ComboItemWrite, type FoodSummary, type Macros, type SearchHit, type Source } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { fmt, shortName } from "@/lib/format";
+import { breakable, fmt, shortName } from "@/lib/format";
+import { addPill, hitArea, kicker, suggestChip } from "@/lib/styles";
+import { cn } from "@/lib/utils";
 import { DOTS } from "@/components/amount-sheet";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
@@ -119,22 +121,22 @@ export function ComboSheet({
 
   return (
     <>
-      <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
+      <p className={cn(kicker, "mb-1")}>
         {combo ? "Schnellzugriff · anpassen" : "Neuer Schnellzugriff"}
       </p>
-      <SheetTitle className="sr-only">{combo ? "Schnellzugriff anpassen" : "Schnellzugriff anlegen"}</SheetTitle>
+      <SheetTitle className="sr-only">{combo ? "Schnellzugriff anpassen" : "Neuer Schnellzugriff"}</SheetTitle>
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}
         aria-label="Name"
         placeholder="Name, z. B. Kaffee"
-        className="mb-1 w-full min-w-0 border-0 border-b bg-transparent pb-1.5 font-heading text-xl font-bold text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="mb-2.5 w-full min-w-0 border-0 border-b bg-transparent pb-1.5 font-heading text-[21px] leading-[1.15] font-bold text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       />
-      <p className="mb-2.5 text-[12.5px] text-muted-foreground">
-        {combo
-          ? "Gilt nur für diesen Eintrag. Die Vorlage bleibt, außer du speicherst sie."
-          : "Name und Zutaten mit Menge. Ein Tap trägt später alles ein."}
-      </p>
+      {combo && (
+        <p className="-mt-1.5 mb-2.5 text-[12.5px] text-muted-foreground">
+          Gilt nur für diesen Eintrag. Die Vorlage bleibt, außer du speicherst sie.
+        </p>
+      )}
 
       <ul aria-label="Zutaten">
         {rows.map((row) => {
@@ -144,8 +146,8 @@ export function ComboSheet({
               key={row.key}
               className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 border-b border-dashed py-2"
             >
-              <span className="min-w-0 font-semibold">
-                {row.food.name}
+              <span className="min-w-0 leading-snug font-semibold [overflow-wrap:anywhere]">
+                {breakable(row.food.name)}
                 <small className="block text-xs font-medium text-muted-foreground tabular-nums">
                   <span>{fmt(kcal)} kcal</span>
                   {" · "}
@@ -153,7 +155,7 @@ export function ComboSheet({
                     type="button"
                     aria-label={`${row.food.name} tauschen`}
                     onClick={() => setSearching(row.key)}
-                    className="font-bold text-primary"
+                    className="relative font-bold text-primary after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']"
                   >
                     tauschen
                   </button>
@@ -168,7 +170,7 @@ export function ComboSheet({
                 type="button"
                 aria-label={`${row.food.name} entfernen`}
                 onClick={() => remove(row.key)}
-                className="size-[30px] text-muted-foreground"
+                className={cn("size-[30px] text-muted-foreground", hitArea)}
               >
                 ✕
               </button>
@@ -182,7 +184,7 @@ export function ComboSheet({
         <button
           type="button"
           onClick={() => setSearching("new")}
-          className="inline-flex flex-none items-center gap-1.5 rounded-full border border-primary px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap text-primary"
+          className={addPill}
         >
           + Zutat suchen
         </button>
@@ -191,7 +193,7 @@ export function ComboSheet({
             key={food.id}
             type="button"
             onClick={() => add(food)}
-            className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap"
+            className={cn(suggestChip, kindColor(food))}
           >
             + {shortName(food.name)}
           </button>
@@ -229,7 +231,7 @@ export function ComboSheet({
               type="button"
               disabled={busy || rows.length === 0}
               onClick={() => onLog?.(written(rows))}
-              className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
+              className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
             >
               Eintragen · {fmt(total.kcal)} kcal
             </button>
@@ -277,7 +279,7 @@ export function ComboSheet({
             type="button"
             disabled={busy || !ready}
             onClick={() => onSave(name.trim(), written(rows))}
-            className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+            className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           >
             Speichern
           </button>

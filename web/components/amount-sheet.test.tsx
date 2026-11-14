@@ -194,3 +194,20 @@ test("editing an entry keeps its amount, whatever was logged last", () => {
   inDialog(<AmountForm food={food} entry={bananaEntry} onSubmit={() => {}} />);
   expect(amount()).toHaveValue(bananaEntry.grams);
 });
+
+test("the name stands in the colour of its kind; a recipe names itself and its portion", () => {
+  const { unmount } = inDialog(
+    <AmountForm
+      food={{ ...bananaDetail, name: "Skyrbrötchen", source: "own", recipe_id: 1, standard_serving: { label: "1 Portion", grams: 116, origin: "own" } }}
+      onSubmit={() => {}}
+    />,
+  );
+  expect(screen.getByRole("heading", { name: "Skyrbrötchen" })).toHaveClass("text-primary");
+  expect(screen.getByText("Rezept")).toBeInTheDocument();
+  expect(screen.getByText("1 Portion · 116 g")).toBeInTheDocument();
+  expect(screen.queryByText(/Eigene DB/)).not.toBeInTheDocument();
+  unmount();
+
+  inDialog(<AmountForm food={{ ...bananaDetail, name: "Riegel", gtin: "04000000000013" }} onSubmit={() => {}} />);
+  expect(screen.getByRole("heading", { name: "Riegel" })).toHaveClass("text-scan");
+});

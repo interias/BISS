@@ -27,6 +27,7 @@ def test_entry_with_amount_meal_and_time(client: TestClient, session: Session) -
         "category": None,
         "recipe": False,
         "scanned": False,
+        "image_path": None,
     }
     assert (entry["grams"], entry["meal"], entry["day"]) == (60, "breakfast", "2026-10-28")
     assert entry["macros"] == {"kcal": 222.0, "protein": 8.1, "carbs": 35.2, "fat": 4.2}

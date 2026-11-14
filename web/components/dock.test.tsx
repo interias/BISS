@@ -153,3 +153,22 @@ test("the chip of a scanned product stands in turquoise, a recipe wins over it",
   expect(screen.getByText("Eigenes Brot")).toHaveClass("text-primary");
   expect(screen.getByText("Banane roh")).not.toHaveClass("text-scan");
 });
+
+test("a chip shows the photo of its food when it has one", () => {
+  const actions = {
+    onCombo: vi.fn(),
+    onComboHold: vi.fn(),
+    onNewCombo: vi.fn(),
+    onRecipes: vi.fn(),
+    onRecent: vi.fn(),
+    onSearch: vi.fn(),
+    onCamera: vi.fn(),
+  };
+  const rolls = { ...banana, id: 71, name: "Skyrbrötchen", image_path: "rolls.webp" };
+  render(<Dock combos={[]} recent={[rolls, banana]} {...actions} />);
+  expect(screen.getByRole("button", { name: /^Skyrbrötchen/ }).querySelector("img")).toHaveAttribute(
+    "src",
+    "/api/v1/images/rolls.webp",
+  );
+  expect(screen.getByRole("button", { name: /^Banane roh/ }).querySelector("img")).toBeNull();
+});

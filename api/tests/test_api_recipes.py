@@ -212,3 +212,22 @@ def test_recipe_refuses_what_makes_no_dish(client: TestClient, session: Session)
     assert client.patch(f"{RECIPES}/999999", json={"portions": 2}).status_code == 404
     # Nothing of the refused requests is stored.
     assert session.scalars(select(Food).where(Food.name == "x")).all() == []
+
+
+def test_the_photo_of_a_food_shows_wherever_the_food_is_listed(
+    client: TestClient, session: Session
+) -> None:
+    bar = add_food(session, "Fotoriegel")
+    bar.image_path = "abc.webp"
+    session.commit()
+    plain = add_food(session, "Linsen")
+    entry = client.post("/api/v1/entries", json={"food_id": bar.id}).json()
+    client.post("/api/v1/entries", json={"food_id": plain.id})
+
+    assert entry["food"]["image_path"] == "abc.webp"
+    chips = {chip["name"]: chip["image_path"] for chip in client.get("/api/v1/recent").json()}
+    assert chips == {"Fotoriegel": "abc.webp", "Linsen": None}
+    hits = client.get("/api/v1/foods/search", params={"q": "Fotoriegel"}).json()["hits"]
+    assert hits[0]["image_path"] == "abc.webp"
+    recent = client.get("/api/v1/foods/suggestions").json()["recent"]
+    assert {item["food"]["name"]: item["food"]["image_path"] for item in recent} == chips

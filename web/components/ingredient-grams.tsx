@@ -1,6 +1,7 @@
 "use client";
 
 import { MIN_GRAMS, stepDown, stepUp } from "@/lib/amount";
+import { hitArea } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 
 /** The plate and Schnellzugriff sheets keep an ingredient within the rules (SPEC 7a). */
@@ -30,7 +31,7 @@ export function IngredientGrams({
   const label = (text: string) => (name ? `${name} ${text}` : text);
   const button = large
     ? "size-12 rounded-[14px] border bg-surface-2 text-[22px] font-semibold"
-    : "size-[30px] rounded-[9px] border bg-surface-2 font-bold";
+    : cn("size-[30px] rounded-[9px] border bg-surface-2 font-bold", hitArea);
   return (
     <span className={cn("flex items-center", large ? "mt-1 mb-3.5 justify-center gap-[18px]" : "gap-1.5")}>
       <button type="button" aria-label={label("weniger")} onClick={() => onChange(stepDown(grams))} className={button}>
@@ -61,7 +62,7 @@ export function IngredientGrams({
             large ? "text-center font-extrabold" : "w-[3.2ch] font-bold",
           )}
         />
-        {large ? <small className="ml-0.5 text-xl font-bold text-muted-foreground">g</small> : <>&nbsp;g</>}
+        <small className={cn("ml-0.5 text-muted-foreground", large ? "text-xl font-bold" : "text-xs font-semibold")}>g</small>
       </label>
       <button type="button" aria-label={label("mehr")} onClick={() => onChange(stepUp(grams, max))} className={button}>
         +

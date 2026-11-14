@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { kindColor, type DayGroupRow, type DayRow, type Entry, type Macros } from "@/lib/api";
+import { kindColor, photoOf, type DayGroupRow, type DayRow, type Entry, type Macros } from "@/lib/api";
 import { clockTime, fmt } from "@/lib/format";
+import { addPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 
@@ -19,7 +20,7 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       )}
     >
       <span className="row-span-2">
-        <FoodPic size={nested ? 36 : 44} category={entry.food.category} />
+        <FoodPic size={nested ? 36 : 44} src={photoOf(entry.food)} category={entry.food.category} />
       </span>
       {/* An own recipe in the accent colour, a scanned product in turquoise, as in the search. */}
       <span className={cn("min-w-0 self-end truncate font-semibold", kindColor(entry.food))}>
@@ -104,14 +105,14 @@ function GroupRow({
             <button
               type="button"
               onClick={onAdd}
-              className="h-9 rounded-xl border border-dashed text-[13px] font-bold text-primary"
+              className={cn(addPill, "h-9 py-0")}
             >
               + Zutat
             </button>
             <button
               type="button"
               onClick={onRemove}
-              className="h-9 rounded-xl border text-[13px] font-semibold text-muted-foreground"
+              className="h-9 rounded-full border text-[13px] font-semibold text-muted-foreground"
             >
               Gericht entfernen
             </button>

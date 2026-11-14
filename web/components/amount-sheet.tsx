@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFood, imageUrl, type Entry, type FoodDetail, type Serving } from "@/lib/api";
+import { getFood, imageUrl, kindColor, type Entry, type FoodDetail, type Serving } from "@/lib/api";
 import { previewMacros, servingCount, servingsGrams } from "@/lib/amount";
 import { brandLine, fmt, SOURCE_LABELS } from "@/lib/format";
+import { kicker, primaryOff } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 import { IngredientGrams } from "@/components/ingredient-grams";
@@ -37,7 +38,7 @@ export type AmountFood = Pick<
   | "standard_serving"
   | "last_grams"
   | "recipe_id"
-> & { servings: Omit<Serving, "id">[] };
+> & { servings: Omit<Serving, "id">[]; gtin?: string | null };
 
 /** Amount sheet; loads the food for servings and density, then shows the form. */
 export function AmountSheet({
@@ -100,14 +101,20 @@ export function AmountForm({
       <div className="mb-3.5 grid grid-cols-[auto_1fr_auto] items-center gap-3.5">
         <FoodPic size={64} src={food.image_path && imageUrl(food.image_path)} category={food.category} />
         <div className="min-w-0">
-          <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
-            {SOURCE_LABELS[food.source]}
-          </p>
-          <SheetTitle className="font-heading text-[21px] leading-[1.15] font-bold text-balance">
+          <p className={cn(kicker, "mb-1")}>{food.recipe_id ? "Rezept" : SOURCE_LABELS[food.source]}</p>
+          {/* The name in the colour of its kind, as in the lists. */}
+          <SheetTitle
+            className={cn(
+              "font-heading text-[21px] leading-[1.15] font-bold text-balance",
+              kindColor({ recipe: !!food.recipe_id, scanned: !!food.gtin }),
+            )}
+          >
             {food.name}
           </SheetTitle>
-          <p className="mt-[3px] text-[13.5px] text-muted-foreground">
-            {brandLine(food.brand, food.source)}
+          <p className="mt-[3px] text-[13.5px] text-muted-foreground tabular-nums">
+            {food.recipe_id
+              ? `${food.standard_serving.label} · ${fmt(food.standard_serving.grams)} g`
+              : brandLine(food.brand, food.source)}
           </p>
         </div>
         <div className="grid justify-items-end gap-1.5">
@@ -214,7 +221,7 @@ export function AmountForm({
           type="button"
           disabled={busy}
           onClick={() => onSubmit(grams)}
-          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
+          className={cn("h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums", primaryOff)}
         >
           {entry ? "Speichern" : "Eintragen"} · {fmt(preview.kcal)} kcal
         </button>

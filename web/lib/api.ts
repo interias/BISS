@@ -47,6 +47,8 @@ export type FoodSummary = {
   recipe?: boolean;
   /** A product with a barcode: set apart in turquoise. */
   scanned?: boolean;
+  /** The photo (file name, see imageUrl); without one the symbol of the category shows. */
+  image_path?: string | null;
 };
 
 /**
@@ -154,7 +156,7 @@ export type LabelExtraction = {
 
 export type Entry = {
   id: number;
-  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null; recipe?: boolean; scanned?: boolean };
+  food: { id: number; name: string; brand: string | null; source: Source; category: Category | null; recipe?: boolean; scanned?: boolean; image_path?: string | null };
   grams: number;
   meal: Meal;
   eaten_at: string;
@@ -443,3 +445,6 @@ export const logCombo = (id: number, body: { meal?: Meal; items?: ComboItemWrite
  */
 export const kindColor = (food: { recipe?: boolean; scanned?: boolean }) =>
   food.recipe ? "text-primary" : food.scanned ? "text-scan" : undefined;
+
+/** The picture of a listed food: its photo when it has one. */
+export const photoOf = (food: { image_path?: string | null }) => (food.image_path ? imageUrl(food.image_path) : null);

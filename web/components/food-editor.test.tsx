@@ -263,7 +263,7 @@ test("a label draft fills the new food and says that the label photo is not stor
   expect(screen.queryByTestId("label-warning")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Verwerfen" })).toBeInTheDocument();
   // The label photo is no product photo.
-  expect(screen.getByRole("button", { name: "Produktfoto aufnehmen oder wählen" }).querySelector("img")).toBeNull();
+  expect(screen.getByRole("button", { name: "Foto aufnehmen oder wählen" }).querySelector("img")).toBeNull();
 });
 
 test("violations of the backend's label check show as a warning", () => {

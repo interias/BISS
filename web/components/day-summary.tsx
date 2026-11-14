@@ -74,7 +74,7 @@ export function DaySummary({ totals, targets }: { totals: Macros; targets: Macro
           >
             {fmt(totals.kcal)}
           </span>
-          <span className="mt-1 text-xs text-muted-foreground tabular-nums">
+          <span className="mt-1 text-xs text-muted-foreground tabular-nums max-[380px]:text-[10.5px]">
             von {fmt(targets.kcal)} kcal
           </span>
         </div>

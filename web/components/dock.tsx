@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type MouseEvent } from "react";
-import { kindColor, type Combo, type FoodSummary } from "@/lib/api";
+import { kindColor, photoOf, type Combo, type FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -112,11 +112,11 @@ export function Dock({
   onCamera: () => void;
 }) {
   return (
-    <div className="border-t bg-card px-4 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))]">
+    <div className="border-t bg-card px-5 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))]">
       <div
         role="group"
         aria-label="Zuletzt gegessen"
-        className="biss-no-scrollbar flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-2.5"
+        className="biss-no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-0.5 pb-2.5"
       >
         <button
           type="button"
@@ -158,7 +158,7 @@ export function Dock({
                 food.recipe ? "border-primary" : food.scanned && "border-scan",
               )}
             >
-              <FoodPic size={26} round category={food.category} />
+              <FoodPic size={26} round src={photoOf(food)} category={food.category} />
               <ChipText
                 color={kindColor(food)}
                 name={clip(name)}

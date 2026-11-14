@@ -66,7 +66,7 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   await page.getByRole("button", { name: "Neuer Schnellzugriff" }).click();
   // While it searches, the sheet carries the title of the search.
   const sheet = page.getByRole("dialog");
-  await expect(sheet).toHaveAccessibleName("Schnellzugriff anlegen");
+  await expect(sheet).toHaveAccessibleName("Neuer Schnellzugriff");
   await sheet.getByRole("textbox", { name: "Name" }).fill(name);
   await sheet.getByRole("button", { name: "+ Zutat suchen" }).click();
   await sheet.getByRole("textbox", { name: "Suchen" }).fill("banane");
