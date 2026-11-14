@@ -13,6 +13,7 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | Zuletzt-Chip | 1 |
 | Schnellzugriff | 1 |
 | Suche | + 2 |
+| Schnellzugriff aus der leeren Suche | Suche + 1 |
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
@@ -62,8 +63,9 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „+ Neu“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
 - **Leere Suche** (der Wirt, Abschnitt 6): Solange nichts getippt ist, zeigt die Suche zwei Gruppen.
   - „Jetzt wahrscheinlich“: bis zu sechs Tipps für den nächsten Eintrag. Die Gruppe entfällt, solange sie nur die Liste darunter wiederholen würde.
-  - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel, das neueste zuerst. Diese Reihenfolge ist fest, damit ein Lebensmittel an der erwarteten Stelle steht.
-  - Ein Tap öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
+  - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel und Schnellzugriffe, das neueste zuerst. Diese Reihenfolge ist fest, damit jedes an der erwarteten Stelle steht.
+  - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
+  - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
   - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
@@ -153,7 +155,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
 | GET | `/foods/search?q=` | lokale Suche (Abschnitt 6): `hits` und `off_more` |
-| GET | `/foods/suggestions` | leere Suche (Abschnitt 6, der Wirt): `likely` (Tipps für jetzt) und `recent` (zuletzt verwendet) |
+| GET | `/foods/suggestions` | leere Suche (Abschnitt 6, der Wirt): `likely` (Tipps für jetzt) und `recent` (zuletzt verwendet), je Eintrag `food` oder `combo` |
 | GET | `/foods/search/off?q=` | Open-Food-Facts-Textsuche, Produkte ohne die lokalen Treffer; bei Fehler leere `hits` mit `reason` ([ADR-0011](adr/0011-off-text-search.md)) |
 | GET | `/foods/barcode/{code}` | Barcode-Kette (E3) |
 | GET / POST / PATCH | `/foods`, `/foods/{id}` | Lebensmittel lesen, anlegen, ändern, inkl. Portionen und `last_grams` (zuletzt eingetragene Mengen) |
@@ -206,7 +208,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
   - **Passt die Uhrzeit?** Ein Eintrag zur selben Tageszeit zählt bis zu fünffach, mit etwa 1,5 h Reichweite. In einem jungen Tagebuch wiegt die Uhrzeit wenig: Nach 7 Tagen mit Einträgen hat sie ihr halbes Gewicht.
   - **Was kommt meist danach?** Ein Lebensmittel, das bisher innerhalb von 30 Minuten auf das eben Eingetragene folgte, rückt hoch.
   - **Heute schon eingetragen?** Dann rückt es nach unten, außer es kommt üblicherweise mehrmals am Tag.
-- Geraten werden nur Einzeleinträge. Teller und Schnellzugriffe laufen nicht über die Suche, ihre Zutaten zählen aber als „eben eingetragen“.
+- Geraten werden Lebensmittel aus Einzeleinträgen und Schnellzugriffe. Ein Gericht, das den Namen eines Schnellzugriffs trägt, zählt als ein Eintrag dieses Schnellzugriffs. Die Zutaten eines Gerichts werden nicht einzeln geraten, zählen aber als „eben eingetragen“.
 - Die Gewichte stehen in `SuggestConfig`. Der **Rückblick-Test** `python -m app.search.suggest_backtest` spielt das Tagebuch nach und fragt für jeden Einzeleintrag, auf welchem Platz das Lebensmittel kurz davor stand. Er vergleicht den Wirt mit „zuletzt verwendet“ und mit der Nutzung der Zuletzt-Chips (Platz 1, unter den Tipps, mittlerer Kehrwert des Platzes) und liest nur. Gewichte werden erst geändert, wenn er mit genug Einträgen einen Vorteil zeigt.
 
 **Barcode** (E3):
@@ -288,7 +290,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Zutat zu einem Gericht = aufklappen + 3.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3.
 
 ## 9. Betrieb
 

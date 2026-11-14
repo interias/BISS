@@ -298,6 +298,18 @@ test("Verwerfen closes the plate sheet and logs nothing", async () => {
   expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/v1/plates/extract"]);
 });
 
+test("a Schnellzugriff in the empty search is logged with one tap and closes the search", async () => {
+  const { calls } = fakeApi({ combos: [coffeeCombo()] });
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Lebensmittel suchen" }));
+  const recent = await screen.findByRole("group", { name: "Zuletzt" });
+  fireEvent.click(within(recent).getByRole("button", { name: /^Kaffee/ }));
+
+  await screen.findByText(/^Kaffee eingetragen · \d+ kcal$/);
+  expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/v1/combos/1/log"]);
+  expect(screen.queryByRole("textbox", { name: "Suchen" })).not.toBeInTheDocument();
+});
+
 test("+ Zutat adds one more ingredient to a logged Gericht", async () => {
   const { calls } = fakeApi();
   render(<Home />);

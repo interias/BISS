@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { Sheet } from "@/components/sheet";
-import { banana, fakeApi, muesliHit } from "@/test/fixtures";
+import type { Combo } from "@/lib/api";
+import { banana, coffeeCombo, fakeApi, muesliHit } from "@/test/fixtures";
 import { SearchSheet } from "./search-sheet";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function renderSearch(props: { foodsOnly?: boolean; onCreate?: () => void } = {}) {
+function renderSearch(props: { foodsOnly?: boolean; onCreate?: () => void; onCombo?: (combo: Combo) => void } = {}) {
   const onPick = vi.fn();
   render(
     <Sheet onClose={() => {}}>
@@ -75,7 +76,7 @@ test("before anything is typed the guesses stand above the foods last used", asy
 
 test("guesses that only repeat the foods last used stay away", async () => {
   fakeApi();
-  const hit = { ...banana, gtin: null };
+  const hit = { food: { ...banana, gtin: null }, combo: null };
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response(JSON.stringify({ likely: [hit], recent: [hit] }))),
@@ -83,4 +84,26 @@ test("guesses that only repeat the foods last used stay away", async () => {
   renderSearch();
   expect(await screen.findByRole("group", { name: "Zuletzt" })).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Jetzt wahrscheinlich" })).not.toBeInTheDocument();
+});
+
+test("a Schnellzugriff last used stands in the list and is handed on; a food search leaves it out", async () => {
+  fakeApi({ combos: [coffeeCombo()] });
+  const onCombo = vi.fn();
+  const { unmount } = render(
+    <Sheet onClose={() => {}}>
+      <SearchSheet onPick={() => {}} onCombo={onCombo} />
+    </Sheet>,
+  );
+  const recent = await screen.findByRole("group", { name: "Zuletzt" });
+  const row = within(recent).getAllByRole("button")[0];
+  expect(row).toHaveTextContent("Kaffee");
+  expect(row).toHaveTextContent("Schnellzugriff · 205 g");
+  fireEvent.click(row);
+  expect(onCombo).toHaveBeenCalledWith(coffeeCombo());
+  unmount();
+
+  renderSearch({ foodsOnly: true });
+  const foods = await screen.findByRole("group", { name: "Zuletzt" });
+  expect(within(foods).queryByText("Kaffee")).not.toBeInTheDocument();
+  expect(within(foods).getAllByRole("button")).toHaveLength(3);
 });

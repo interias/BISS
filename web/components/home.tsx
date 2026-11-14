@@ -325,6 +325,8 @@ export function Home() {
               // An ingredient of a Gericht is a food there is already.
               foodsOnly={sheet.groupId !== undefined}
               onCreate={sheet.groupId === undefined ? () => setSheet({ kind: "editor" }) : undefined}
+              // A Schnellzugriff among the suggestions is logged like its chip in the dock.
+              onCombo={sheet.groupId === undefined ? (combo) => write(() => tapCombo(combo)).catch(fail) : undefined}
             />
           )}
           {sheet.kind === "amount" && (

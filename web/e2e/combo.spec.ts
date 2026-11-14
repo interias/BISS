@@ -109,6 +109,26 @@ test("tap budget: a Schnellzugriff is logged with 1 tap as one group", async ({ 
   expect(await taps(), "Schnellzugriff").toBe(1);
 });
 
+test("tap budget: a Schnellzugriff used before is logged from the empty search with Suche + 1", async ({ page, request }) => {
+  const combo = await createCombo(request, unique("Reis mit Banane"));
+  const first = await request.post(`/api/v1/combos/${combo.id}/log`, { data: {} });
+  expect(first.status()).toBe(201);
+  entries.trackGroup(((await first.json()) as Group).group_id);
+  const taps = await countTaps(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Lebensmittel suchen" }).click();
+  // Logged just now: it stands first among the last used, before its foods.
+  const row = page.getByRole("dialog").getByRole("group", { name: "Zuletzt" }).getByRole("button").first();
+  await expect(row).toContainText(combo.name);
+  const group = await loggedGroup(page, combo.id, () => row.click());
+  expect(group.entries).toHaveLength(2);
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText(`${combo.name} eingetragen`);
+  expect(await taps(), "Suche + 1").toBe(2);
+});
+
 test("Rückgängig after a Schnellzugriff removes the whole group", async ({ page, request }) => {
   const combo = await createCombo(request, unique("Reis mit Banane"));
   await page.goto("/");
