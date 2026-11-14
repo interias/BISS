@@ -55,30 +55,30 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
   - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
 - **Chips im Dock:**
-  - „+ Neu“ und das Kochbuch-Symbol stehen vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. Beide brauchen nie Scrollen.
+  - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) und das Kochbuch-Symbol stehen vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. Beide brauchen nie Scrollen.
   - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
   - Lange Namen enden nach etwa 14 Zeichen mit „…“. Der volle Name steht im Tooltip und für Screenreader.
 - **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
 - **Schnellzugriff** (E8, [ADR-0010](adr/0010-combo-template.md)):
-  - Die Chips stehen nach „+ Neu“ in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
+  - Die Chips stehen nach „+ Schnellzugriff“ in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
   - Ein Tap trägt alle Zutaten als Gruppe ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
   - Langes Drücken (500 ms) oder das Kontextmenü öffnet das Blatt zum Anpassen: Zutaten mit −/+ und getippten Gramm (1–1.500 g), „tauschen“, ✕, „+ Zutat suchen“ und Kennzahlen live.
   - „Eintragen · X kcal“ trägt die angepassten Zutaten ein. Die Vorlage bleibt. Nur „Als Vorlage speichern“ ändert Name und Zutaten der Vorlage.
   - „Löschen“ fragt im Blatt nach, erst „Ja, löschen“ entfernt die Vorlage. Eingetragene Gruppen bleiben.
-  - „+ Neu“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
+  - „+ Schnellzugriff“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
 - **Leere Suche** (der Wirt, Abschnitt 6): Solange nichts getippt ist, zeigt die Suche zwei Gruppen.
   - „Jetzt wahrscheinlich“: bis zu sechs Tipps für den nächsten Eintrag. Die Gruppe entfällt, solange sie nur die Liste darunter wiederholen würde.
   - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel und Schnellzugriffe, das neueste zuerst. Diese Reihenfolge ist fest, damit jedes an der erwarteten Stelle steht. Ein Rezept zählt schon ab dem Speichern, steht also oben, bevor es je eingetragen wurde.
   - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
   - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
 - **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):
-  - Im Dock steht neben „+ Neu“ ein Kochbuch-Symbol. Es öffnet „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
+  - Im Dock steht neben „+ Schnellzugriff“ ein Kochbuch-Symbol. Es öffnet „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
   - Ein Rezept steht überall in der Akzentfarbe: in der Suche mit der Marke „Rezept“, als Chip im Dock und im Tagebuch (`recipe` am Lebensmittel).
 - **Farben der Namen:** Ein eigenes Rezept steht in der Akzentfarbe (Magenta). Ein gescanntes Produkt, also eines mit Barcode aus Scan oder Etikett-Foto (`scanned`), steht in Türkis. Alles andere bleibt neutral. Das gilt in Suche, Dock-Chips, Tagebuch, im Titel des Mengen-Sheets und auf den Zutaten-Vorschlägen; ein Rezept geht vor.
 - **Einheitliches Aussehen** (Klassen in `web/lib/styles.ts`):
   - Ein Foto erscheint überall, wo das Lebensmittel gelistet ist: Tagebuch, Suche, Dock-Chip, Mengen-Sheet, Rezeptliste (`image_path` an jedem Lebensmittel).
   - Abschnitts- und Blatt-Kennzeilen stehen klein, in Großbuchstaben und gesperrt. Blatt-Titel sind 21 px groß.
-  - „Etwas Neues hinzufügen“ ist überall eine gestrichelte Pille in der Akzentfarbe („+ Neu“, „+ Zutat suchen“, „+ Zutat“, „+ Neues Rezept“, „Neu anlegen“).
+  - „Etwas Neues hinzufügen“ ist überall eine gestrichelte Pille in der Akzentfarbe („+ Schnellzugriff“, „+ Zutat suchen“, „+ Zutat“, „+ Neues Rezept“, „Neu anlegen“).
   - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“.
   - Kleine Knöpfe in Zutatenzeilen (−, +, ✕, „tauschen“) reagieren auf etwa 40 px, ohne größer auszusehen.
   - Lange Namen brechen um, bevorzugt nach einem Schrägstrich, und überdecken nichts. Ein Hauptknopf, der noch nicht geht, ist grau.
