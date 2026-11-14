@@ -1,5 +1,6 @@
 # Main ingredients (at least 10 % of the mass, no oil or dressing) and kcal from the Nutrition5k annotation.
 main: "Süßkartoffel|Batate; Broccoli|Brokkoli; Rührei|Hühnerei|Ei; Melone|Cantaloupe"
+also: "Olivenöl|Öl|Fett; Kartoffel|Bratkartoffel; Butter; Milch; Salz|Pfeffer"
 kcal: "262"
 annotation: "sweet potato 48 g, broccoli 45 g, olive oil 2 g, scrambled eggs 105 g, cantaloupe 101 g; 301 g"
 source: "https://github.com/google-research-datasets/Nutrition5k (dish_1563900205)"

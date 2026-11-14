@@ -71,6 +71,23 @@ Gemessen mit `api/scripts/spike_plate.py` an 5 Fotos des Repo-Satzes, 7 Modellau
 - Insgesamt 67 Modellaufrufe: Spike 7, Lauf 1 30, Lauf 2 30.
 - **Verworfen am 13.11.2026:** eine Prompt-Regel, die für Gebratenes und angemachten Salat 5 bis 10 g Öl oder Butter als vermutete Zutat verlangt. Das Modell setzte das Öl fast überall dazu. Im Repo-Satz lagen damit nur 2/5 und 3/5 Teller innerhalb ± 35 % (zwei Läufe), ohne die Regel am selben Tag 5/5. Die gewogenen Teller werden ohnehin eher zu hoch geschätzt.
 
+## Nachtrag (14.11.2026): größerer Testsatz, Vergleich, Auswahlschritt
+Auftrag des Menschen: Die Erkennung soll vor allem die richtigen Lebensmittel finden, Mengen lassen sich nachstellen. Wartezeit zählt weniger.
+
+- **Testsatz:** 25 weitere Commons-Bilder (Getränke und Frühstück, warme und kalte Gerichte, Süßes, schwere Fälle wie Soße über dem Schnitzel oder ein fast leerer Teller), zusammen 45 Teller. Jede Ground Truth kann mit `also` nennen, was zusätzlich auf dem Teller sein darf (Soße, Öl, Kräuter).
+- **Benchmark** (`tests/test_plates_bench.py`): Modelle und Varianten nebeneinander, jedes Foto mehrfach. Er misst, was das Modell nennt („seen“), ob das zugeordnete Lebensmittel den Namen der Zutat trägt („logged“), was erfunden wurde und was kein Lebensmittel fand. Die Spanne über die Durchläufe zeigt den Zufall.
+- **Auswahlschritt:** Die Suche geht nach Buchstaben und nimmt für „Falafel gebraten“ den „Trüffel gebraten“. Trägt der beste Treffer nicht genau den Namen der Zutat, bekommt das Modell Kandidaten der Suche (ganzer Name und erstes Wort) und wählt einen oder keinen. Ein zweiter Aufruf ohne Foto. Erfinden kann das Modell weiterhin nichts; ohne brauchbare Antwort gilt der Treffer der Suche.
+- **Vergleich** (45 Fotos, 2 Durchläufe, drei Modelle gleichzeitig; die Zeiten sind deshalb nicht belastbar):
+
+  | Modell | seen (Spanne) | logged | logged ohne Auswahlschritt | erfunden je Teller | ohne Antwort |
+  |---|---|---|---|---|---|
+  | `claude-haiku-5-5` | 95,1 % (95–95) | 91,4 % | 89,1 % | 0,3 | 2 von 90 |
+  | `claude-sonnet-5-5` | 97,7 % (97–98) | 94,4 % | 90,1 % | 0,0 | 1 von 90 |
+  | `claude-opus-5-5` | 96,1 % (94–98) | 93,1 % | 89,5 % | 0,1 | 2 von 90 |
+
+- **Entscheidung:** Sonnet liest zuerst, Opus ist das starke Modell für den zweiten Versuch. Sonnet lag in jeder Spalte vorn oder gleichauf. Der Auswahlschritt bringt bei jedem Modell 2 bis 4 Punkte.
+- **Offen:** Zusammengesetzte Namen finden oft kein Lebensmittel („Aprikosenkonfitüre“, „Haferbrei mit Milch“, „Speiseeis Vanille“). Drei Hauptzutaten verfehlt jedes Modell; dort ist eher das Foto oder die Ground Truth uneindeutig.
+
 ## Folgen
 - Die kcal eines Tellers hängen an zwei Schätzungen, der Menge und der Zuordnung. Die App zeigt deshalb jede Zutat mit „erkannt“ oder „vermutet“, mit ihrem Lebensmittel und mit ±. Vor dem Eintragen lässt sich alles korrigieren.
 - Der Fake-Teller setzt voraus, dass der E2E-Stack den vollen BLS lädt. Der Abnahmelauf prüft das vorab ohne Modellaufruf.

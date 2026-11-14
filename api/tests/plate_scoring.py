@@ -4,12 +4,18 @@ A set (repo or local) holds `plates/<name>.<jpg|png|webp>` with a ground truth
 `<name>.yaml` in the flat format of tests/label_scoring.py:
 
     main: "Brot|Pumpernickel; Käse|Gouda"   # ";" between main ingredients, "|" names
+    also: "Butter; Petersilie|Kräuter"      # optional: what may be there without being asked for
     kcal: "380"                             # optional, only where the dataset weighed it
 
 A main ingredient counts as found when one of its names stands in the name of a
 recognised ingredient or of the food it was matched to: normalised as the search does,
 at the start of a word or, from three letters on, at its end ("Brot" in "Roggenbrot",
 "Käse" in "Schnittkäse"; "Ei" only at the start, not in "Haferbrei").
+
+Besides this recall, detail() says for the benchmark (tests/test_plates_bench.py) what the
+user would get: whether the food an ingredient was matched to is the right one, which
+ingredients were made up (neither in main nor in also; only with an also line) and which
+found no food at all.
 """
 
 import math
@@ -31,18 +37,17 @@ class Truth:
     # Per main ingredient its names, normalised; the first is the label in the table.
     main: list[list[str]]
     kcal: float | None
+    # What may be on the plate without being asked for; None: the photo has no such list,
+    # so its extra ingredients cannot be judged.
+    also: list[list[str]] | None = None
 
 
 def expected_plate(truth: dict[str, str], file: str) -> Truth:
     """The scored fields of a ground truth; source, author, license and others are ignored."""
     if "main" not in truth:
         raise ValueError(f"{file}: no main")
-    main = []
-    for part in truth["main"].split(";"):
-        names = [normalize(name) for name in part.split("|")]
-        if not all(names):
-            raise ValueError(f'{file}: main has an empty name in "{part.strip()}"')
-        main.append(names)
+    main = _names(truth["main"], "main", file)
+    also = _names(truth["also"], "also", file) if "also" in truth else None
     kcal = None
     if "kcal" in truth:
         try:
@@ -51,7 +56,17 @@ def expected_plate(truth: dict[str, str], file: str) -> Truth:
             raise ValueError(f'{file}: kcal "{truth["kcal"]}" is no number') from None
         if kcal <= 0:
             raise ValueError(f"{file}: kcal must be positive")
-    return Truth(main, kcal)
+    return Truth(main, kcal, also)
+
+
+def _names(value: str, field: str, file: str) -> list[list[str]]:
+    found = []
+    for part in value.split(";"):
+        names = [normalize(name) for name in part.split("|")]
+        if not all(names):
+            raise ValueError(f'{file}: {field} has an empty name in "{part.strip()}"')
+        found.append(names)
+    return found
 
 
 def names_match(name: str, text: str) -> bool:
@@ -93,6 +108,34 @@ def score_plate(truth: Truth, texts: list[str], kcal: float | None) -> PlateScor
     if truth.kcal is not None and kcal is not None:
         deviation = abs(kcal - truth.kcal) * 100 / truth.kcal
     return PlateScore(found, truth.kcal, kcal, deviation)
+
+
+@dataclass(frozen=True)
+class Detail:
+    # Label of each main ingredient and whether a food of its name would be logged.
+    logged: list[tuple[str, bool]]
+    # Recognised names that are neither a main ingredient nor allowed; None without also.
+    extras: list[str] | None
+    # Recognised names without a food.
+    unmatched: list[str]
+
+
+def detail(truth: Truth, items: list[tuple[str, str | None]]) -> Detail:
+    """items: per recognised ingredient its name and the name of the matched food, if any."""
+    foods = [food for _, food in items if food is not None]
+    logged = [
+        (names[0], any(names_match(n, food) for n in names for food in foods))
+        for names in truth.main
+    ]
+    extras = None
+    if truth.also is not None:
+        known = [name for names in truth.main + truth.also for name in names]
+        extras = [
+            name
+            for name, food in items
+            if not any(names_match(k, text) for k in known for text in (name, food) if text)
+        ]
+    return Detail(logged, extras, [name for name, food in items if food is None])
 
 
 def p95(values: list[float]) -> float:

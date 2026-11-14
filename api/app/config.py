@@ -45,8 +45,8 @@ def get_settings() -> Settings:
         images_dir=Path(os.environ.get("IMAGES_DIR", "/images")),
         off_base_url=os.environ.get("OFF_BASE_URL", "https://world.openfoodfacts.org"),
         off_search_url=os.environ.get("OFF_SEARCH_URL", "https://search.openfoodfacts.org"),
-        llm_model_fast=os.environ.get("LLM_MODEL_FAST") or "claude-haiku-5-5",
-        llm_model_strong=os.environ.get("LLM_MODEL_STRONG") or "claude-sonnet-5-5",
+        llm_model_fast=os.environ.get("LLM_MODEL_FAST") or "claude-sonnet-5-5",
+        llm_model_strong=os.environ.get("LLM_MODEL_STRONG") or "claude-opus-5-5",
         label_extractor=os.environ.get("LABEL_EXTRACTOR") or "agent",
         plate_extractor=os.environ.get("PLATE_EXTRACTOR") or "agent",
     )

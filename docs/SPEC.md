@@ -259,6 +259,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 **Zuordnung:**
 - Jede Zutat läuft durch die Suche aus Abschnitt 6, lokal und ohne Netz.
 - Der beste Treffer, der ein Lebensmittel ist, wird zugeordnet, wenn sein Score mindestens 1,6 beträgt.
+- Trägt dieser Treffer nicht genau den Namen der Zutat, wählt das Modell in einem zweiten Aufruf ohne Foto unter Kandidaten der Suche (ganzer Name und erstes Wort) einen oder keinen. So wird aus „Falafel gebraten“ kein „Trüffel gebraten“. Ohne brauchbare Antwort gilt der Treffer der Suche.
 - Ohne solchen Treffer bleibt die Zutat „nicht zugeordnet“: `food_id` ist `null`, Werte gibt es keine. Erfunden wird nichts.
 
 **Regeln im Code:** Ein Entwurf verstößt gegen die Regeln, wenn er keine Zutat hat, eine Zutat ohne Namen, eine Menge ≤ 0 g oder über 1.500 g, einen Teller über 3.000 g oder eine `confidence` außerhalb von 0 bis 1.
@@ -291,6 +292,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - Recall der Hauptzutaten ≥ 70 %.
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
+  - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
 - **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3.
 
 ## 9. Betrieb

@@ -1,12 +1,15 @@
 """Matching recognised ingredients onto foods with the search (SPEC 7a, ADR-0009)."""
 
+import asyncio
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
 from app.domain.macros import Macros
 from app.plates.draft import PlateDraft, PlateIngredient
-from app.plates.match import MIN_SCORE, certainty, match_food, match_plate
+from app.plates.extract import pick_foods
+from app.plates.extractor import ExtractionFailed, FakePlateExtractor
+from app.plates.match import MIN_SCORE, certainty, match_food, match_plate, plate_asks
 from app.search.search import search_foods
 from tests.factories import add_cached, add_food
 
@@ -82,3 +85,67 @@ def test_plate_leaves_out_amounts_of_zero_and_keeps_small_ones(session: Session)
 def test_plate_without_any_match_totals_zero(session: Session) -> None:
     found = match_plate(session, plate(("Seetang", 10, 0.9)))
     assert found.totals == Macros(kcal=0, protein=0, carbs=0, fat=0)
+
+
+def test_asks_only_where_the_best_hit_does_not_carry_the_name(session: Session) -> None:
+    rice = add_food(session, "Reis gekocht", kcal=112, source="bls")
+    falafel = add_food(session, "Falafel (Kichererbsenbällchen) frittiert", kcal=330, source="bls")
+    truffle = add_food(session, "Trüffel gebraten ohne Fett", kcal=30, source="bls")
+    draft = plate(("Reis gekocht", 150, 0.9), ("Falafel gebraten", 80, 0.9), ("Tempeh", 50, 0.6))
+
+    asks = plate_asks(session, draft)
+
+    # Rice is certain, tempeh has no candidate at all: only the falafel is asked.
+    assert list(asks) == [1]
+    ask = asks[1]
+    assert ask.name == "Falafel gebraten"
+    # The first word alone finds the falafel the whole name misses.
+    assert falafel in ask.candidates
+    assert rice not in ask.candidates
+    best = match_food(session, "Falafel gebraten")
+    assert ask.default == (None if best is None else ask.candidates.index(best))
+    assert best in (None, truffle)
+
+
+def test_picked_foods_replace_the_search_and_none_leaves_the_ingredient_unmatched(
+    session: Session,
+) -> None:
+    rice = add_food(session, "Reis gekocht", kcal=112, source="bls")
+    stew = add_food(session, "Kichererbsen-Eintopf", kcal=62, source="bls")
+    peas = add_food(session, "Kichererbse reif, gekocht", kcal=120, source="bls")
+    draft = plate(("Reis gekocht", 150, 0.9), ("Kichererbsen", 70, 0.9), ("Kichererbsen", 30, 0.9))
+
+    found = match_plate(session, draft, {1: peas, 2: None})
+
+    assert [item.food for item in found.items] == [rice, peas, None]
+    assert found.items[1].macros.kcal == 84.0
+    assert stew not in [item.food for item in found.items]
+
+
+def test_pick_foods_asks_once_and_falls_back_to_the_search(session: Session) -> None:
+    add_food(session, "Kichererbsen-Eintopf", kcal=62, source="bls")
+    peas = add_food(session, "Kichererbse reif, gekocht", kcal=120, source="bls")
+    asks = plate_asks(session, plate(("Kichererbsen gewürzt", 70, 0.9)))
+    [ask] = asks.values()
+
+    class Picker(FakePlateExtractor):
+        def __init__(self, answer) -> None:
+            super().__init__()
+            self.answer = answer
+
+        async def pick(self, asks, model):
+            if isinstance(self.answer, Exception):
+                raise self.answer
+            return self.answer
+
+    def pick(answer):
+        return asyncio.run(pick_foods(Picker(answer), asks, "fast-model"))
+
+    assert pick([ask.candidates.index(peas)]) == {0: peas}
+    assert pick([None]) == {0: None}
+    # No usable answer: what the search alone takes.
+    fallback = None if ask.default is None else ask.candidates[ask.default]
+    assert pick(ExtractionFailed("cli gone")) == {0: fallback}
+    assert pick([]) == {0: fallback}
+    # Nothing to ask: no call at all.
+    assert asyncio.run(pick_foods(Picker(ExtractionFailed("never")), {}, "m")) == {}
