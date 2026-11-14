@@ -185,3 +185,21 @@ def test_a_schnellzugriff_is_guessed_and_listed_like_a_food(
     body = client.get(SUGGESTIONS).json()
     assert names(body["likely"]) == ["Bier"]
     assert names(body["recent"]) == ["Bier", "Milch", "Kaffee"]
+
+
+def test_a_recipe_is_listed_from_the_moment_it_is_saved(
+    client: TestClient, session: Session
+) -> None:
+    flour, beer = add_food(session, "Mehl"), add_food(session, "Bier")
+    log(client, beer.id, at(1, 20))
+    body = {"name": "Brötchen", "items": [{"food_id": flour.id, "grams": 200}], "portions": 4}
+    recipe = client.post("/api/v1/recipes", json=body).json()
+
+    listed = client.get(SUGGESTIONS).json()
+    # Saved just now and never logged: on top of the last used. It is no guess yet.
+    assert names(listed["recent"]) == ["Brötchen", "Bier"]
+    assert names(listed["likely"]) == ["Bier"]
+
+    # Logged, it stands once, not twice.
+    assert client.post("/api/v1/entries", json={"food_id": recipe["food_id"]}).status_code == 201
+    assert names(client.get(SUGGESTIONS).json()["recent"]) == ["Brötchen", "Bier"]
