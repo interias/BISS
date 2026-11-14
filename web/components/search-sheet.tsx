@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSuggestions, kindColor, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
-import { brandLine, fmt, per100Unit } from "@/lib/format";
+import { getSuggestions, kindColor, photoOf, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
+import { fmt, originLine, per100Unit } from "@/lib/format";
+import { addPill, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -22,7 +23,7 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
       className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px border-b border-dashed py-[9px] text-left last:border-b-0"
     >
       <span className="row-span-2">
-        <FoodPic size={40} category={food.category} />
+        <FoodPic size={44} src={photoOf(food)} category={food.category} />
       </span>
       {/* An own recipe stands out in the accent colour, a scanned product in turquoise. */}
       <span className={cn("min-w-0 self-end truncate font-semibold", kindColor(food))}>{food.name}</span>
@@ -33,9 +34,9 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
             Rezept
           </b>
         ) : (
-          `${brandLine(food.brand, food.source)} · `
+          `${originLine(food.brand, food.source)} · `
         )}
-        kcal je {per100Unit(food.basis)}
+        je {per100Unit(food.basis)}
       </span>
     </button>
   );
@@ -51,7 +52,7 @@ function ComboRow({ combo, onPick }: { combo: Combo; onPick: (combo: Combo) => v
       className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px border-b border-dashed py-[9px] text-left last:border-b-0"
     >
       <span className="row-span-2">
-        <FoodPic size={40} category="dishes" />
+        <FoodPic size={44} category="dishes" />
       </span>
       <span className="min-w-0 self-end truncate font-semibold">{combo.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(combo.totals.kcal)}</span>
@@ -76,7 +77,7 @@ function SuggestionGroup({
   if (items.length === 0) return null;
   return (
     <div role="group" aria-label={label}>
-      <p className="pt-2 text-[12px] font-semibold text-muted-foreground">{label}</p>
+      <p className={cn(kicker, "pt-2.5")}>{label}</p>
       {items.map((item) =>
         item.combo ? (
           onCombo && <ComboRow key={`combo-${item.combo.id}`} combo={item.combo} onPick={onCombo} />
@@ -227,7 +228,7 @@ export function SearchSheet({
               <button
                 type="button"
                 onClick={onCreate}
-                className="mt-2.5 h-[42px] w-full rounded-xl border-[1.5px] border-dashed font-bold text-primary"
+                className={cn(addPill, "mt-2.5 h-[42px] w-full")}
               >
                 Neu anlegen
               </button>

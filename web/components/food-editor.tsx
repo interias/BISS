@@ -32,6 +32,7 @@ import {
 } from "@/lib/editor";
 import { CATEGORY_LABELS, fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { addPill } from "@/lib/styles";
 import { PhotoPicker } from "@/components/photo-picker";
 import { SheetTitle } from "@/components/sheet";
 
@@ -254,7 +255,6 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
 
       <div className="mb-1.5 grid grid-cols-[auto_1fr] items-start gap-3.5">
         <PhotoPicker
-          label="Produktfoto aufnehmen oder wählen"
           src={photoSrc}
           category={category || null}
           onPick={pick}
@@ -317,7 +317,7 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
           />
           <span>
             <b className="text-foreground">Etikett-Foto</b> wird nur zum Auslesen genutzt und nicht gespeichert. Das
-            Produktfoto links ist separat.
+            Foto links ist separat.
           </span>
         </div>
       )}
@@ -377,7 +377,6 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
 
       <div className="mt-1 mb-1.5 flex items-baseline justify-between">
         <h3 className="text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">Portionen</h3>
-        <span className="text-xs text-muted-foreground">Stern = Standard für Zuletzt-Chips</span>
       </div>
       <ul aria-label="Portionen">
         {rows.length === 0 && (
@@ -451,7 +450,7 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
       <button
         type="button"
         onClick={addRow}
-        className="mt-2 mb-4 h-[42px] w-full rounded-xl border-[1.5px] border-dashed font-bold text-primary"
+        className={cn(addPill, "mt-2 mb-4 h-[42px] w-full")}
       >
         + Portion hinzufügen
       </button>
@@ -474,7 +473,7 @@ export function EditorForm({ food, gtin, label, known, onSaved, onCancel }: Acti
           type="button"
           disabled={!canSave}
           onClick={submit}
-          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
         >
           {food ? "Speichern" : "Speichern & eintragen"}
         </button>

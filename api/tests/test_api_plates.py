@@ -85,6 +85,7 @@ def test_plate_with_matched_and_unmatched_items_and_totals(
             "category": None,
             "recipe": False,
             "scanned": False,
+            "image_path": None,
         },
         "basis": "g",
         "density": 1.0,

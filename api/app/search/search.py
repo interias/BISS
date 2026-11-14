@@ -156,7 +156,7 @@ _SEARCH = text(
         SELECT * FROM scored ORDER BY score DESC, id, gtin LIMIT :candidates
     )
     SELECT c.ref, c.id, c.gtin, c.payload, f.name, f.brand, c.source, f.basis, f.density,
-           f.category,
+           f.category, f.image_path,
            c.kcal, c.protein, c.carbs, c.fat, c.score,
            c.usage > 0 AS used,
            s.label AS serving_label, s.grams AS serving_grams, s.origin AS serving_origin,
@@ -193,6 +193,7 @@ class Hit:
     serving_origin: str | None
     score: float
     category: str | None = None
+    image_path: str | None = None
 
 
 def _flat(value: str) -> str:
@@ -331,6 +332,7 @@ def _hit(row) -> Hit:
         serving_origin=row.serving_origin,
         score=round(row.score, 4),
         category=row.category,
+        image_path=row.image_path,
     )
 
 

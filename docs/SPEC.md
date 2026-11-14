@@ -74,7 +74,14 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
 - **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):
   - Im Dock steht neben „+ Neu“ ein Kochbuch-Symbol. Es öffnet „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
   - Ein Rezept steht überall in der Akzentfarbe: in der Suche mit der Marke „Rezept“, als Chip im Dock und im Tagebuch (`recipe` am Lebensmittel).
-- **Farben der Namen:** Ein eigenes Rezept steht in der Akzentfarbe (Magenta). Ein gescanntes Produkt, also eines mit Barcode aus Scan oder Etikett-Foto (`scanned`), steht in Türkis. Alles andere bleibt neutral. Das gilt in Suche, Dock-Chips und Tagebuch; ein Rezept geht vor.
+- **Farben der Namen:** Ein eigenes Rezept steht in der Akzentfarbe (Magenta). Ein gescanntes Produkt, also eines mit Barcode aus Scan oder Etikett-Foto (`scanned`), steht in Türkis. Alles andere bleibt neutral. Das gilt in Suche, Dock-Chips, Tagebuch, im Titel des Mengen-Sheets und auf den Zutaten-Vorschlägen; ein Rezept geht vor.
+- **Einheitliches Aussehen** (Klassen in `web/lib/styles.ts`):
+  - Ein Foto erscheint überall, wo das Lebensmittel gelistet ist: Tagebuch, Suche, Dock-Chip, Mengen-Sheet, Rezeptliste (`image_path` an jedem Lebensmittel).
+  - Abschnitts- und Blatt-Kennzeilen stehen klein, in Großbuchstaben und gesperrt. Blatt-Titel sind 21 px groß.
+  - „Etwas Neues hinzufügen“ ist überall eine gestrichelte Pille in der Akzentfarbe („+ Neu“, „+ Zutat suchen“, „+ Zutat“, „+ Neues Rezept“, „Neu anlegen“).
+  - Die graue Zeile eines Suchtreffers nennt die Herkunft in einem Wort und die Bezugsgröße: „BLS · je 100 g“ oder „Harry · je 100 g“.
+  - Kleine Knöpfe in Zutatenzeilen (−, +, ✕, „tauschen“) reagieren auf etwa 40 px, ohne größer auszusehen.
+  - Lange Namen brechen um, bevorzugt nach einem Schrägstrich, und überdecken nichts. Ein Hauptknopf, der noch nicht geht, ist grau.
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
   - Ohne Fertiggewicht gilt das Gewicht der Zutaten, etwa bei Suppe. Nach dem Backen oder Braten wird gewogen und nachgetragen.
   - „Speichern“ legt das Rezept an und öffnet das Mengen-Sheet seines Lebensmittels. Dort zählt der Chip „1 Portion“ wie jede Portion („2 × 1 Portion“).

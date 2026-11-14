@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getRecipes, imageUrl, type Recipe } from "@/lib/api";
 import { fmt } from "@/lib/format";
+import { addPill } from "@/lib/styles";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
 
@@ -24,11 +25,11 @@ export function RecipesSheet({ onPick, onNew }: { onPick: (recipe: Recipe) => vo
   return (
     <>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <SheetTitle className="font-heading text-xl font-bold">Meine Rezepte</SheetTitle>
+        <SheetTitle className="font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</SheetTitle>
         <button
           type="button"
           onClick={onNew}
-          className="h-9 flex-none rounded-full border border-dashed border-primary px-3 text-[13px] font-semibold text-primary"
+          className={addPill}
         >
           + Neues Rezept
         </button>

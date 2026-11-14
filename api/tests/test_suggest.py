@@ -140,6 +140,7 @@ def test_suggestions_guess_for_this_moment_and_list_the_foods_last_used(
         "gtin": None,
         "recipe": False,
         "scanned": False,
+        "image_path": None,
     }
 
     app.dependency_overrides[get_now] = lambda: at(15, 20, 5)

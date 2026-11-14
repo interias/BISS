@@ -24,6 +24,7 @@ def food_summary(
     fields.setdefault("recipe", bool(getattr(food, "recipe", False)))
     # A food and a search hit both carry the GTIN of a product.
     fields["scanned"] = getattr(food, "gtin", None) is not None
+    fields.setdefault("image_path", getattr(food, "image_path", None))
     return model(
         id=food.id,
         name=food.name,

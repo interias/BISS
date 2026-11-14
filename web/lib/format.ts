@@ -56,6 +56,12 @@ export const clip = (name: string, max = 14) =>
 export const brandLine = (brand: string | null, source: Source) =>
   brand ?? `generisch · ${SOURCE_LABELS[source]}`;
 
+/** A name that may wrap after a slash ("Speisesalz/Siedesalz"), not in the middle of a word. */
+export const breakable = (name: string) => name.replaceAll("/", "/​");
+
+/** Where a listed food comes from, in one word: its brand, else its source ("BLS"). */
+export const originLine = (brand: string | null, source: Source) => brand ?? SOURCE_LABELS[source];
+
 export const per100Unit = (basis: Basis) => (basis === "ml" ? "100 ml" : "100 g");
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];

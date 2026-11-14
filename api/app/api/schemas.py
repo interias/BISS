@@ -71,6 +71,9 @@ class FoodSummary(BaseModel):
     standard_serving: StandardServing
     recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
     scanned: bool = Field(default=False, description="a product with a barcode (GTIN)")
+    image_path: str | None = Field(
+        default=None, description="photo, served at /api/v1/images/{name}; null shows the symbol"
+    )
 
 
 class SearchHit(FoodSummary):
@@ -333,6 +336,9 @@ class FoodRef(BaseModel):
     category: Category | None
     recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
     scanned: bool = Field(default=False, description="a product with a barcode (GTIN)")
+    image_path: str | None = Field(
+        default=None, description="photo, served at /api/v1/images/{name}; null shows the symbol"
+    )
 
 
 class Entry(BaseModel):

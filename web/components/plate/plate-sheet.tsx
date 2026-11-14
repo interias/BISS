@@ -2,9 +2,11 @@
 
 import { useState, type CSSProperties } from "react";
 import Image from "next/image";
-import type { Basis, FoodRef, FoodSummary, Macros, PlateExtraction, SearchHit } from "@/lib/api";
+import { kindColor, type Basis, type FoodRef, type FoodSummary, type Macros, type PlateExtraction, type SearchHit } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { fmt, shortName } from "@/lib/format";
+import { breakable, fmt, shortName } from "@/lib/format";
+import { addPill, hitArea, kicker, suggestChip } from "@/lib/styles";
+import { cn } from "@/lib/utils";
 import { DOTS } from "@/components/amount-sheet";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
@@ -162,15 +164,17 @@ export function PlateSheet({
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">
+          <p className={cn(kicker, "mb-1")}>
             Erkannt · bitte prüfen
           </p>
           <SheetTitle className="sr-only">Gericht prüfen</SheetTitle>
-          <input
+          {/* A long name wraps instead of being cut: the field grows with its text. */}
+          <textarea
+            rows={1}
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => setName(event.target.value.replace(/\n/g, " "))}
             aria-label="Gericht"
-            className="w-full min-w-0 border-0 bg-transparent p-0 font-heading text-xl font-bold text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="block w-full min-w-0 resize-none border-0 bg-transparent p-0 font-heading text-[21px] leading-[1.15] font-bold text-foreground outline-none [field-sizing:content] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           />
         </div>
       </div>
@@ -182,8 +186,8 @@ export function PlateSheet({
             data-matched={row.food !== null}
             className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 border-b border-dashed py-2"
           >
-            <span className="min-w-0 font-semibold">
-              {row.food?.name ?? row.name}
+            <span className="min-w-0 leading-snug font-semibold [overflow-wrap:anywhere]">
+              {breakable(row.food?.name ?? row.name)}
               <small className="block text-xs font-medium text-muted-foreground">
                 {row.food ? (
                   <>
@@ -193,7 +197,7 @@ export function PlateSheet({
                       type="button"
                       aria-label={`${row.name} tauschen`}
                       onClick={() => setMatching(row.key)}
-                      className="font-bold text-primary"
+                      className="relative font-bold text-primary after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']"
                     >
                       tauschen
                     </button>
@@ -206,7 +210,7 @@ export function PlateSheet({
                       type="button"
                       aria-label={`${row.name} zuordnen`}
                       onClick={() => setMatching(row.key)}
-                      className="font-bold text-primary"
+                      className="relative font-bold text-primary after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']"
                     >
                       zuordnen
                     </button>
@@ -219,7 +223,7 @@ export function PlateSheet({
               type="button"
               aria-label={`${row.name} entfernen`}
               onClick={() => remove(row.key)}
-              className="size-[30px] text-muted-foreground"
+              className={cn("size-[30px] text-muted-foreground", hitArea)}
             >
               ✕
             </button>
@@ -243,7 +247,7 @@ export function PlateSheet({
         <button
           type="button"
           onClick={() => setMatching("new")}
-          className="inline-flex flex-none items-center gap-1.5 rounded-full border border-primary px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap text-primary"
+          className={addPill}
         >
           + Zutat suchen
         </button>
@@ -252,7 +256,7 @@ export function PlateSheet({
             key={food.id}
             type="button"
             onClick={() => suggest(food)}
-            className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 px-3 py-[7px] text-[13px] font-semibold whitespace-nowrap"
+            className={cn(suggestChip, kindColor(food))}
           >
             + {shortName(food.name)}
           </button>
@@ -292,7 +296,7 @@ export function PlateSheet({
               logged.map((row) => ({ food_id: row.food!.id, grams: clampGrams(row.grams) })),
             )
           }
-          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:opacity-45"
+          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
         >
           Eintragen · {fmt(total.kcal)} kcal
         </button>

@@ -123,3 +123,13 @@ test("an own recipe stands out with its mark, other foods keep their source", as
   expect(second).not.toHaveTextContent("Rezept");
   expect(within(second).getByText("Banane roh")).not.toHaveClass("text-primary");
 });
+
+test("a hit says its origin in one word, shows its photo and stands under a capital label", async () => {
+  fakeApi();
+  renderSearch({ onCombo: () => {} });
+  expect((await screen.findAllByText("Zuletzt"))[0]).toHaveClass("uppercase");
+  type("banane");
+  const row = await screen.findByRole("button", { name: /^Banane roh/ });
+  expect(row).toHaveTextContent("BLS · je 100 g");
+  expect(row).not.toHaveTextContent("generisch");
+});
