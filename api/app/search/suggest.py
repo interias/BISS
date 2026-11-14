@@ -10,9 +10,11 @@ A food gets points for four questions:
 - What usually comes next? A food that followed the foods logged just now is raised.
 - Was it logged today already? Then it drops, unless it usually comes several times a day.
 
-Only single entries are guessed: a plate and a Schnellzugriff do not go through the search.
-Their foods still count as what was logged just now. Below the guesses the search lists the
-foods last used, strictly by time, so a food is always where it is expected.
+Guessed are foods logged as single entries and Schnellzugriffe: a Gericht logged under the
+name of a Schnellzugriff counts as one entry of it. The foods of a Gericht are not guessed
+on their own, a plate does not go through the search; they still count as what was logged
+just now. Below the guesses the search lists the foods and Schnellzugriffe last used,
+strictly by time, so each is always where it is expected.
 suggest_backtest replays the diary to say how good the guesses are.
 """
 
@@ -26,7 +28,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain.day import day_of, to_local
-from app.models import Entry, Food
+from app.models import Combo, Entry, Food
+from app.services.combos import ComboView, list_combos
 from app.services.foods import StandardServing, standard_servings
 
 
@@ -56,11 +59,15 @@ class SuggestConfig:
 SUGGEST = SuggestConfig()
 
 
+# What the Wirt guesses: ("food", id) or ("combo", id).
+Item = tuple[str, int]
+
+
 @dataclass(frozen=True)
 class Event:
     """An entry as the Wirt sees it; `single` is false for the foods of a Gericht."""
 
-    food_id: int
+    item: Item
     eaten_at: datetime
     single: bool = True
 
@@ -82,14 +89,14 @@ def _again(per_day: Counter[date], today: date) -> float:
 def _follows(past: list[Event], now: datetime, config: SuggestConfig) -> dict[int, float]:
     """Per food the share of earlier times it followed a food logged just now, 0 to 1."""
     window = timedelta(minutes=config.follow_minutes)
-    just_now = {event.food_id for event in past if now - event.eaten_at <= window}
+    just_now = {event.item for event in past if now - event.eaten_at <= window}
     share: dict[int, float] = {}
     for lead in just_now:
         seen = 0.0
         after: dict[int, float] = defaultdict(float)
         for index, event in enumerate(past):
             # The entries of just now are the question, not the evidence.
-            if event.food_id != lead or now - event.eaten_at <= window:
+            if event.item != lead or now - event.eaten_at <= window:
                 continue
             weight = _decay(event, now, config)
             seen += weight
@@ -97,13 +104,13 @@ def _follows(past: list[Event], now: datetime, config: SuggestConfig) -> dict[in
             for later in past[index + 1 :]:
                 if later.eaten_at - event.eaten_at > window:
                     break
-                if later.single and later.food_id != lead and later.eaten_at > event.eaten_at:
-                    followers.add(later.food_id)
-            for food_id in followers:
-                after[food_id] += weight
-        for food_id, weight in after.items():
+                if later.single and later.item != lead and later.eaten_at > event.eaten_at:
+                    followers.add(later.item)
+            for item in followers:
+                after[item] += weight
+        for item, weight in after.items():
             # + 1: a single observation is no certainty.
-            share[food_id] = max(share.get(food_id, 0.0), weight / (seen + 1))
+            share[item] = max(share.get(item, 0.0), weight / (seen + 1))
     return share
 
 
@@ -112,8 +119,8 @@ def _decay(event: Event, now: datetime, config: SuggestConfig) -> float:
     return 0.5 ** (age_days / config.half_life_days)
 
 
-def rank(events: Iterable[Event], now: datetime, config: SuggestConfig = SUGGEST) -> list[int]:
-    """The foods logged as single entries until now, the most likely next one first."""
+def rank(events: Iterable[Event], now: datetime, config: SuggestConfig = SUGGEST) -> list[Item]:
+    """The items logged as single entries until now, the most likely next one first."""
     past = sorted((e for e in events if e.eaten_at <= now), key=lambda e: e.eaten_at)
     days = len({day_of(event.eaten_at) for event in past})
     time_weight = config.time_weight * days / (days + config.time_days)
@@ -128,51 +135,80 @@ def rank(events: Iterable[Event], now: datetime, config: SuggestConfig = SUGGEST
         gap = abs(_hour(event.eaten_at) - hour)
         gap = min(gap, 24 - gap)
         near = math.exp(-(gap**2) / (2 * config.time_sigma_hours**2))
-        habit[event.food_id] += _decay(event, now, config) * (1 + time_weight * near)
-        per_day[event.food_id][day_of(event.eaten_at)] += 1
-        last[event.food_id] = event.eaten_at
+        habit[event.item] += _decay(event, now, config) * (1 + time_weight * near)
+        per_day[event.item][day_of(event.eaten_at)] += 1
+        last[event.item] = event.eaten_at
 
     follows = _follows(past, now, config)
 
-    def score(food_id: int) -> float:
+    def score(item: int) -> float:
         return (
-            habit[food_id]
-            * (1 + config.follow_weight * follows.get(food_id, 0.0))
-            * _again(per_day[food_id], today)
+            habit[item]
+            * (1 + config.follow_weight * follows.get(item, 0.0))
+            * _again(per_day[item], today)
         )
 
-    return sorted(habit, key=lambda food_id: (-score(food_id), -last[food_id].timestamp()))
+    return sorted(habit, key=lambda item: (-score(item), -last[item].timestamp()))
 
 
 def load_events(session: Session, now: datetime, config: SuggestConfig = SUGGEST) -> list[Event]:
+    """The entries of the last year; a Gericht named like a Schnellzugriff adds one event of it."""
+    combos = {combo.name: combo.id for combo in session.scalars(select(Combo))}
     rows = session.execute(
-        select(Entry.food_id, Entry.eaten_at, Entry.group_id)
+        select(Entry.food_id, Entry.eaten_at, Entry.group_id, Entry.group_name)
         .where(Entry.eaten_at > now - timedelta(days=config.history_days))
         .order_by(Entry.eaten_at, Entry.id)
     )
-    return [Event(food_id, eaten_at, group_id is None) for food_id, eaten_at, group_id in rows]
+    events, groups = [], set()
+    for food_id, eaten_at, group_id, group_name in rows:
+        events.append(Event(("food", food_id), eaten_at, group_id is None))
+        if group_id is not None and group_id not in groups and group_name in combos:
+            groups.add(group_id)
+            events.append(Event(("combo", combos[group_name]), eaten_at))
+    return events
+
+
+def _last_used(session: Session, limit: int) -> list[Item]:
+    """Foods and Schnellzugriffe by their latest entry; a Schnellzugriff before its foods."""
+    foods = session.execute(
+        select(Entry.food_id, func.max(Entry.eaten_at), func.max(Entry.id))
+        .group_by(Entry.food_id)
+        .order_by(func.max(Entry.eaten_at).desc(), func.max(Entry.id).desc())
+        .limit(limit)
+    )
+    used = [(eaten_at, 0, entry_id, ("food", food_id)) for food_id, eaten_at, entry_id in foods]
+    names = {combo.name: combo.id for combo in session.scalars(select(Combo))}
+    groups = session.execute(
+        select(Entry.group_name, func.max(Entry.eaten_at), func.max(Entry.id))
+        .where(Entry.group_id.is_not(None), Entry.group_name.in_(names))
+        .group_by(Entry.group_name)
+    )
+    used += [(eaten_at, 1, entry_id, ("combo", names[name])) for name, eaten_at, entry_id in groups]
+    return [item for *_, item in sorted(used, key=lambda use: use[:3], reverse=True)][:limit]
+
+
+Suggested = tuple[Food, StandardServing] | ComboView
 
 
 @dataclass(frozen=True)
 class Suggestions:
-    likely: list[tuple[Food, StandardServing]]
-    recent: list[tuple[Food, StandardServing]]
+    likely: list[Suggested]
+    recent: list[Suggested]
 
 
 def suggestions(session: Session, now: datetime, config: SuggestConfig = SUGGEST) -> Suggestions:
-    """The guesses for this moment and the foods last used, the latest first."""
+    """The guesses for this moment and what was last used, the latest first."""
     likely = rank(load_events(session, now, config), now, config)[: config.tips]
-    recent = session.scalars(
-        select(Entry.food_id)
-        .group_by(Entry.food_id)
-        .order_by(func.max(Entry.eaten_at).desc(), func.max(Entry.id).desc())
-        .limit(config.recent)
-    ).all()
-    ids = [*likely, *recent]
+    recent = _last_used(session, config.recent)
+    ids = [item_id for kind, item_id in [*likely, *recent] if kind == "food"]
     foods = {food.id: food for food in session.scalars(select(Food).where(Food.id.in_(ids)))}
     servings = standard_servings(session, ids)
+    combos = {combo.id: combo for combo in list_combos(session)}
 
-    def with_serving(food_ids: Iterable[int]) -> list[tuple[Food, StandardServing]]:
-        return [(foods[food_id], servings[food_id]) for food_id in food_ids]
+    def resolve(items: Iterable[Item]) -> list[Suggested]:
+        return [
+            combos[item_id] if kind == "combo" else (foods[item_id], servings[item_id])
+            for kind, item_id in items
+        ]
 
-    return Suggestions(with_serving(likely), with_serving(recent))
+    return Suggestions(resolve(likely), resolve(recent))

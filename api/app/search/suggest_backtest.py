@@ -1,8 +1,9 @@
 """Replays the diary to say how good the guesses of the Wirt are (SPEC 6).
 
-For every single entry it asks: on which place stood this food just before it was logged?
+For every single entry and every logged Schnellzugriff it asks: on which place stood it
+just before it was logged?
 The Wirt runs against two plain orders, "last used" (the list below the guesses) and "usage"
-(the Zuletzt-Chips). A food logged for the first time cannot be guessed and is left out.
+(the Zuletzt-Chips). What is logged for the first time cannot be guessed and is left out.
 It only reads:
 
     docker compose exec api uv run python -m app.search.suggest_backtest
@@ -13,22 +14,22 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.db import get_session
-from app.search.suggest import SUGGEST, Event, SuggestConfig, load_events, rank
+from app.search.suggest import SUGGEST, Event, Item, SuggestConfig, load_events, rank
 
-Order = Callable[[list[Event], datetime], list[int]]
-
-
-def last_used(past: list[Event], now: datetime) -> list[int]:
-    last = {event.food_id: event.eaten_at for event in past}
-    return sorted(last, key=lambda food_id: last[food_id], reverse=True)
+Order = Callable[[list[Event], datetime], list[Item]]
 
 
-def usage(past: list[Event], now: datetime, half_life_days: float = 30.0) -> list[int]:
-    total: dict[int, float] = {}
+def last_used(past: list[Event], now: datetime) -> list[Item]:
+    last = {event.item: event.eaten_at for event in past}
+    return sorted(last, key=lambda item: last[item], reverse=True)
+
+
+def usage(past: list[Event], now: datetime, half_life_days: float = 30.0) -> list[Item]:
+    total: dict[Item, float] = {}
     for event in past:
         age_days = (now - event.eaten_at).total_seconds() / 86400
-        total[event.food_id] = total.get(event.food_id, 0.0) + 0.5 ** (age_days / half_life_days)
-    return sorted(total, key=lambda food_id: total[food_id], reverse=True)
+        total[event.item] = total.get(event.item, 0.0) + 0.5 ** (age_days / half_life_days)
+    return sorted(total, key=lambda item: total[item], reverse=True)
 
 
 @dataclass(frozen=True)
@@ -54,13 +55,11 @@ def backtest(
     places: dict[str, list[int | None]] = {name: [] for name in orders}
     for index, event in enumerate(events):
         past = events[:index]
-        if not event.single or all(seen.food_id != event.food_id for seen in past):
+        if not event.single or all(seen.item != event.item for seen in past):
             continue
         for name, order in orders.items():
             ranked = order(past, event.eaten_at)
-            places[name].append(
-                ranked.index(event.food_id) + 1 if event.food_id in ranked else None
-            )
+            places[name].append(ranked.index(event.item) + 1 if event.item in ranked else None)
     return {name: _result(found, config.tips) for name, found in places.items()}
 
 

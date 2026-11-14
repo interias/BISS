@@ -395,8 +395,11 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
     if (url === "/api/v1/foods/suggestions") {
-      const hit = (food: FoodSummary): SearchHit => ({ ...food, gtin: null });
-      return json({ likely: [hit(riceDetail)], recent: [hit(banana), hit(riceDetail), hit(chicken)] });
+      const food = (summary: FoodSummary) => ({ food: { ...summary, gtin: null }, combo: null });
+      return json({
+        likely: [food(riceDetail)],
+        recent: [...saved.map((combo) => ({ food: null, combo })), food(banana), food(riceDetail), food(chicken)],
+      });
     }
     if (url.startsWith("/api/v1/foods/search/off")) {
       if (url.includes("offline")) return json({ hits: [], reason: "timeout" });

@@ -97,6 +97,10 @@ def log(client: TestClient, food_id: int, eaten_at: datetime) -> None:
     assert client.post("/api/v1/entries", json=body).status_code == 201
 
 
+def names(items: list[dict]) -> list[str]:
+    return [(item["food"] or item["combo"])["name"] for item in items]
+
+
 def test_suggestions_are_empty_without_entries(client: TestClient) -> None:
     assert client.get(SUGGESTIONS).json() == {"likely": [], "recent": []}
 
@@ -120,9 +124,10 @@ def test_suggestions_guess_for_this_moment_and_list_the_foods_last_used(
     body = client.get(SUGGESTIONS).json()
 
     # Rice was only part of a Gericht: last used, but no guess.
-    assert [hit["name"] for hit in body["likely"]] == ["Kaffee", "Bier"]
-    assert [hit["name"] for hit in body["recent"]] == ["Reis", "Bier", "Kaffee"]
-    assert body["likely"][0] == {
+    assert names(body["likely"]) == ["Kaffee", "Bier"]
+    assert names(body["recent"]) == ["Reis", "Bier", "Kaffee"]
+    assert body["likely"][0]["combo"] is None
+    assert body["likely"][0]["food"] == {
         "id": coffee.id,
         "name": "Kaffee",
         "brand": None,
@@ -136,7 +141,7 @@ def test_suggestions_guess_for_this_moment_and_list_the_foods_last_used(
     }
 
     app.dependency_overrides[get_now] = lambda: at(15, 20, 5)
-    assert [hit["name"] for hit in client.get(SUGGESTIONS).json()["likely"]] == ["Bier", "Kaffee"]
+    assert names(client.get(SUGGESTIONS).json()["likely"]) == ["Bier", "Kaffee"]
 
 
 def test_suggestions_show_at_most_6_guesses(client: TestClient, session: Session) -> None:
@@ -145,6 +150,38 @@ def test_suggestions_show_at_most_6_guesses(client: TestClient, session: Session
     app.dependency_overrides[get_now] = lambda: at(2, 8)
     body = client.get(SUGGESTIONS).json()
     assert len(body["likely"]) == 6
-    assert [hit["name"] for hit in body["recent"]] == [
-        f"Lebensmittel {n}" for n in range(7, -1, -1)
+    assert names(body["recent"]) == [f"Lebensmittel {n}" for n in range(7, -1, -1)]
+
+
+def test_a_schnellzugriff_is_guessed_and_listed_like_a_food(
+    client: TestClient, session: Session
+) -> None:
+    coffee, milk, beer = (add_food(session, name) for name in ["Kaffee", "Milch", "Bier"])
+    items = [{"food_id": coffee.id, "grams": 200}, {"food_id": milk.id, "grams": 30}]
+    combo = client.post("/api/v1/combos", json={"name": "Cappuccino", "items": items}).json()
+    for day in range(1, 11):
+        logged = client.post(
+            f"/api/v1/combos/{combo['id']}/log", json={"eaten_at": at(day, 8).isoformat()}
+        )
+        assert logged.status_code == 201
+        log(client, beer.id, at(day, 20))
+
+    app.dependency_overrides[get_now] = lambda: at(11, 8, 5)
+    body = client.get(SUGGESTIONS).json()
+
+    # The Schnellzugriff of the mornings first; its foods are no guesses of their own.
+    assert names(body["likely"]) == ["Cappuccino", "Bier"]
+    assert body["likely"][0]["food"] is None
+    assert body["likely"][0]["combo"]["id"] == combo["id"]
+    assert [item["food"]["name"] for item in body["likely"][0]["combo"]["items"]] == [
+        "Kaffee",
+        "Milch",
     ]
+    # Last used: the beer of the evening, then the Schnellzugriff before its foods.
+    assert names(body["recent"]) == ["Bier", "Cappuccino", "Milch", "Kaffee"]
+
+    # A deleted Schnellzugriff is no longer offered; its foods stay in the list.
+    assert client.delete(f"/api/v1/combos/{combo['id']}").status_code == 204
+    body = client.get(SUGGESTIONS).json()
+    assert names(body["likely"]) == ["Bier"]
+    assert names(body["recent"]) == ["Bier", "Milch", "Kaffee"]

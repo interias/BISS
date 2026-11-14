@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSuggestions, searchFoods, searchOff, type SearchHit } from "@/lib/api";
+import { getSuggestions, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
 import { brandLine, fmt, per100Unit } from "@/lib/format";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -32,14 +32,49 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
   );
 }
 
-function HitGroup({ label, hits, onPick }: { label: string; hits: SearchHit[]; onPick: (food: SearchHit) => void }) {
-  if (hits.length === 0) return null;
+/** A Schnellzugriff among the suggestions: its sum, and a tap logs it like its chip in the dock. */
+function ComboRow({ combo, onPick }: { combo: Combo; onPick: (combo: Combo) => void }) {
+  const grams = combo.items.reduce((sum, item) => sum + item.grams, 0);
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(combo)}
+      className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-px border-b border-dashed py-[9px] text-left last:border-b-0"
+    >
+      <span className="row-span-2">
+        <FoodPic size={40} category="dishes" />
+      </span>
+      <span className="min-w-0 self-end truncate font-semibold">{combo.name}</span>
+      <span className="self-end text-right font-bold tabular-nums">{fmt(combo.totals.kcal)}</span>
+      <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground">
+        Schnellzugriff · {fmt(grams)} g · trägt direkt ein
+      </span>
+    </button>
+  );
+}
+
+function SuggestionGroup({
+  label,
+  items,
+  onPick,
+  onCombo,
+}: {
+  label: string;
+  items: Suggestion[];
+  onPick: (food: SearchHit) => void;
+  onCombo?: (combo: Combo) => void;
+}) {
+  if (items.length === 0) return null;
   return (
     <div role="group" aria-label={label}>
       <p className="pt-2 text-[12px] font-semibold text-muted-foreground">{label}</p>
-      {hits.map((food) => (
-        <HitRow key={food.id ?? food.gtin} food={food} onPick={onPick} />
-      ))}
+      {items.map((item) =>
+        item.combo ? (
+          onCombo && <ComboRow key={`combo-${item.combo.id}`} combo={item.combo} onPick={onCombo} />
+        ) : (
+          <HitRow key={item.food.id ?? item.food.gtin} food={item.food} onPick={onPick} />
+        ),
+      )}
     </div>
   );
 }
@@ -47,8 +82,9 @@ function HitGroup({ label, hits, onPick }: { label: string; hits: SearchHit[]; o
 /**
  * Search sheet: input, hits with picture, name, brand and kcal per 100 g, the empty hint.
  * Before anything is typed it shows what the backend guesses as the next entry ("Jetzt
- * wahrscheinlich") and below the foods last used, the latest first. The guesses stay away
- * while they would only repeat the list below.
+ * wahrscheinlich") and below the foods and Schnellzugriffe last used, the latest first. The
+ * guesses stay away while they would only repeat the list below. A Schnellzugriff shows only
+ * with `onCombo`, which logs it.
  * When the backend says the local search found few hits (`off_more`), the hits of Open Food
  * Facts follow below, with "Suche bei Open Food Facts …" while they load and the source note.
  * `foodsOnly` leaves out the products of Open Food Facts, which have no food yet, and does
@@ -57,24 +93,32 @@ function HitGroup({ label, hits, onPick }: { label: string; hits: SearchHit[]; o
 export function SearchSheet({
   onPick,
   onCreate,
+  onCombo,
   foodsOnly,
 }: {
   onPick: (food: SearchHit) => void;
   onCreate?: () => void;
+  onCombo?: (combo: Combo) => void;
   foodsOnly?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<{ query: string; hits: SearchHit[]; offMore: boolean } | null>(null);
   const [off, setOff] = useState<Off | null>(null);
-  const [suggested, setSuggested] = useState<{ likely: SearchHit[]; recent: SearchHit[] } | null>(null);
+  const [suggested, setSuggested] = useState<{ likely: Suggestion[]; recent: Suggestion[] } | null>(null);
   const q = query.trim();
 
   useEffect(() => {
     let live = true;
-    getSuggestions().then((found) => live && setSuggested(found), console.error);
+    // Without `onCombo` the sheet picks a food: the Schnellzugriffe are left out.
+    const usable = (items: Suggestion[]) => items.filter((item) => item.food || onCombo);
+    getSuggestions().then(
+      (found) => live && setSuggested({ likely: usable(found.likely), recent: usable(found.recent) }),
+      console.error,
+    );
     return () => {
       live = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked once per opening
   }, []);
 
   useEffect(() => {
@@ -144,9 +188,9 @@ export function SearchSheet({
         {!q && suggested && (
           <>
             {suggested.recent.length > suggested.likely.length && (
-              <HitGroup label="Jetzt wahrscheinlich" hits={suggested.likely} onPick={onPick} />
+              <SuggestionGroup label="Jetzt wahrscheinlich" items={suggested.likely} onPick={onPick} onCombo={onCombo} />
             )}
-            <HitGroup label="Zuletzt" hits={suggested.recent} onPick={onPick} />
+            <SuggestionGroup label="Zuletzt" items={suggested.recent} onPick={onPick} onCombo={onCombo} />
           </>
         )}
         {hits?.map((food) => <HitRow key={food.id ?? food.gtin} food={food} onPick={onPick} />)}

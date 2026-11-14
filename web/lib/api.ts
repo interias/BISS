@@ -255,11 +255,14 @@ export const getRecent = () => request<FoodSummary[]>("/recent");
 export const searchFoods = (q: string) =>
   request<{ hits: SearchHit[]; off_more: boolean }>(`/foods/search?q=${encodeURIComponent(q)}`);
 
+/** What the empty search offers: a food or a Schnellzugriff. */
+export type Suggestion = { food: SearchHit; combo: null } | { food: null; combo: Combo };
+
 /**
- * The empty search (the Wirt): guesses for the next entry at this moment and the foods last
- * used, the latest first.
+ * The empty search (the Wirt): guesses for the next entry at this moment and the foods and
+ * Schnellzugriffe last used, the latest first.
  */
-export const getSuggestions = () => request<{ likely: SearchHit[]; recent: SearchHit[] }>("/foods/suggestions");
+export const getSuggestions = () => request<{ likely: Suggestion[]; recent: Suggestion[] }>("/foods/suggestions");
 
 /**
  * Open Food Facts text search (ADR-0011): products the local search does not show. A failure

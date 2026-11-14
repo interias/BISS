@@ -89,14 +89,21 @@ class SearchResult(BaseModel):
     )
 
 
+class Suggestion(BaseModel):
+    """A food or a Schnellzugriff; exactly one of them is set."""
+
+    food: SearchHit | None = None
+    combo: "Combo | None" = None
+
+
 class Suggestions(BaseModel):
     """What the search shows before anything is typed (SPEC 6, the Wirt)."""
 
-    likely: list[SearchHit] = Field(
+    likely: list[Suggestion] = Field(
         description="guesses for the next entry at this moment, the most likely first, at most 6"
     )
-    recent: list[SearchHit] = Field(
-        description="the foods last used, the latest first, at most 100"
+    recent: list[Suggestion] = Field(
+        description="the foods and Schnellzugriffe last used, the latest first, at most 100"
     )
 
 
