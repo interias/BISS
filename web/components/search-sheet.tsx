@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSuggestions, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
 import { brandLine, fmt, per100Unit } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
 
@@ -23,10 +24,18 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
       <span className="row-span-2">
         <FoodPic size={40} category={food.category} />
       </span>
-      <span className="min-w-0 self-end truncate font-semibold">{food.name}</span>
+      {/* An own recipe stands out in the accent colour. */}
+      <span className={cn("min-w-0 self-end truncate font-semibold", food.recipe && "text-primary")}>{food.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(food.per_100.kcal)}</span>
       <span className="col-[2/-1] min-w-0 self-start text-[12.5px] text-muted-foreground">
-        {brandLine(food.brand, food.source)} · kcal je {per100Unit(food.basis)}
+        {food.recipe ? (
+          <b className="mr-1.5 rounded-full bg-primary px-1.5 py-px text-[11px] font-bold text-primary-foreground">
+            Rezept
+          </b>
+        ) : (
+          `${brandLine(food.brand, food.source)} · `
+        )}
+        kcal je {per100Unit(food.basis)}
       </span>
     </button>
   );

@@ -138,6 +138,7 @@ def test_suggestions_guess_for_this_moment_and_list_the_foods_last_used(
         "per_100": {"kcal": 100, "protein": 10, "carbs": 10, "fat": 1},
         "standard_serving": {"label": "1 Tasse", "grams": 200, "origin": "estimated"},
         "gtin": None,
+        "recipe": False,
     }
 
     app.dependency_overrides[get_now] = lambda: at(15, 20, 5)
@@ -199,6 +200,10 @@ def test_a_recipe_is_listed_from_the_moment_it_is_saved(
     # Saved just now and never logged: on top of the last used. It is no guess yet.
     assert names(listed["recent"]) == ["Brötchen", "Bier"]
     assert names(listed["likely"]) == ["Bier"]
+    # The search and the list mark it as a recipe.
+    assert [item["food"]["recipe"] for item in listed["recent"]] == [True, False]
+    hits = client.get("/api/v1/foods/search", params={"q": "Brötchen"}).json()["hits"]
+    assert (hits[0]["name"], hits[0]["recipe"]) == ("Brötchen", True)
 
     # Logged, it stands once, not twice.
     assert client.post("/api/v1/entries", json={"food_id": recipe["food_id"]}).status_code == 201

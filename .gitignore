@@ -16,3 +16,6 @@ test-results/
 # Local data
 backups/
 testdata/
+
+# Worktrees of helper agents
+.claude/worktrees/

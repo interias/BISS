@@ -35,8 +35,9 @@ def food_summary(
     )
 
 
-def search_hit(hit: Hit) -> schemas.SearchHit:
-    """A search hit carries its standard serving; without one the derived 100 g applies."""
+def search_hit(hit: Hit, recipe_ids: frozenset[int] | set[int] = frozenset()) -> schemas.SearchHit:
+    """A search hit carries its standard serving; without one the derived 100 g applies.
+    `recipe_ids` are the foods of recipes (recipes.recipe_food_ids), which the hit marks."""
     return food_summary(
         hit,
         StandardServing(hit.serving_label, hit.serving_grams, hit.serving_origin)
@@ -44,6 +45,7 @@ def search_hit(hit: Hit) -> schemas.SearchHit:
         else FALLBACK_SERVING,
         schemas.SearchHit,
         gtin=hit.gtin,
+        recipe=hit.id in recipe_ids,
     )
 
 

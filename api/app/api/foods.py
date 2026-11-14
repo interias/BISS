@@ -14,7 +14,7 @@ from app.models import Food
 from app.search.off_search import search_off, wants_off
 from app.search.search import search_foods
 from app.search.suggest import Suggested, suggestions
-from app.services import foods
+from app.services import foods, recipes
 from app.services.combos import ComboView
 from app.services.foods import (
     FALLBACK_SERVING,
@@ -44,8 +44,10 @@ def search(
     off_more the client may ask GET /foods/search/off as well.
     """
     hits = search_foods(session, q, limit=limit)
+    recipe_ids = recipes.recipe_food_ids(session)
     return schemas.SearchResult(
-        hits=[convert.search_hit(hit) for hit in hits], off_more=wants_off(q, len(hits), limit)
+        hits=[convert.search_hit(hit, recipe_ids) for hit in hits],
+        off_more=wants_off(q, len(hits), limit),
     )
 
 
@@ -70,13 +72,20 @@ def suggest(session: SessionDep, now: NowDep) -> schemas.Suggestions:
     """The empty search: guesses for the next entry by habit, time of day and what was
     logged just now, then what was last used. Only foods and Schnellzugriffe logged before."""
     found = suggestions(session, now)
+    recipe_ids = recipes.recipe_food_ids(session)
 
     def items(suggested: list[Suggested]) -> list[schemas.Suggestion]:
         return [
             schemas.Suggestion(combo=convert.combo(item))
             if isinstance(item, ComboView)
             else schemas.Suggestion(
-                food=convert.food_summary(item[0], item[1], schemas.SearchHit, gtin=item[0].gtin)
+                food=convert.food_summary(
+                    item[0],
+                    item[1],
+                    schemas.SearchHit,
+                    gtin=item[0].gtin,
+                    recipe=item[0].id in recipe_ids,
+                )
             )
             for item in suggested
         ]

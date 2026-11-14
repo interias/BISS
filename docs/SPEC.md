@@ -75,7 +75,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
   - Ohne Fertiggewicht gilt das Gewicht der Zutaten, etwa bei Suppe. Nach dem Backen oder Braten wird gewogen und nachgetragen.
   - „Speichern“ legt das Rezept an und öffnet das Mengen-Sheet seines Lebensmittels. Dort zählt der Chip „1 Portion“ wie jede Portion („2 × 1 Portion“).
-  - Ein Rezept steht in Suche und leerer Suche wie jedes Lebensmittel. „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt.
+  - Ein Rezept steht in Suche und leerer Suche wie jedes Lebensmittel, abgesetzt in der Akzentfarbe mit der Marke „Rezept“ (`recipe` am Treffer). „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt.
 - **Mengen-Sheet:**
   - Bild, Quelle, Name und Marke.
   - Gramm mit ±. Ein Tap auf die Zahl öffnet die Zifferntastatur, mindestens 1 g.
