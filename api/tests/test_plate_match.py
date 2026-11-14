@@ -9,7 +9,14 @@ from app.domain.macros import Macros
 from app.plates.draft import PlateDraft, PlateIngredient
 from app.plates.extract import pick_foods
 from app.plates.extractor import ExtractionFailed, FakePlateExtractor
-from app.plates.match import MIN_SCORE, certainty, match_food, match_plate, plate_asks
+from app.plates.match import (
+    MIN_SCORE,
+    _queries,
+    certainty,
+    match_food,
+    match_plate,
+    plate_asks,
+)
 from app.search.search import search_foods
 from tests.factories import add_cached, add_food
 
@@ -105,6 +112,44 @@ def test_asks_only_where_the_best_hit_does_not_carry_the_name(session: Session) 
     best = match_food(session, "Falafel gebraten")
     assert ask.default == (None if best is None else ask.candidates.index(best))
     assert best in (None, truffle)
+
+
+def test_candidates_also_come_from_the_words_and_from_what_the_bls_calls_the_food(
+    session: Session,
+) -> None:
+    jam = add_food(session, "Konfitüre extra", kcal=234, source="bls")
+    pesto = add_food(session, "Pesto verde", kcal=450, source="bls")
+    leg = add_food(session, "Hähnchenschenkel/Hähnchenkeule, gebraten im Ofen", kcal=200)
+    sauce = add_food(session, "Champignonsauce von heller/weißer Grundsauce", kcal=90)
+    porridge = add_food(session, "Porridge ungesüßt, mit Milch 3,5 % Fett", kcal=95)
+    draft = plate(
+        ("Aprikosenkonfitüre", 20, 0.9),
+        ("Basilikum-Pesto", 20, 0.9),
+        ("Hähnchen Schenkel, mit Haut, gebraten", 150, 0.9),
+        ("Champignon Rahmsoße", 60, 0.9),
+        ("Haferbrei mit Milch", 200, 0.9),
+        ("Tempeh", 50, 0.6),
+    )
+
+    asks = plate_asks(session, draft)
+
+    for index, food in enumerate([jam, pesto, leg, sauce, porridge]):
+        assert food in asks[index].candidates
+    # Still only foods of the search: nothing is found for tempeh, so nothing is asked.
+    assert 5 not in asks
+
+
+def test_queries_keep_the_whole_name_first_and_skip_the_preparation() -> None:
+    assert _queries("Hähnchen Schenkel, mit Haut, gebraten") == [
+        "Hähnchen Schenkel, mit Haut, gebraten",
+        "Hähnchen",
+        "Hähnchen Schenkel",
+        "HähnchenSchenkel",
+        "Schenkel",
+    ]
+    assert _queries("Himbeermarmelade") == ["Himbeermarmelade", "Konfitüre"]
+    assert "Champignon Rahmsauce" in _queries("Champignon Rahmsoße")
+    assert _queries("Bratensauce") == ["Bratensauce", "Bratensoße"]
 
 
 def test_picked_foods_replace_the_search_and_none_leaves_the_ingredient_unmatched(

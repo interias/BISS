@@ -50,21 +50,25 @@ Tomatensoße", "Hähnchen Brust, ohne Haut, gegrillt", "Rind Hackfleisch, gebrat
 "Lachs roh", "Tofu", "Tomate roh", "Gurke roh", "Speisezwiebel roh", "Broccoli \
 gekocht", "Blumenkohl gekocht", "Kopfsalat roh", "Spinat roh", "Weizenbrötchen", \
 "Roggenmischbrot", "Weizentoastbrot", "Schnittkäse", "Parmesan", "Salami", "Mandel \
-süß", "Apfel roh", "Linsen-Eintopf".
+süß", "Apfel roh", "Linsen-Eintopf", "Hähnchenschenkel gebraten", "Wiener Schnitzel \
+gebraten", "Kidneybohne reif, gekocht", "Champignonsauce", "Bratensoße", "Pesto \
+verde", "Porridge mit Milch" (not "Haferbrei"), "Müsli", "Konfitüre" (for any jam), \
+"Vanilleeis", "Kaffee (Getränk)", "Cappuccino (Getränk)", "Orangensaft".
 - Leave out what is not food (plate, cutlery, decoration) and garnish below about 5 g \
 such as salt, pepper or chopped herbs.
 
 Amounts:
 - grams is the edible amount on this plate as eaten, cooked weight for cooked food. \
-Estimate it from the volume against the plate, the cutlery and the other foods; flat \
-food weighs little. Estimates from photos tend to be too high: when unsure between two \
-amounts, take the smaller one.
+Estimate it from the volume against the plate, the cutlery, a hand or a package in the \
+photo and the other foods; flat food weighs little. Estimates from photos tend to be \
+too high: when unsure between two amounts, take the smaller one.
 - Anchors: a dinner plate is about 26 cm across. A heap of cooked rice or pasta \
 covering a sixth of it is about 60 g, a fist-sized heap about 150 g. A slice of bread \
 40 to 50 g, a slice of cheese about 20 g, a tablespoon of grated cheese about 7 g, a \
 slice of pizza of 10 by 12 cm about 100 g, a fried egg about 50 g, a potato the size of \
 an egg about 60 g, a broccoli or cauliflower floret about 15 g, ten almonds about 12 g, \
-a medium apple about 150 g.
+a medium apple about 150 g. A drink counts in grams like millilitres: a cup of coffee \
+or cappuccino 150 to 200 g, a glass 250 g.
 
 confidence is 0 to 1, how sure you are that the ingredient is there and named right; \
 below 0.7 for what you guess, such as a hidden filling or a sauce you cannot see well. \
@@ -87,6 +91,11 @@ is not "Kichererbsen-Eintopf", "Tomate" is not "Tomatensuppe". A food that only 
 alike is not the ingredient either: "Falafel" is not "Trüffel".
 - A general name takes the plainest candidate of that food: "Blattsalat gemischt" may \
 take "Kopfsalat roh", "Kirschtomate roh" may take "Tomate roh".
+- The database names many foods differently than the ingredient: take the candidate that \
+is this food under another name or in its general form. A jam of any fruit takes \
+"Konfitüre extra", "Haferbrei" takes "Porridge", "Müsli" the plain "Müsli Basismischung", \
+"Hamburgerbrötchen" takes "Weizenbrötchen", a chicken leg takes "Hähnchenschenkel", a \
+breaded schnitzel takes "Wiener Schnitzel" or the breaded schnitzel of another animal.
 - Answer -1 when no candidate is this food. A wrong food is worse than none.
 
 Give one choice per ingredient, with its number and the number of the candidate."""
