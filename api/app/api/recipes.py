@@ -35,6 +35,12 @@ def create_recipe(body: schemas.RecipeCreate, session: SessionDep) -> schemas.Re
     return convert.recipe(view)
 
 
+@router.get("")
+def list_recipes(session: SessionDep) -> list[schemas.Recipe]:
+    """All recipes, the one saved last first ("Meine Rezepte")."""
+    return [convert.recipe(view) for view in recipes.list_recipes(session)]
+
+
 @router.get("/{recipe_id}", responses=NOT_FOUND)
 def get_recipe(recipe_id: int, session: SessionDep) -> schemas.Recipe:
     """A recipe with its ingredients, the whole dish and one portion."""

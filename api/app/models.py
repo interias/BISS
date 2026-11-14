@@ -22,9 +22,10 @@ from sqlalchemy import (
     Text,
     Uuid,
     func,
+    select,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, column_property, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -153,6 +154,16 @@ class RecipeItem(Base):
     food_id: Mapped[int] = mapped_column(ForeignKey("food.id"))
     grams: Mapped[float] = mapped_column(Double)
     position: Mapped[int] = mapped_column(Integer, server_default="0")
+
+
+# Whether a food is the food of a recipe; loaded with the food, so every answer that names
+# a food can set recipes apart.
+Food.recipe = column_property(
+    select(func.count(Recipe.id) > 0)
+    .where(Recipe.food_id == Food.id)
+    .correlate_except(Recipe)
+    .scalar_subquery()
+)
 
 
 class Goal(Base):

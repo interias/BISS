@@ -87,7 +87,8 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   // "+ Neu" stands first, the Schnellzugriff chips before the recent chips.
   const chips = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button");
   await expect(chips.first()).toHaveAccessibleName("Neuer Schnellzugriff");
-  await expect(chips.nth(1)).toHaveAccessibleName(/^Schnellzugriff /);
+  await expect(chips.nth(1)).toHaveAccessibleName("Meine Rezepte");
+  await expect(chips.nth(2)).toHaveAccessibleName(/^Schnellzugriff /);
 });
 
 test("tap budget: a Schnellzugriff is logged with 1 tap as one group", async ({ page, request }) => {
@@ -202,9 +203,9 @@ test("als Schnellzugriff merken makes a combo of a diary group", async ({ page, 
 test("a recipe is created, logged in two portions and weighed afterwards", async ({ page, request }) => {
   const name = unique("Bananenreis");
   await page.goto("/");
-  await page.getByRole("button", { name: "Neuer Schnellzugriff" }).click();
+  await page.getByRole("button", { name: "Meine Rezepte" }).click();
   const sheet = page.getByRole("dialog");
-  await sheet.getByRole("button", { name: "Stattdessen ein Rezept mit Portionen anlegen" }).click();
+  await sheet.getByRole("button", { name: "+ Neues Rezept" }).click();
   await expect(sheet.getByRole("heading", { name: "Neues Rezept" })).toBeVisible();
 
   await sheet.getByRole("textbox", { name: "Name" }).fill(name);
@@ -260,4 +261,21 @@ test("a recipe is created, logged in two portions and weighed afterwards", async
   const food = await (await request.get(`/api/v1/foods/${recipe.food_id}`)).json();
   expect(food.standard_serving).toMatchObject({ label: "1 Portion", grams: 100 });
   expect(food.recipe_id).toBe(recipe.id);
+
+  // The cookbook lists it, newest first, and logs it with cookbook + recipe + Eintragen.
+  await expect(sheet.getByRole("heading", { name })).toBeVisible();
+  await page.goto("/");
+  const taps = await countTaps(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Meine Rezepte" }).click();
+  await sheet.getByRole("list", { name: "Rezepte" }).getByRole("button").first().click();
+  await expect(sheet.getByRole("heading", { name })).toBeVisible();
+  const [again] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
+  ]);
+  entries.track((await again.json()).id);
+  expect(await taps(), "Kochbuch + Rezept + Eintragen").toBe(3);
+  // In the diary the recipe stands in the accent colour.
+  await expect(page.locator("[data-entry-id]").first().getByText(name)).toHaveClass(/text-primary/);
 });

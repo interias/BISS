@@ -69,6 +69,7 @@ class FoodSummary(BaseModel):
     )
     per_100: Macros
     standard_serving: StandardServing
+    recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
 
 
 class SearchHit(FoodSummary):
@@ -79,7 +80,6 @@ class SearchHit(FoodSummary):
         "(POST /entries or log_meal with gtin)"
     )
     gtin: str | None = Field(description="GTIN-14; always set for a cached product")
-    recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
 
 
 class SearchResult(BaseModel):
@@ -330,6 +330,7 @@ class FoodRef(BaseModel):
     brand: str | None
     source: Source
     category: Category | None
+    recipe: bool = Field(default=False, description="the food of an own recipe (ADR-0012)")
 
 
 class Entry(BaseModel):

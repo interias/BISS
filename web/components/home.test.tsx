@@ -310,11 +310,23 @@ test("a Schnellzugriff in the empty search is logged with one tap and closes the
   expect(screen.queryByRole("textbox", { name: "Suchen" })).not.toBeInTheDocument();
 });
 
-test("+ Neu leads on to a new recipe; saved, its food opens to log portions", async () => {
+test("the cookbook lists the recipes; a tap opens one to log portions", async () => {
+  fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  const list = await screen.findByRole("list", { name: "Rezepte" });
+  const row = within(list).getByRole("button", { name: /^Skyrbrötchen/ });
+  expect(row).toHaveTextContent("5 Portionen · je 90 g");
+  fireEvent.click(row);
+  expect(await screen.findByRole("heading", { name: "Skyrbrötchen" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /1 Portion/ })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the cookbook leads on to a new recipe; saved, its food opens to log portions", async () => {
   const { calls } = fakeApi();
   render(<Home />);
-  fireEvent.click(await screen.findByRole("button", { name: /Neu/ }));
-  fireEvent.click(await screen.findByRole("button", { name: "Stattdessen ein Rezept mit Portionen anlegen" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
 
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Skyrbrötchen" } });
@@ -508,7 +520,8 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   });
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips[0]).toHaveAccessibleName("Neuer Schnellzugriff");
-  expect(chips[1]).toHaveAccessibleName("Schnellzugriff Bananenpause");
+  expect(chips[1]).toHaveAccessibleName("Meine Rezepte");
+  expect(chips[2]).toHaveAccessibleName("Schnellzugriff Bananenpause");
   expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);
 });
 

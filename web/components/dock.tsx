@@ -4,16 +4,17 @@ import { useRef, type MouseEvent } from "react";
 import type { Combo, FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
 
 /** A press this long opens the Schnellzugriff instead of logging it (SPEC 3). */
 export const HOLD_MS = 500;
 
 /** The two lines of a chip: the name, below it grams and kcal. */
-function ChipText({ name, grams, kcal }: { name: string; grams: number; kcal: number }) {
+function ChipText({ name, grams, kcal, accent }: { name: string; grams: number; kcal: number; accent?: boolean }) {
   return (
     <span className="grid leading-tight">
-      <span className="text-[13px] font-semibold">{name}</span>
+      <span className={cn("text-[13px] font-semibold", accent && "text-primary")}>{name}</span>
       <small className="text-[11px] font-medium text-muted-foreground tabular-nums">
         {`${fmt(grams)} g · ${fmt(kcal)} kcal`}
       </small>
@@ -86,8 +87,8 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
 }
 
 /**
- * Dock: "+ Neu" first so it never needs scrolling, then the Schnellzugriff and recent chips,
- * search field and the camera button.
+ * Dock: "+ Neu" and the cookbook of the own recipes first so they never need scrolling, then
+ * the Schnellzugriff and recent chips, search field and the camera button.
  */
 export function Dock({
   combos,
@@ -95,6 +96,7 @@ export function Dock({
   onCombo,
   onComboHold,
   onNewCombo,
+  onRecipes,
   onRecent,
   onSearch,
   onCamera,
@@ -104,6 +106,7 @@ export function Dock({
   onCombo: (combo: Combo) => void;
   onComboHold: (combo: Combo) => void;
   onNewCombo: () => void;
+  onRecipes: () => void;
   onRecent: (food: FoodSummary) => void;
   onSearch: () => void;
   onCamera: () => void;
@@ -123,6 +126,19 @@ export function Dock({
         >
           + Neu
         </button>
+        <button
+          type="button"
+          aria-label="Meine Rezepte"
+          title="Meine Rezepte"
+          onClick={onRecipes}
+          className="grid size-[38px] flex-none place-items-center rounded-full border border-primary text-primary"
+        >
+          {/* An open cookbook. */}
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5Z" />
+            <path d="M12 6.5V19.5" />
+          </svg>
+        </button>
         {combos.map((combo) => (
           <ComboChip key={combo.id} combo={combo} onTap={() => onCombo(combo)} onHold={() => onComboHold(combo)} />
         ))}
@@ -136,10 +152,15 @@ export function Dock({
               aria-label={`${name} ${fmt(grams)} g`}
               title={food.name}
               onClick={() => onRecent(food)}
-              className="inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 py-[4px] pr-3 pl-[4px] text-left whitespace-nowrap"
+              // An own recipe stands in the accent colour, as in the search.
+              className={cn(
+                "inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 py-[4px] pr-3 pl-[4px] text-left whitespace-nowrap",
+                food.recipe && "border-primary",
+              )}
             >
               <FoodPic size={26} round category={food.category} />
               <ChipText
+                accent={food.recipe}
                 name={clip(name)}
                 grams={grams}
                 kcal={previewMacros(food.per_100, grams, food.basis, food.density).kcal}

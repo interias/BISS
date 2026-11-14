@@ -40,6 +40,7 @@ import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
 import { PlateSheet } from "@/components/plate/plate-sheet";
 import { RecipeSheet } from "@/components/recipe/recipe-sheet";
+import { RecipesSheet } from "@/components/recipe/recipes-sheet";
 import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
@@ -67,7 +68,9 @@ type SheetState =
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
   | { kind: "combo"; combo?: Combo }
   // A new recipe, or the one of the amount sheet "Bearbeiten" came from (ADR-0012).
-  | { kind: "recipe"; recipeId?: number; back?: AmountState };
+  | { kind: "recipe"; recipeId?: number; back?: AmountState }
+  // "Meine Rezepte": all recipes, to log one or to start a new one.
+  | { kind: "recipes" };
 
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
@@ -321,6 +324,7 @@ export function Home() {
         onCombo={(combo) => tapCombo(combo).catch(fail)}
         onComboHold={(combo) => setSheet({ kind: "combo", combo })}
         onNewCombo={() => setSheet({ kind: "combo" })}
+        onRecipes={() => setSheet({ kind: "recipes" })}
         onRecent={(food) => logRecent(food).catch(fail)}
         onSearch={() => setSheet({ kind: "search" })}
         onCamera={() => {
@@ -403,7 +407,12 @@ export function Home() {
               onSave={saveCombo(sheet.combo)}
               onDelete={sheet.combo && removeCombo(sheet.combo)}
               onCancel={() => setSheet(null)}
-              onRecipe={() => setSheet({ kind: "recipe" })}
+            />
+          )}
+          {sheet.kind === "recipes" && (
+            <RecipesSheet
+              onPick={(recipe) => setSheet({ kind: "amount", foodId: recipe.food_id })}
+              onNew={() => setSheet({ kind: "recipe" })}
             />
           )}
           {sheet.kind === "recipe" && (

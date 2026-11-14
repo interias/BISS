@@ -500,6 +500,7 @@ export function fakeApi({ plate = fakePlate(), combos = [] }: { plate?: PlateExt
       foods[55] = { ...bananaDetail, id: 55, name: body.name, brand: body.brand, gtin, source: "own" };
       return json(foods[55], 201);
     }
+    if (url === "/api/v1/recipes" && method === "GET") return json([skyrRecipe]);
     if (url === "/api/v1/recipes" && method === "POST") {
       if (body.name === "kaputt") return json({ detail: "broken" }, 500);
       return json({ ...skyrRecipe, ...body, items: skyrRecipe.items }, 201);
