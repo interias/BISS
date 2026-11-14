@@ -298,6 +298,26 @@ test("Verwerfen closes the plate sheet and logs nothing", async () => {
   expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/v1/plates/extract"]);
 });
 
+test("+ Zutat adds one more ingredient to a logged Gericht", async () => {
+  const { calls } = fakeApi();
+  render(<Home />);
+  await logPlate();
+  const diary = screen.getByRole("region", { name: "Tagebuch" });
+  fireEvent.click(within(diary).getByRole("button", { name: /Hähnchen mit Reis und Brokkoli/ }));
+  fireEvent.click(within(diary).getByRole("button", { name: "+ Zutat" }));
+
+  // The search of an ingredient offers foods only, the last used right away.
+  const recent = await screen.findByRole("group", { name: "Zuletzt" });
+  fireEvent.click(within(recent).getByRole("button", { name: /^Banane roh/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Eintragen/ }));
+
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === "POST" && c.url === "/api/v1/entries").map((c) => c.body)).toEqual([
+      { food_id: 7, group_id: "group-200", grams: 120 },
+    ]),
+  );
+});
+
 test("Gericht entfernen deletes the group; Rückgängig logs it again with name, meal, time and amounts", async () => {
   const { calls } = fakeApi();
   render(<Home />);

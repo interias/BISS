@@ -44,11 +44,15 @@ import { Toast, useToast } from "@/components/toast";
 
 const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
 
-/** The amount sheet with the grams it comes back with from the editor. */
-type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number } };
+/**
+ * The amount sheet with the grams it comes back with from the editor. With `groupId` the new
+ * entry joins that Gericht of the diary.
+ */
+type AmountState = { foodId: number; entry?: Entry; initial?: { grams: number }; groupId?: string };
 
 type SheetState =
-  | { kind: "search" }
+  // With `groupId` the search picks one more ingredient for that Gericht.
+  | { kind: "search"; groupId?: string }
   | ({ kind: "amount" } & AmountState)
   // A scanned draft from Open Food Facts; its first entry stores it as food.
   | { kind: "draft"; food: BarcodeFood }
@@ -185,7 +189,7 @@ export function Home() {
    * meal is the backend's suggestion; the app does not show meals.
    */
   const submit =
-    (target: { food_id: number } | { gtin: string }, entry: Entry | undefined) => (grams: number) =>
+    (target: { food_id: number; group_id?: string } | { gtin: string }, entry: Entry | undefined) => (grams: number) =>
     write(async () => {
       if (entry) {
         if (grams !== entry.grams) await updateEntry(entry.id, { grams });
@@ -208,8 +212,8 @@ export function Home() {
   };
 
   /** A cached product has no food yet: the barcode chain answers its draft, as after a scan. */
-  const picked = (hit: SearchHit) => {
-    if (hit.id !== null) setSheet({ kind: "amount", foodId: hit.id });
+  const picked = (groupId?: string) => (hit: SearchHit) => {
+    if (hit.id !== null) setSheet({ kind: "amount", foodId: hit.id, groupId });
     else scanBarcode(hit.gtin).then((found) => "food" in found && scanned(found.food), fail);
   };
 
@@ -275,6 +279,7 @@ export function Home() {
               rows={day.rows}
               comboNames={combos.map((combo) => combo.name)}
               onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
+              onAddToGroup={(group) => setSheet({ kind: "search", groupId: group.group_id })}
               onRemoveGroup={(removal) => removeGroup(removal).catch(fail)}
               onRemember={(group) => remember(group).catch(fail)}
             />
@@ -315,8 +320,11 @@ export function Home() {
         <Sheet onClose={() => setSheet(null)}>
           {sheet.kind === "search" && (
             <SearchSheet
-              onPick={picked}
-              onCreate={() => setSheet({ kind: "editor" })}
+              key={sheet.groupId ?? "search"}
+              onPick={picked(sheet.groupId)}
+              // An ingredient of a Gericht is a food there is already.
+              foodsOnly={sheet.groupId !== undefined}
+              onCreate={sheet.groupId === undefined ? () => setSheet({ kind: "editor" }) : undefined}
             />
           )}
           {sheet.kind === "amount" && (
@@ -326,13 +334,13 @@ export function Home() {
               entry={sheet.entry}
               initial={sheet.initial}
               busy={busy}
-              onSubmit={submit({ food_id: sheet.foodId }, sheet.entry)}
+              onSubmit={submit({ food_id: sheet.foodId, group_id: sheet.groupId }, sheet.entry)}
               onRemove={sheet.entry && remove(sheet.entry)}
               onEdit={(grams) =>
                 setSheet({
                   kind: "editor",
                   foodId: sheet.foodId,
-                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams } },
+                  back: { foodId: sheet.foodId, entry: sheet.entry, initial: { grams }, groupId: sheet.groupId },
                 })
               }
             />

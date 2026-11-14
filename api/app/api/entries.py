@@ -21,8 +21,8 @@ NOT_FOUND = {404: {"description": "unknown food or entry"}}
     status_code=status.HTTP_201_CREATED,
     responses={
         404: {
-            "description": "unknown food_id; for a gtin no food and no cached product, then "
-            "the body is a BarcodeNotFound with the normalised gtin"
+            "description": "unknown food_id or group_id; for a gtin no food and no cached "
+            "product, then the body is a BarcodeNotFound with the normalised gtin"
         },
         422: {"description": "not exactly one of food_id and gtin, or an invalid gtin"},
     },
@@ -31,14 +31,19 @@ def create_entry(body: schemas.EntryCreate, session: SessionDep, now: NowDep) ->
     """Log a food. Without grams the standard serving applies, without meal the suggestion.
 
     With gtin instead of food_id a product shown from Open Food Facts is stored as food
-    with source off on its first entry (SPEC 4).
+    with source off on its first entry (SPEC 4). With group_id the entry joins that Gericht.
     """
     try:
         food_id = body.food_id
         if body.gtin is not None:
             food_id = chain.food_for_entry(session, body.gtin, now).id
         entry = entries.create_entry(
-            session, food_id, grams=body.grams, meal=body.meal, eaten_at=body.eaten_at
+            session,
+            food_id,
+            grams=body.grams,
+            meal=body.meal,
+            eaten_at=body.eaten_at,
+            group_id=body.group_id,
         )
     except InvalidGtin as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

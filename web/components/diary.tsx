@@ -34,17 +34,20 @@ const macroLine = (totals: Macros) =>
   `E ${fmt(totals.protein)} · K ${fmt(totals.carbs)} · F ${fmt(totals.fat)}`;
 
 /**
- * A plate: one row with the sum from the backend, unfolds to its entries (SPEC 3). Without a
- * Schnellzugriff of its name it offers to remember it as one.
+ * A plate: one row with the sum from the backend, unfolds to its entries (SPEC 3): a tap on
+ * one opens it to change or remove it, "+ Zutat" adds one more. Without a Schnellzugriff of
+ * its name it offers to remember it as one.
  */
 function GroupRow({
   group,
   onOpen,
+  onAdd,
   onRemove,
   onRemember,
 }: {
   group: DayGroupRow;
   onOpen: (entry: Entry) => void;
+  onAdd: () => void;
   onRemove: () => void;
   onRemember?: () => void;
 }) {
@@ -94,13 +97,22 @@ function GroupRow({
           {group.entries.map((entry) => (
             <EntryRow key={entry.id} entry={entry} onOpen={onOpen} nested />
           ))}
-          <button
-            type="button"
-            onClick={onRemove}
-            className="mt-1 h-9 w-full rounded-xl border text-[13px] font-semibold text-muted-foreground"
-          >
-            Gericht entfernen
-          </button>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onAdd}
+              className="h-9 rounded-xl border border-dashed text-[13px] font-bold text-primary"
+            >
+              + Zutat
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="h-9 rounded-xl border text-[13px] font-semibold text-muted-foreground"
+            >
+              Gericht entfernen
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -110,19 +122,21 @@ function GroupRow({
 /**
  * The diary: one list newest first as the backend orders it (ADR-0003), each row with its
  * clock time. A tap on an entry opens it for editing, a Gericht shows as a group with its sum
- * that unfolds and can be removed. A group whose name no Schnellzugriff has (`comboNames`)
+ * that unfolds, takes one more ingredient and can be removed. A group whose name no Schnellzugriff has (`comboNames`)
  * can be remembered as one. Meals are not shown.
  */
 export function Diary({
   rows,
   comboNames,
   onOpen,
+  onAddToGroup,
   onRemoveGroup,
   onRemember,
 }: {
   rows: DayRow[];
   comboNames: string[];
   onOpen: (entry: Entry) => void;
+  onAddToGroup: (group: DayGroupRow) => void;
   onRemoveGroup: (group: DayGroupRow) => void;
   onRemember: (group: DayGroupRow) => void;
 }) {
@@ -135,6 +149,7 @@ export function Diary({
               key={row.group_id}
               group={row}
               onOpen={onOpen}
+              onAdd={() => onAddToGroup(row)}
               onRemove={() => onRemoveGroup(row)}
               onRemember={comboNames.includes(row.group_name) ? undefined : () => onRemember(row)}
             />

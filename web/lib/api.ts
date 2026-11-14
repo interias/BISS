@@ -302,7 +302,8 @@ export async function scanBarcode(code: string): Promise<{ food: BarcodeFood } |
  * Without grams the backend takes the standard serving, without meal its suggestion.
  */
 export const createEntry = (
-  body: ({ food_id: number } | { gtin: string }) & { grams?: number; meal?: Meal },
+  // With `group_id` the entry joins that Gericht as one more ingredient.
+  body: ({ food_id: number; group_id?: string } | { gtin: string }) & { grams?: number; meal?: Meal },
 ) =>
   request<Entry>("/entries", { method: "POST", body: JSON.stringify(body) });
 export const updateEntry = (id: number, body: { grams?: number; meal?: Meal }) =>
