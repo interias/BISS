@@ -67,7 +67,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „+ Neu“ öffnet dasselbe Blatt mit Name und Zutaten aus der Suche, dazu die Zuletzt-Chips als Vorschläge. „Speichern“ legt die Vorlage an.
 - **Leere Suche** (der Wirt, Abschnitt 6): Solange nichts getippt ist, zeigt die Suche zwei Gruppen.
   - „Jetzt wahrscheinlich“: bis zu sechs Tipps für den nächsten Eintrag. Die Gruppe entfällt, solange sie nur die Liste darunter wiederholen würde.
-  - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel und Schnellzugriffe, das neueste zuerst. Diese Reihenfolge ist fest, damit jedes an der erwarteten Stelle steht.
+  - „Zuletzt“: die bis zu 100 zuletzt verwendeten Lebensmittel und Schnellzugriffe, das neueste zuerst. Diese Reihenfolge ist fest, damit jedes an der erwarteten Stelle steht. Ein Rezept zählt schon ab dem Speichern, steht also oben, bevor es je eingetragen wurde.
   - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
   - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
 - **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):

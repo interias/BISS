@@ -28,7 +28,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain.day import day_of, to_local
-from app.models import Combo, Entry, Food
+from app.models import Combo, Entry, Food, Recipe
 from app.services.combos import ComboView, list_combos
 from app.services.foods import StandardServing, standard_servings
 
@@ -169,7 +169,11 @@ def load_events(session: Session, now: datetime, config: SuggestConfig = SUGGEST
 
 
 def _last_used(session: Session, limit: int) -> list[Item]:
-    """Foods and Schnellzugriffe by their latest entry; a Schnellzugriff before its foods."""
+    """Foods and Schnellzugriffe by their latest entry; a Schnellzugriff before its foods.
+
+    A recipe also counts from the moment it was saved: a new one stands on top, so it is
+    found before it was ever logged.
+    """
     foods = session.execute(
         select(Entry.food_id, func.max(Entry.eaten_at), func.max(Entry.id))
         .group_by(Entry.food_id)
@@ -184,7 +188,10 @@ def _last_used(session: Session, limit: int) -> list[Item]:
         .group_by(Entry.group_name)
     )
     used += [(eaten_at, 1, entry_id, ("combo", names[name])) for name, eaten_at, entry_id in groups]
-    return [item for *_, item in sorted(used, key=lambda use: use[:3], reverse=True)][:limit]
+    recipes = session.execute(select(Recipe.food_id, Recipe.updated_at))
+    used += [(saved_at, 0, 0, ("food", food_id)) for food_id, saved_at in recipes]
+    latest = [item for *_, item in sorted(used, key=lambda use: use[:3], reverse=True)]
+    return list(dict.fromkeys(latest))[:limit]
 
 
 Suggested = tuple[Food, StandardServing] | ComboView
