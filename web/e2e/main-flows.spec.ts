@@ -160,6 +160,27 @@ test("removing an entry takes it out of the diary", async ({ page }) => {
   expect((await page.request.delete(`/api/v1/entries/${seeded.id}`)).status()).toBe(404);
 });
 
+test("on a phone the page never scrolls and the dock stays at the bottom", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  // More entries than fit on the screen: the diary scrolls, the page does not.
+  for (let n = 0; n < 12; n++) await entries.create(bananaId, 100 + n, "snack");
+  await page.goto("/");
+  const search = page.getByRole("button", { name: "Lebensmittel suchen" });
+  await expect(search).toBeInViewport({ ratio: 1 });
+
+  const scrolled = await page.evaluate(() => {
+    window.scrollTo(0, 400);
+    return [window.scrollY, document.documentElement.scrollHeight - window.innerHeight];
+  });
+  expect(scrolled).toEqual([0, 0]);
+
+  // The diary scrolls inside; the dock does not move.
+  const before = await search.boundingBox();
+  await page.getByRole("region", { name: "Tagebuch" }).locator("[data-entry-id]").last().scrollIntoViewIfNeeded();
+  expect(await search.boundingBox()).toEqual(before);
+  await expect(search).toBeInViewport({ ratio: 1 });
+});
+
 test("with the keyboard open the search field stays in view while the hits scroll", async ({ page }) => {
   // A phone with the keyboard up: resizes-content leaves about this much page above it.
   await page.setViewportSize({ width: 390, height: 420 });

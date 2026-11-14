@@ -278,7 +278,9 @@ export function Home() {
     }).catch(fail);
 
   return (
-    <div className="relative mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
+    // On a phone the app is pinned to the screen: only the diary and the sheets scroll, the
+    // page never does, so the dock with the search always stays at the bottom.
+    <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground max-sm:fixed max-sm:inset-0 sm:relative sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
       <header className="flex items-center justify-between px-5 pt-[18px] pb-1.5">
         <div className="flex items-center gap-2">
           <Image src="/logo.svg" alt="" width={26} height={26} priority />

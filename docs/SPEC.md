@@ -52,6 +52,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Tagebuch als eine Liste, neueste zuerst. Jede Zeile zeigt ihre Uhrzeit. Mahlzeiten zeigt die App nicht.
   - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
+  - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
 - **Chips im Dock:**
   - „+ Neu“ steht vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. „+ Neu“ braucht nie Scrollen.
   - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
