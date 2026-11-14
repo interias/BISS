@@ -73,6 +73,14 @@ docker compose run --rm --no-deps -v "<ordner-mit-xlsx>:/bls:ro" -v "./data/bls:
 
 Die XLSX selbst gehört nicht ins Repo.
 
+## Marketing
+
+`marketing/video/` enthält ein 60-Sekunden-Video, das die sieben Wege zum Eintrag zeigt, animiert und mit Ton:
+
+- [`biss-in-60-sekunden.html`](marketing/video/biss-in-60-sekunden.html): eine einzige Datei mit eingebettetem Ton, zum Weitergeben und Öffnen per Doppelklick.
+- [`index.html`](marketing/video/index.html) mit `audio/`: die Quelle. Sie braucht einen Webserver, etwa `python -m http.server --directory marketing/video`.
+- `generate_audio.py` erzeugt Sprecher (ElevenLabs v4) und Musik (Lyria 3) über OpenRouter und baut mit `bundle` die einzelne Datei neu. Dafür steht `OPENROUTER_API_KEY` in der `.env`, außerdem braucht das Skript `ffmpeg`.
+
 ## Lizenz
 
 Code unter [MIT](LICENSE). Nährwertdaten: Bundeslebensmittelschlüssel (BLS) 4.0, Max Rubner-Institut, CC BY 4.0; Produktdaten zur Laufzeit von Open Food Facts (ODbL).
