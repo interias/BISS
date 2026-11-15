@@ -32,7 +32,10 @@ ONLY = [a for a in args if not a.startswith("http")]
 
 # Camera pictures, all free to use: our own invented label, CC0 / public-domain photos.
 PHOTOS = {
-    "barcode": (ROOT / "api/tests/fixtures/real/barcodes/sandwich-be.jpg", "crop=iw:iw*1.6:0:ih*0.88-iw*0.8"),
+    # The camera pans down the pack and reaches the barcode after about 1.3 s; the app reads a
+    # barcode at once, so without the pan the live picture would show for a single frame.
+    "barcode": (ROOT / "api/tests/fixtures/real/barcodes/sandwich-be.jpg",
+                "crop=iw:iw*1.6:0:'(ih-iw*1.6)*clip((t-0.3)/1.0,0,1)'"),
     "label": (ROOT / "api/tests/fixtures/labels/oat_drink.png", "crop=iw:ih:0:0"),
     "plate": (ROOT / "api/tests/fixtures/real/plates/falafel-bowl.jpg", "crop=ih*0.5625:ih"),
 }
@@ -62,9 +65,9 @@ SPEECH = """
 def camera_file(kind: str) -> pathlib.Path:
     CAM.mkdir(parents=True, exist_ok=True)
     out = CAM / f"{kind}.y4m"
-    if not out.exists():
-        src, crop = PHOTOS[kind]
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-i", str(src), "-t", "2", "-r", "15", "-vf",
+    src, crop = PHOTOS[kind]
+    if not out.exists() or out.stat().st_mtime < pathlib.Path(__file__).stat().st_mtime:
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-i", str(src), "-t", "3", "-r", "15", "-vf",
                         f"{crop},scale=720:1280:force_original_aspect_ratio=decrease,"
                         "pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=0x2a3330,format=yuv420p", str(out)], check=True)
     return out
@@ -87,10 +90,12 @@ class Scene:
     async def reveal(self, loc, below: float) -> None:
         """Scroll by wheel, as a thumb would, until the element is on the screen and above
         `below` px from the bottom (the dock covers the diary's last 170 px)."""
+        last = None
         for _ in range(80):
             box = await loc.bounding_box()
-            if box["y"] >= 40 and box["y"] + box["height"] <= H - below:
-                return
+            if box["y"] >= 40 and box["y"] + box["height"] <= H - below or box["y"] == last:
+                return   # in view, or fixed (the dock) and scrolling does not move it
+            last = box["y"]
             await self.page.mouse.move(W / 2, H * .6)
             await self.page.mouse.wheel(0, 50 if box["y"] > 40 else -50)
             await asyncio.sleep(.016)
@@ -155,15 +160,15 @@ async def barcode(s):
 
 async def label(s):
     await s.tap(s.page.get_by_role("button", name="Kamera: Barcode, Etikett oder Teller"), 1.0, "camera")
-    await s.tap(s.page.get_by_role("button", name=re.compile(r"^Etikett")), 1.8, "trigger")
-    await s.tap(dialog(s.page).get_by_role("button", name="Speichern"), 5.4, "save")
+    await s.tap(s.page.get_by_role("button", name=re.compile(r"^Etikett")), 2.1, "trigger")
+    await s.tap(dialog(s.page).get_by_role("button", name="Speichern"), 5.6, "save")
     await eintragen(s, 6.8)
 
 
 async def plate(s):
     await s.tap(s.page.get_by_role("button", name="Kamera: Barcode, Etikett oder Teller"), 1.0, "camera")
-    await s.tap(s.page.get_by_role("button", name=re.compile(r"^Teller")), 1.8, "trigger")
-    await eintragen(s, 6.2)
+    await s.tap(s.page.get_by_role("button", name=re.compile(r"^Teller")), 2.1, "trigger")
+    await eintragen(s, 6.0)
 
 
 async def dictate(s):
