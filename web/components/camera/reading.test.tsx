@@ -25,3 +25,13 @@ test("a label has its own quips", () => {
   expect(screen.getByTestId("quip")).toHaveTextContent("Entziffere das Kleingedruckte …");
   vi.restoreAllMocks();
 });
+
+test("a dictation has its own quips and shows in the flow of a sheet, its cookie bites in the sheet's colour", () => {
+  vi.spyOn(Math, "random").mockReturnValue(0);
+  render(<Reading kind="dictation" inSheet />);
+  expect(screen.getByTestId("quip")).toHaveTextContent("Wiege jedes Wort …");
+  const reading = screen.getByTestId("reading");
+  expect(reading).not.toHaveClass("absolute");
+  expect(reading.style.getPropertyValue("--biss-cam")).toBe("var(--card)");
+  vi.restoreAllMocks();
+});

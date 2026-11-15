@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 /** How long one quip stays. */
 export const QUIP_MS = 2000;
@@ -32,6 +33,21 @@ const QUIPS = {
     "Frage die Packung aus",
     "Suche das Salz",
     "Halte das Etikett gerade",
+  ],
+  // A dictated meal (ADR-0013): the words are weighed instead of the plate.
+  dictation: [
+    "Wiege jedes Wort",
+    "Übersetze Genuschel in Gramm",
+    "Zähle die Brotscheiben",
+    "Suche den Käse im Satz",
+    "Frage den Bundeslebensmittelschlüssel",
+    "Höre noch einmal genau hin",
+    "Schätze eine ordentliche Portion",
+    "Lese zwischen den Silben",
+    "Sortiere die Zutaten",
+    "Schmecke den Satz ab",
+    "Rechne Tassen in Gramm",
+    "Kalorien verstecken sich auch im Satz",
   ],
 };
 
@@ -98,8 +114,10 @@ const other = (previous: number, length: number) =>
  * Covers the camera picture while the backend reads a photo: one of four animations, chosen
  * per photo, and a short quip that changes every two seconds. The status line below the
  * picture says what is going on; this is only for the wait, so it is hidden from readers.
+ * `inSheet` shows it in a sheet instead (a dictated meal): in the flow, a little smaller, the
+ * bites of the cookie in the colour of the sheet.
  */
-export function Reading({ kind }: { kind: keyof typeof QUIPS }) {
+export function Reading({ kind, inSheet = false }: { kind: keyof typeof QUIPS; inSheet?: boolean }) {
   const quips = QUIPS[kind];
   const [animation] = useState(() => Math.floor(Math.random() * ANIMATIONS.length));
   const [quip, setQuip] = useState(() => Math.floor(Math.random() * quips.length));
@@ -113,9 +131,15 @@ export function Reading({ kind }: { kind: keyof typeof QUIPS }) {
     <div
       aria-hidden="true"
       data-testid="reading"
-      className="absolute inset-0 grid place-content-center justify-items-center gap-5 bg-cam px-6 text-center"
+      className={cn(
+        "grid justify-items-center text-center",
+        inSheet ? "gap-3" : "absolute inset-0 place-content-center gap-5 bg-cam px-6",
+      )}
+      style={inSheet ? ({ "--biss-cam": "var(--card)" } as CSSProperties) : undefined}
     >
-      <div className="h-[120px] [&>svg]:h-full [&>svg]:w-auto">{ANIMATIONS[animation]}</div>
+      <div className={cn("[&>svg]:h-full [&>svg]:w-auto", inSheet ? "h-[96px]" : "h-[120px]")}>
+        {ANIMATIONS[animation]}
+      </div>
       <p key={quip} data-testid="quip" className="biss-load-quip min-h-[2.6em] text-[15px] font-semibold">
         {quips[quip]} …
       </p>

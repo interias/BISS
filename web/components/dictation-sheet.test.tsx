@@ -14,6 +14,7 @@ const renderSheet = (heard: string, reading: boolean, onStop = vi.fn()) => {
 
 test("while listening it shows what is heard and Fertig ends it", () => {
   const onStop = renderSheet("ein Apfel", false);
+  expect(screen.queryByTestId("reading")).not.toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Ich höre zu" })).toBeInTheDocument();
   expect(screen.getByTestId("heard")).toHaveTextContent("ein Apfel");
   fireEvent.click(screen.getByRole("button", { name: "Fertig" }));
@@ -28,6 +29,9 @@ test("before anything is heard an example stands in its place", () => {
 test("while the backend reads, the sentence stays and there is nothing to tap", () => {
   renderSheet("ein Apfel", true);
   expect(screen.getByRole("heading", { name: "Erkenne Gericht …" })).toBeInTheDocument();
-  expect(screen.getByTestId("heard")).toHaveTextContent("ein Apfel");
+  expect(screen.getByTestId("heard")).toHaveTextContent("„ein Apfel“");
+  // The loading screen of the camera bridges the wait, with the quips of a dictation.
+  expect(screen.getByTestId("reading").querySelector("svg")).not.toBeNull();
+  expect(screen.getByTestId("quip")).toHaveTextContent(/ …$/);
   expect(screen.queryByRole("button", { name: "Fertig" })).not.toBeInTheDocument();
 });
