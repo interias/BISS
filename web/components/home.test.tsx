@@ -627,3 +627,114 @@ test("back in front the page loads the day again", async () => {
   fireEvent(document, new Event("visibilitychange")); // jsdom: the document is visible
   await waitFor(() => expect(days()).toBe(before + 1));
 });
+
+/** A speech recognition the test drives; the browser ends asynchronously after stop and abort. */
+function fakeSpeech() {
+  const instances: FakeRecognition[] = [];
+  class FakeRecognition {
+    onresult: ((event: unknown) => void) | null = null;
+    onerror: ((event: { error: string }) => void) | null = null;
+    onend: (() => void) | null = null;
+    aborted = false;
+    constructor() {
+      instances.push(this);
+    }
+    start() {}
+    stop() {
+      setTimeout(() => this.onend?.());
+    }
+    abort() {
+      this.aborted = true;
+      setTimeout(() => {
+        this.onerror?.({ error: "aborted" });
+        this.onend?.();
+      });
+    }
+    hear(text: string) {
+      act(() => this.onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: text } }] }));
+    }
+    fail(error: string) {
+      act(() => {
+        this.onerror?.({ error });
+        this.onend?.();
+      });
+    }
+  }
+  vi.stubGlobal("SpeechRecognition", FakeRecognition);
+  return instances;
+}
+
+const dictated = (calls: { method: string; url: string }[]) => calls.filter((c) => c.url === "/api/v1/plates/dictate");
+
+test("a dictated meal opens the plate sheet without a photo; Eintragen logs the dish without uploading one", async () => {
+  const speech = fakeSpeech();
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Mahlzeit diktieren" }));
+  expect(screen.getByRole("heading", { name: "Ich höre zu" })).toBeInTheDocument();
+  speech[0].hear("Hähnchen mit Reis und Brokkoli");
+  expect(screen.getByTestId("heard")).toHaveTextContent("Hähnchen mit Reis und Brokkoli");
+
+  fireEvent.click(screen.getByRole("button", { name: "Fertig" }));
+  expect(await screen.findByText("Erkannt · bitte prüfen")).toBeInTheDocument();
+  expect(dictated(calls)).toEqual([
+    { method: "POST", url: "/api/v1/plates/dictate", body: { text: "Hähnchen mit Reis und Brokkoli" } },
+  ]);
+  expect(within(screen.getByRole("list", { name: "Zutaten" })).getAllByRole("listitem")).toHaveLength(3);
+
+  fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  const writes = calls.filter((c) => c.method === "POST" || c.method === "PUT").slice(1);
+  expect(writes.map((c) => `${c.method} ${c.url}`)).toEqual(["POST /api/v1/recipes", "POST /api/v1/entries"]);
+});
+
+test("closing the dictation sheet aborts the listening and sends nothing", async () => {
+  const speech = fakeSpeech();
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Mahlzeit diktieren" }));
+  speech[0].hear("ein Apfel");
+  act(() => {
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  expect(screen.queryByRole("heading", { name: "Ich höre zu" })).not.toBeInTheDocument();
+  expect(speech[0].aborted).toBe(true);
+  await new Promise((resolve) => setTimeout(resolve));
+  expect(dictated(calls)).toEqual([]);
+  expect(screen.queryByText("Erkannt · bitte prüfen")).not.toBeInTheDocument();
+});
+
+test("a blocked microphone says so and sends nothing", async () => {
+  const speech = fakeSpeech();
+  const { calls } = fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Mahlzeit diktieren" }));
+  speech[0].fail("not-allowed");
+  expect(screen.getByText("Das Mikrofon ist aus. Erlaube es im Browser.")).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Ich höre zu" })).not.toBeInTheDocument();
+  expect(dictated(calls)).toEqual([]);
+});
+
+test("a sentence without food says so instead of opening an empty sheet", async () => {
+  const speech = fakeSpeech();
+  fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (url, init) =>
+    url === "/api/v1/plates/dictate"
+      ? new Response(JSON.stringify({ dish: "", items: [], totals: { kcal: 0, protein: 0, carbs: 0, fat: 0 }, notes: "Kein Essen genannt.", model: "m", attempts: 2 }))
+      : fake(url, init),
+  );
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Mahlzeit diktieren" }));
+  speech[0].hear("äh");
+  fireEvent.click(screen.getByRole("button", { name: "Fertig" }));
+  expect(await screen.findByText("Kein Essen genannt.")).toBeInTheDocument();
+  expect(screen.queryByText("Erkannt · bitte prüfen")).not.toBeInTheDocument();
+});
+
+test("without speech recognition in the browser there is no microphone", async () => {
+  fakeApi();
+  render(<Home />);
+  expect(await screen.findByRole("button", { name: /^Kamera/ })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Mahlzeit diktieren" })).not.toBeInTheDocument();
+});

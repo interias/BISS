@@ -399,6 +399,10 @@ export function extractPlate(photo: Blob) {
   return request<PlateExtraction>("/plates/extract", { method: "POST", body: form });
 }
 
+/** Dictated sentence → dish as for a plate photo (ADR-0013); nothing is logged. */
+export const dictatePlate = (text: string) =>
+  request<PlateExtraction>("/plates/dictate", { method: "POST", body: JSON.stringify({ text }) });
+
 /** One entry per item with a shared group; without meal and time the backend takes its defaults. */
 export const createEntryGroup = (body: {
   group_name: string;

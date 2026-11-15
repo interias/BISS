@@ -468,6 +468,7 @@ export function fakeApi({
       return json({ hits, off_more: q.length >= 3 && hits.length < 5 });
     }
     if (url === "/api/v1/plates/extract" && method === "POST") return json(plate);
+    if (url === "/api/v1/plates/dictate" && method === "POST") return json(plate);
     if (url === "/api/v1/entries/group" && method === "POST") {
       return logGroup(body.group_name, body.items, body.meal, body.eaten_at);
     }

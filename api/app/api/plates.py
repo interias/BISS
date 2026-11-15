@@ -8,8 +8,8 @@ from app.api import convert, schemas
 from app.api.deps import PlateExtractorDep, SessionDep
 from app.config import get_settings
 from app.labels import photo
-from app.plates.extract import extract_plate, pick_foods
-from app.plates.extractor import ExtractionFailed
+from app.plates.extract import PlateExtraction, dictate_plate, extract_plate, pick_foods
+from app.plates.extractor import ExtractionFailed, PlateExtractor
 from app.plates.match import match_plate, plate_asks
 
 router = APIRouter(prefix="/plates", tags=["plates"])
@@ -49,7 +49,43 @@ async def extract(
         )
     except ExtractionFailed as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+    return await _matched(extractor, session, result)
+
+
+@router.post(
+    "/dictate",
+    responses={
+        422: {"description": "no text, or more than 600 characters"},
+        502: {"description": "as for the photo: the fast model gave no usable draft"},
+    },
+)
+async def dictate(
+    body: schemas.PlateDictation, extractor: PlateExtractorDep, session: SessionDep
+) -> schemas.PlateExtraction:
+    """Dictated sentence → dish with ingredients, as for a plate photo (ADR-0013).
+
+    The phone turns speech into text; this reads the foods and amounts of the text with the
+    same models, rules, fallback and matching as POST /plates/extract. A said amount comes
+    first, without one the model takes one usual portion. Nothing is logged.
+    """
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="no text")
+    settings = get_settings()
+    try:
+        result = await dictate_plate(
+            extractor, text, settings.llm_model_fast, settings.llm_model_strong
+        )
+    except ExtractionFailed as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    return await _matched(extractor, session, result)
+
+
+async def _matched(
+    extractor: PlateExtractor, session: SessionDep, result: PlateExtraction
+) -> schemas.PlateExtraction:
     # Where the search is not sure of the food, the model chooses among its candidates.
+    settings = get_settings()
     asks = await run_in_threadpool(plate_asks, session, result.draft)
     picked = await pick_foods(extractor, asks, settings.llm_model_fast)
     found = await run_in_threadpool(match_plate, session, result.draft, picked)

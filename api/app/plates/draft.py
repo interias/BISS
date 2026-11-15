@@ -4,6 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Characters of a dictated sentence (ADR-0013); a meal said aloud is far shorter.
+MAX_DICTATION = 600
+
 
 class _Strict(BaseModel):
     # additionalProperties false in the schema, so the model cannot add fields.

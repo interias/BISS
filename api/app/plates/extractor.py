@@ -14,6 +14,11 @@ class PlateExtractor(Protocol):
         """Read the plate in a JPEG photo with the given model. Raises ExtractionFailed."""
         ...
 
+    async def dictate(self, text: str, model: str) -> PlateDraft:
+        """Read the foods of a dictated sentence with the given model (ADR-0013). Raises
+        ExtractionFailed."""
+        ...
+
     async def pick(self, asks: list[Ask], model: str) -> list[int | None]:
         """Per ask the index of the candidate that is the ingredient, or None for none.
         Raises ExtractionFailed."""
@@ -34,15 +39,22 @@ FAKE_PLATE = PlateDraft(
 
 
 class FakePlateExtractor:
-    """Deterministic: FAKE_PLATE, or the draft given for a model; records the models asked."""
+    """Deterministic: FAKE_PLATE, or the draft given for a model; records the models asked and
+    the sentences dictated."""
 
     def __init__(self, drafts: dict[str, PlateDraft] | None = None) -> None:
         self.drafts = drafts or {}
         self.calls: list[str] = []
+        self.texts: list[str] = []
 
     async def extract(self, photo: bytes, model: str) -> PlateDraft:
         self.calls.append(model)
         return self.drafts.get(model, FAKE_PLATE)
+
+    async def dictate(self, text: str, model: str) -> PlateDraft:
+        """As for a photo: the sentence does not matter, the plate is the same."""
+        self.texts.append(text)
+        return await self.extract(b"", model)
 
     async def pick(self, asks: list[Ask], model: str) -> list[int | None]:
         """What the search alone would take."""

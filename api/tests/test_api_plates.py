@@ -179,3 +179,53 @@ def test_failed_extraction_is_502(client: TestClient) -> None:
     response = extract(client)
     assert response.status_code == 502
     assert "no structured output" in response.json()["detail"]
+
+
+DICTATE = "/api/v1/plates/dictate"
+
+
+def test_dictation_reads_the_sentence_like_a_photo_and_logs_nothing(
+    client: TestClient, session: Session
+) -> None:
+    """Same draft, matching and totals as for a photo (ADR-0013); the sentence reaches the
+    extractor as said, without the blanks around it."""
+    ids = add_fake_foods(session)
+    fake = FakePlateExtractor()
+    app.dependency_overrides[get_plate_extractor] = lambda: fake
+    response = client.post(DICTATE, json={"text": "  Hähnchen mit Reis und Brokkoli "})
+    assert response.status_code == 200
+    body = response.json()
+    assert fake.texts == ["Hähnchen mit Reis und Brokkoli"]
+    assert (body["dish"], body["model"], body["attempts"]) == (FAKE_PLATE.dish, "fast-model", 1)
+    assert [item["food_id"] for item in body["items"]] == [
+        ids["Hähnchen Brustfilet, gegrillt"],
+        ids["Reis gekocht"],
+        None,
+    ]
+    assert body["totals"]["kcal"] == 336.0
+    assert session.scalar(select(func.count()).select_from(Entry)) == 0
+
+
+@pytest.mark.parametrize("text", ["", "   ", "x" * 601])
+def test_dictation_without_text_or_too_long_is_422(client: TestClient, text: str) -> None:
+    assert client.post(DICTATE, json={"text": text}).status_code == 422
+
+
+def test_dictation_violation_asks_the_strong_model_once(client: TestClient) -> None:
+    empty = PlateDraft(dish="Nichts", ingredients=[], notes="kein Essen genannt")
+    fake = FakePlateExtractor({"fast-model": empty, "strong-model": empty})
+    app.dependency_overrides[get_plate_extractor] = lambda: fake
+    body = client.post(DICTATE, json={"text": "äh"}).json()
+    assert fake.calls == ["fast-model", "strong-model"]
+    assert (body["items"], body["notes"], body["attempts"]) == ([], "kein Essen genannt", 2)
+
+
+def test_failed_dictation_is_502(client: TestClient) -> None:
+    class Failing:
+        async def dictate(self, text: str, model: str):
+            raise ExtractionFailed("no structured output")
+
+    app.dependency_overrides[get_plate_extractor] = Failing
+    response = client.post(DICTATE, json={"text": "ein Apfel"})
+    assert response.status_code == 502
+    assert "no structured output" in response.json()["detail"]

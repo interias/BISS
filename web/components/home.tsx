@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import {
   createCombo,
@@ -10,6 +10,7 @@ import {
   deleteEntry,
   deleteCombo,
   deleteEntryGroup,
+  dictatePlate,
   getCombos,
   getRecent,
   getToday,
@@ -33,11 +34,13 @@ import {
   type Recipe,
   type SearchHit,
 } from "@/lib/api";
+import { canDictate, newRecognition, transcript, type Recognition } from "@/lib/dictation";
 import { fmt, headerDate, shortName } from "@/lib/format";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera, type Known } from "@/components/camera/camera";
 import { ComboSheet } from "@/components/combo/combo-sheet";
 import { DaySummary } from "@/components/day-summary";
+import { DictationSheet } from "@/components/dictation-sheet";
 import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
@@ -49,6 +52,10 @@ import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
 
 const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
+
+const DICTATION_OFF = "Das Mikrofon ist aus. Erlaube es im Browser.";
+const DICTATION_FAILED = "Diktat hat nicht geklappt.";
+const noSubscription = () => () => {};
 
 /**
  * The amount sheet with the grams it comes back with from the editor. With `groupId` the new
@@ -81,8 +88,11 @@ type SheetState =
       photo?: Blob;
       back?: AmountState;
     }
-  // The dish read from a plate photo; nothing is stored before "Eintragen" (SPEC 7a).
-  | { kind: "plate"; plate: PlateExtraction; photo: Blob }
+  // The dish read from a plate photo or a dictated sentence (without `photo`); nothing is
+  // stored before "Eintragen" (SPEC 7a, ADR-0013).
+  | { kind: "plate"; plate: PlateExtraction; photo?: Blob }
+  // Listening to a dictated meal, then `reading` the sentence in the backend (ADR-0013).
+  | { kind: "dictation"; heard: string; reading: boolean }
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
   | { kind: "combo"; combo?: Combo }
   // A new recipe, or the one of the amount sheet "Bearbeiten" came from (ADR-0012).
@@ -104,6 +114,12 @@ export function Home() {
   // The dish of the open plate sheet once it is stored: a second try after a failure updates
   // it instead of storing it twice.
   const plateDish = useRef<{ plate: PlateExtraction; recipe: Recipe } | null>(null);
+  // Without speech recognition in the browser there is no microphone (ADR-0013).
+  const dictation = useSyncExternalStore(noSubscription, canDictate, () => false);
+  // The running recognition; `discard` once its sheet is closed, so nothing is sent.
+  const recording = useRef<{ recognition: Recognition; discard: boolean } | null>(null);
+  // Counts closed dictation sheets: an answer for a sheet that is gone opens nothing.
+  const dictationRun = useRef(0);
 
   // Every change reloads the day from the backend, which computes all values (ADR-0003).
   const apply = useCallback(([today, foods, saved]: [Day, FoodSummary[], Combo[]]) => {
@@ -156,6 +172,18 @@ export function Home() {
     window.addEventListener("popstate", close);
     return () => window.removeEventListener("popstate", close);
   }, [overlay]);
+
+  // Closing the dictation sheet (scrim, Escape, back button) ends the listening unsent.
+  const listening = sheet?.kind === "dictation";
+  useEffect(() => {
+    if (listening) return;
+    dictationRun.current++;
+    if (recording.current) {
+      recording.current.discard = true;
+      recording.current.recognition.abort();
+      recording.current = null;
+    }
+  }, [listening]);
 
   /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
   const fail = useCallback(
@@ -278,12 +306,12 @@ export function Home() {
 
   /**
    * A plate becomes a dish of its own: a recipe of one portion with the plate photo, logged
-   * as one entry of that portion. So it can be counted ("2 × 1 Portion"), changed and found
+   * as one entry of that portion, a dictated plate likewise without a photo. So it can be counted ("2 × 1 Portion"), changed and found
    * again like any recipe. "Rückgängig" removes the entry; the dish stays.
    */
   const submitPlate = (
     plate: PlateExtraction,
-    photo: Blob,
+    photo: Blob | undefined,
     name: string,
     items: { food_id: number; grams: number }[],
   ) =>
@@ -292,12 +320,67 @@ export function Home() {
       const stored = plateDish.current?.plate === plate ? plateDish.current.recipe : null;
       const recipe = stored ? await updateRecipe(stored.id, body) : await createRecipe(body);
       plateDish.current = { plate, recipe };
-      // The dish counts without its photo too.
-      await uploadFoodImage(recipe.food_id, photo).catch(console.error);
+      // The dish counts without its photo too; a dictated one has none.
+      if (photo) await uploadFoodImage(recipe.food_id, photo).catch(console.error);
       // Without grams: the standard serving, which is the one portion.
       const entry = await createEntry({ food_id: recipe.food_id });
       show(`${name} eingetragen`, undo(entry.id));
     }).catch(fail);
+
+  /** The heard sentence goes to the backend; its dish opens the plate sheet. */
+  const readDictation = async (text: string) => {
+    const run = dictationRun.current;
+    setSheet({ kind: "dictation", heard: text, reading: true });
+    try {
+      const plate = await dictatePlate(text);
+      if (run !== dictationRun.current) return;
+      if (plate.items.length === 0) {
+        setSheet(null);
+        show(plate.notes || "Kein Lebensmittel verstanden.");
+      } else setSheet({ kind: "plate", plate });
+    } catch (failure) {
+      if (run !== dictationRun.current) return;
+      setSheet(null);
+      fail(failure);
+    }
+  };
+
+  /**
+   * Tap 1 (the microphone) starts listening, "Fertig" stops it; the end of the recognition,
+   * also after a pause or a time limit, sends what was heard. An error never sends (ADR-0013).
+   */
+  const dictate = () => {
+    const recognition = newRecognition();
+    const session = { recognition, discard: false };
+    const heard = transcript();
+    let failed = false;
+    recognition.onresult = (event) => {
+      if (session.discard) return;
+      const text = heard.hear(event);
+      setSheet((current) => (current?.kind === "dictation" ? { ...current, heard: text } : current));
+    };
+    recognition.onerror = ({ error }) => {
+      if (session.discard || error === "aborted" || error === "no-speech") return;
+      failed = true;
+      show(error === "not-allowed" || error === "service-not-allowed" ? DICTATION_OFF : DICTATION_FAILED);
+    };
+    recognition.onend = () => {
+      if (session.discard) return;
+      recording.current = null;
+      const text = heard.sentence();
+      if (failed || !text) setSheet(null);
+      else void readDictation(text);
+    };
+    // start() runs inside the tap, before anything is awaited.
+    try {
+      recognition.start();
+    } catch {
+      show(DICTATION_FAILED);
+      return;
+    }
+    recording.current = session;
+    setSheet({ kind: "dictation", heard: "", reading: false });
+  };
 
   /**
    * Removes a Gericht. "Rückgängig" logs it again with the same name, meal, time and amounts
@@ -371,6 +454,7 @@ export function Home() {
         onRecipes={() => setSheet({ kind: "recipes" })}
         onRecent={(food) => logRecent(food).catch(fail)}
         onSearch={() => setSheet({ kind: "search" })}
+        onDictate={dictation ? dictate : undefined}
         onCamera={() => {
           setSheet(null);
           setCamera(true);
@@ -429,6 +513,13 @@ export function Home() {
               food={sheet.food}
               busy={busy}
               onSubmit={submit({ gtin: sheet.food.gtin }, undefined)}
+            />
+          )}
+          {sheet.kind === "dictation" && (
+            <DictationSheet
+              heard={sheet.heard}
+              reading={sheet.reading}
+              onStop={() => recording.current?.recognition.stop()}
             />
           )}
           {sheet.kind === "plate" && (

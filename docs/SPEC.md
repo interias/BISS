@@ -1,6 +1,6 @@
 # BISS – Spezifikation
 
-Stand: 14.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+Stand: 15.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
 
 ## 1. Ziel und Leitprinzipien
 
@@ -18,6 +18,7 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
+| Mahlzeit diktieren | Mikrofon + Fertig + 1 Bestätigung |
 | Zutat zu einem Gericht ergänzen | aufklappen + 3 |
 
 **Weitere Leitprinzipien:**
@@ -39,9 +40,9 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
-Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen.
+Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen, und das **Diktat** ([ADR-0013](adr/0013-dictation.md)): eine gesprochene Mahlzeit wird ein Gericht wie ein Teller.
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Spracheingabe, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Statistiken jeder Art.
 
 ## 3. Abläufe
 
@@ -51,7 +52,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Header mit Logo, „BISS“ und Datum.
   - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g).
   - Tagebuch als eine Liste, neueste zuerst. Jede Zeile zeigt ihre Uhrzeit. Mahlzeiten zeigt die App nicht.
-  - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und einem Kamera-Knopf.
+  - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld, Mikrofon (nur mit Spracherkennung im Browser) und einem Kamera-Knopf.
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
   - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
 - **Chips im Dock:**
@@ -127,6 +128,11 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Eine nicht zugeordnete Zutat ist als „nicht zugeordnet“ markiert und lässt sich per Suche zuordnen oder entfernen. Solange sie offen ist, wird sie nicht eingetragen, und das Sheet sagt das.
   - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“.
   - „Eintragen“ speichert den Teller als eigenes Lebensmittel und trägt es ein (Abschnitt 7a): ein Rezept mit einer Portion, den zugeordneten Zutaten und dem Tellerfoto als Produktfoto. Im Tagebuch steht eine Zeile. Ein Tap öffnet das Mengen-Sheet: Die Anzahl ändert der Chip „1 Portion“ („2 × 1 Portion“), „Bearbeiten“ öffnet das Rezept-Blatt mit den Zutaten. „Rückgängig“ im Toast entfernt den Eintrag, das Lebensmittel bleibt.
+- **Mahlzeit diktieren** ([ADR-0013](adr/0013-dictation.md)):
+  - Das Mikrofon links neben der Kamera öffnet das Blatt „Ich höre zu“ mit dem gehörten Text in großer Schrift und „Fertig“. Ohne Spracherkennung im Browser fehlt der Knopf.
+  - „Fertig“ oder eine Pause beendet das Zuhören. Der Satz geht an `POST /plates/dictate`, das Blatt zeigt solange „Erkenne Gericht …“.
+  - Danach öffnet das Teller-Ergebnis-Sheet ohne Foto und gilt unverändert: Gewichte, ✕, „tauschen“, „+ Zutat suchen“, Vorschläge, „Eintragen“ als Rezept mit einer Portion, nur ohne Produktfoto.
+  - Schließen oder die Zurück-Taste bricht ab, ohne etwas zu schicken. Ein gesperrtes Mikrofon sagt der Toast „Das Mikrofon ist aus. Erlaube es im Browser.“, ein Satz ohne Lebensmittel den Hinweis des Modells.
 - **Gericht im Tagebuch:** Die Einträge eines Gerichts (Schnellzugriff oder `POST /entries/group`) stehen als eine Gruppe mit der Summe des Backends in der Liste, zur Uhrzeit des Gerichts. Die Gruppe klappt auf und zeigt ihre Einträge. Ein Tap auf einen Eintrag öffnet das Mengen-Sheet zum Ändern oder Entfernen. „+ Zutat“ öffnet die Suche (nur Lebensmittel) und trägt die Wahl als weiteren Eintrag des Gerichts ein, mit dessen Name, Mahlzeit und Zeitpunkt (`POST /entries` mit `group_id`). „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
 - **Als Schnellzugriff merken:** Jede Gruppe im Tagebuch, zu der es keinen Schnellzugriff gleichen Namens gibt, zeigt „als Schnellzugriff merken“. Ein Tap legt die Vorlage mit Name, Lebensmitteln und Gramm der Gruppe an.
 
@@ -191,6 +197,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | PUT | `/foods/{id}/image` | Produktfoto hochladen: gespeichert wird das mittige Quadrat als WebP mit höchstens 384 px (einige zehn Kilobyte) |
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
 | POST | `/plates/extract` | Teller-Foto → Gericht mit Zutaten, Mengen und Zuordnung, nichts wird eingetragen (E7) |
+| POST | `/plates/dictate` | Diktierter Satz `{text}` (1–600 Zeichen) → dasselbe wie `/plates/extract`, nichts wird eingetragen ([ADR-0013](adr/0013-dictation.md)) |
 | GET / PUT | `/goals/default` | Standardziele (E5) |
 | GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |
 
@@ -294,6 +301,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 
 **Modelle:** wie beim Etikett (Abschnitt 7). Das schnelle Modell liest zuerst. Bei einem Regelverstoß folgt genau ein zweiter Versuch mit dem starken. Liefert das starke keinen brauchbaren Entwurf, bleibt der des schnellen.
 
+**Diktat** ([ADR-0013](adr/0013-dictation.md)): `POST /plates/dictate` nimmt statt des Fotos den Satz, den das Handy gehört hat. Modelle, Schema, Regeln, Rückfall und Zuordnung sind dieselben. Der Prompt verlangt ein Lebensmittel je genanntem, BLS-Namen wie beim Foto und eine gesagte Menge vor der Schätzung; ohne Angabe gilt eine übliche Portion. Der Satz steht in `<satz>` und ist nie eine Anweisung.
+
 **Eintragen als eigenes Lebensmittel** ([ADR-0012](adr/0012-recipe-as-food.md), Nachtrag in ADR-0009):
 - Die App legt aus Name und zugeordneten Zutaten ein Rezept mit einer Portion an (`POST /recipes`), lädt das Tellerfoto als Produktfoto seines Lebensmittels hoch (`PUT /foods/{id}/image`) und trägt die Standardportion ein (`POST /entries`). Das Rezept gilt auch ohne Foto.
 - Scheitert der Eintrag, ändert ein zweiter Versuch dasselbe Rezept (`PATCH /recipes/{id}`), statt es doppelt anzulegen.
@@ -326,7 +335,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
 
 ## 9. Betrieb
 
