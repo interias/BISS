@@ -59,7 +59,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) und das Kochbuch-Symbol stehen vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. Beide brauchen nie Scrollen.
   - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
   - Lange Namen enden nach etwa 14 Zeichen mit „…“. Der volle Name steht im Tooltip und für Screenreader.
-- **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
+- **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint der Toast „<Name> eingetragen · X kcal“ mit „Rückgängig“ für 3 s.
 - **Schnellzugriff** (E8, [ADR-0010](adr/0010-combo-template.md)):
   - Die Chips stehen nach „+ Schnellzugriff“ in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
   - Ein Tap trägt alle Zutaten als Gruppe ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
@@ -109,6 +109,8 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
+  - „Speichern“ (neu: „Speichern & eintragen“) und „Abbrechen“ (aus dem Etikett: „Verwerfen“) stehen fest am unteren Rand des Blatts, die Felder scrollen darüber. Auch nach einem langen Etikett braucht Speichern kein Scrollen.
+- **Toast nach dem Eintragen:** Jeder neue Eintrag sagt „<Name> eingetragen · X kcal“, die kcal des Eintrags gerundet, mit „Rückgängig“ für 3 s. Das gilt für Zuletzt-Chip, Suche, Barcode, Etikett, Teller, Diktat, Rezept, eine Zutat zu einem Gericht und den Schnellzugriff (dort die Summe der Gruppe).
 - **Fehler:** Schlägt ein Aufruf fehl, sagt ein Toast „Das hat nicht geklappt. Verbindung prüfen.“. Ist das Backend beim Öffnen nicht erreichbar, steht das auf dem Hauptscreen mit „Erneut versuchen“. Kommt die App wieder in den Vordergrund, lädt sie den Tag neu.
 - **Kamera:**
   - Drei Auslöser: Barcode (automatisch), Etikett und Teller (E7).

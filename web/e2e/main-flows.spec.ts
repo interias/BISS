@@ -31,7 +31,7 @@ test("a recent chip logs the standard serving, Rückgängig removes it", async (
   entries.track(created.id);
   expect(created.grams).toBe(120); // the standard serving, chosen by the backend
 
-  await expect(page.getByRole("status")).toContainText("Banane roh eingetragen");
+  await expect(page.getByRole("status")).toContainText(/Banane roh eingetragen · \d+ kcal/);
   await expect(diary.locator(`[data-entry-id="${created.id}"]`)).toBeVisible();
   await expect(bananas).toHaveCount(count + 1);
   await expect.poll(() => totalKcal(page)).toBeGreaterThan(before);

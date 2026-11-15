@@ -464,28 +464,35 @@ export function EditorForm({
         + Portion hinzufügen
       </button>
 
-      {error && (
-        <p role="alert" className="mb-3 text-[13px] font-semibold text-warn">
-          {error}
-        </p>
-      )}
-      <div className="flex gap-2.5">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onCancel}
-          className="h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
-        >
-          {draft ? "Verwerfen" : "Abbrechen"}
-        </button>
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={submit}
-          className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
-        >
-          {food ? "Speichern" : "Speichern & eintragen"}
-        </button>
+      {/* Sticky footer: the form scrolls above it, so "Speichern" is never below the fold. It
+          takes over the sheet's bottom padding with the safe area. */}
+      <div
+        data-testid="editor-footer"
+        className="sticky bottom-0 z-10 -mx-5 mb-[calc(-20px-env(safe-area-inset-bottom,0px))] border-t bg-card px-5 pt-3 pb-[calc(20px+env(safe-area-inset-bottom,0px))]"
+      >
+        {error && (
+          <p role="alert" className="mb-3 text-[13px] font-semibold text-warn">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
+          >
+            {draft ? "Verwerfen" : "Abbrechen"}
+          </button>
+          <button
+            type="button"
+            disabled={!canSave}
+            onClick={submit}
+            className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+          >
+            {food ? "Speichern" : "Speichern & eintragen"}
+          </button>
+        </div>
       </div>
     </>
   );
