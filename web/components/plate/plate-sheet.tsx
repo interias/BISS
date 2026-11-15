@@ -48,7 +48,8 @@ function sum(rows: Row[]) {
 }
 
 /**
- * Result sheet of the plate (prototype openPlate): photo, name, ingredients with "erkannt" or
+ * Result sheet of the plate (prototype openPlate) and of a dictated meal, which has no photo
+ * (ADR-0013): photo, name, ingredients with "erkannt" or
  * "vermutet" (from the backend), grams by − and + or typed, remove, a search that matches an
  * unmatched ingredient, swaps a wrong one or adds a new one, suggestions from the recent
  * foods and the local preview of the sum (ADR-0003). An unmatched ingredient has no food and
@@ -150,6 +151,7 @@ export function PlateSheet({
   return (
     <>
       <div className="mb-3.5 flex items-center gap-3.5">
+        {photo && (
         <span className="biss-pic" style={{ "--s": "64px" } as CSSProperties} aria-hidden="true">
           {photoUrl && (
             <Image
@@ -163,6 +165,7 @@ export function PlateSheet({
             />
           )}
         </span>
+        )}
         <div className="min-w-0 flex-1">
           <p className={cn(kicker, "mb-1")}>
             Erkannt · bitte prüfen

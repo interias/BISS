@@ -5,6 +5,7 @@ without name, an amount of at most 0 g or above MAX_GRAMS, a plate above MAX_PLA
 a confidence outside 0 to 1.
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from app.models import Food
@@ -54,12 +55,25 @@ async def extract_plate(
     If the violation stays, the strong model's draft is returned with its violations. If the
     strong model gives no usable draft, the fast model's draft stays, as for the label.
     """
-    draft = await extractor.extract(photo, fast)
+    return await _with_fallback(lambda model: extractor.extract(photo, model), fast, strong)
+
+
+async def dictate_plate(
+    extractor: PlateExtractor, text: str, fast: str, strong: str
+) -> PlateExtraction:
+    """A dictated sentence (ADR-0013) under the same rules and fallback as a photo."""
+    return await _with_fallback(lambda model: extractor.dictate(text, model), fast, strong)
+
+
+async def _with_fallback(
+    read: Callable[[str], Awaitable[PlateDraft]], fast: str, strong: str
+) -> PlateExtraction:
+    draft = await read(fast)
     found = violations(draft)
     if not found:
         return PlateExtraction(draft, found, fast, 1)
     try:
-        strong_draft = await extractor.extract(photo, strong)
+        strong_draft = await read(strong)
     except ExtractionFailed:
         return PlateExtraction(draft, found, fast, 2)
     return PlateExtraction(strong_draft, violations(strong_draft), strong, 2)

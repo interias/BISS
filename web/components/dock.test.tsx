@@ -172,3 +172,20 @@ test("a chip shows the photo of its food when it has one", () => {
   );
   expect(screen.getByRole("button", { name: /^Banane roh/ }).querySelector("img")).toBeNull();
 });
+
+test("the microphone stands before the camera only with onDictate", () => {
+  const onDictate = vi.fn();
+  const { rerender } = render(
+    <Dock combos={[]} recent={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
+      onRecent={vi.fn()} onSearch={vi.fn()} onCamera={vi.fn()} />,
+  );
+  expect(screen.queryByRole("button", { name: "Mahlzeit diktieren" })).not.toBeInTheDocument();
+  rerender(
+    <Dock combos={[]} recent={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
+      onRecent={vi.fn()} onSearch={vi.fn()} onDictate={onDictate} onCamera={vi.fn()} />,
+  );
+  const mic = screen.getByRole("button", { name: "Mahlzeit diktieren" });
+  expect(mic.nextElementSibling).toHaveAccessibleName("Kamera: Barcode, Etikett oder Teller");
+  fireEvent.click(mic);
+  expect(onDictate).toHaveBeenCalled();
+});

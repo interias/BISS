@@ -20,6 +20,7 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Wirt | `suggest` | Die Vorhersage der leeren Suche: Wie der Wirt einer Stammkneipe, der morgens den Kaffee und abends das Bier hinstellt, rät er den nächsten Eintrag aus Häufigkeit, Uhrzeit und dem eben Eingetragenen |
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird ausgelesen und ist das erste Produktfoto des neuen Lebensmittels |
 | Teller | `plate` | Foto eines Gerichts. Eingetragen wird es zu einem Rezept mit einer Portion, den erkannten Zutaten und dem Foto als Produktfoto |
+| Diktat | `dictate` | Gesprochene Mahlzeit. Das Handy macht daraus Text, das Backend ein Gericht wie beim Teller, nur ohne Foto |
 | Schnellzugriff | `combo` | Gespeicherte Vorlage aus Name und Zutaten mit Gramm. Eintragen legt ein Gericht mit ihrem Namen an, die Vorlage bleibt |
 | Rezept | `recipe` | Selbst Gekochtes oder Gebackenes aus rohen Zutaten, mit Portionen, optionalem Fertiggewicht, Zubereitung und Foto. Es hat ein eigenes Lebensmittel mit den Werten je 100 g des fertigen Gerichts und der Portion „1 Portion“ |
 | Fertiggewicht | `cooked_grams` | Gewicht des fertigen Gerichts nach dem Backen oder Braten. Ohne Angabe gilt die Summe der Zutaten |

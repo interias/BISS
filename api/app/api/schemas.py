@@ -10,6 +10,7 @@ from app.domain.category import Category
 from app.domain.meal import Meal
 from app.labels.draft import LabelDraft
 from app.labels.validation import Rule
+from app.plates.draft import MAX_DICTATION
 
 Source = Literal["own", "bls", "off"]
 Basis = Literal["g", "ml"]
@@ -603,6 +604,14 @@ class PlateItem(BaseModel):
     density: float | None = Field(description="g/ml of the matched food, to turn grams into ml")
     per_100: Macros | None = Field(description="values of the matched food per 100 g or 100 ml")
     macros: Macros | None = Field(description="values for grams, as an entry would store them")
+
+
+class PlateDictation(BaseModel):
+    text: str = Field(
+        min_length=1,
+        max_length=MAX_DICTATION,
+        description="what the speech recognition of the phone heard (ADR-0013)",
+    )
 
 
 class PlateExtraction(BaseModel):
