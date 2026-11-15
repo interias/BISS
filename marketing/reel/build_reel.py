@@ -3,8 +3,10 @@
 Usage: python marketing/reel/build_reel.py [vo [id ...] | music | video | all]
   vo     voice-over lines via OpenRouter (ElevenLabs), one MP3 per line in audio/
   music  a 90-second backing track via OpenRouter (Lyria), audio/music.mp3
-  video  renders every frame of reel.html headless, mixes voice, music and tap sounds,
-         and writes out/biss-reel.mp4 (1080 x 1920, 30 fps, H.264 + AAC, fits WhatsApp)
+  video  lays the frame from reel.html over the filmed app (out/app.mp4 and out/capture.json
+         from capture_app.py), mixes voice, music and tap sounds, and writes
+         out/biss-reel.mp4 (1080 x 1920, 30 fps, H.264 + AAC, fits WhatsApp)
+  all    vo and music (video stays separate: it needs a fresh capture first)
 Reads OPENROUTER_API_KEY from the repo's .env, needs ffmpeg, numpy and Python Playwright.
 """
 import base64
@@ -168,8 +170,9 @@ def mix(tl: dict) -> pathlib.Path:
 
 
 def video() -> None:
+    """The frame from reel.html (transparent where the phone's screen is) over out/app.mp4."""
     from playwright.sync_api import sync_playwright
-    OUT.mkdir(exist_ok=True)
+    cap = json.loads((OUT / "capture.json").read_text(encoding="utf-8"))
     silent = OUT / "frames.mp4"
     durs = {v: duration(AUDIO / f"vo-{v}.mp3") for v in LINES if (AUDIO / f"vo-{v}.mp3").exists()}
     with sync_playwright() as pw:
@@ -178,22 +181,30 @@ def video() -> None:
         page.goto((HERE / "reel.html").as_uri() + "?capture")
         page.evaluate("document.fonts.ready")
         page.wait_for_timeout(500)
-        tl = page.evaluate("d => window.REEL.setDurations(d)", durs)
+        tl = page.evaluate("([c, d]) => window.REEL.setup(c, d)", [cap, durs])
         for v in tl["vo"]:   # a line must end before the next one starts
             nxt = [w["start"] for w in tl["vo"] if w["start"] > v["start"]]
             if nxt and v["start"] + v["dur"] > min(nxt) - .1:
                 print(f"warning: vo-{v['id']} ({v['dur']:.2f}s) runs into the next line")
-        enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "image2pipe", "-framerate", str(FPS), "-i", "-",
-                                "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", str(silent)],
-                               stdin=subprocess.PIPE)
+        hole = {k: round(v * 2) for k, v in tl["hole"].items()}
+        enc = subprocess.Popen(
+            ["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "app.mp4"), "-f", "image2pipe", "-framerate", str(FPS), "-i", "-",
+             "-filter_complex", f"color=c=black:s={W * 2}x{H * 2}:r={FPS}:d={T}[bg];"
+             f"[0]scale={hole['w']}:{hole['h']}[app];[bg][app]overlay={hole['x']}:{hole['y']}[base];[base][1]overlay=format=auto",
+             "-t", str(T), "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", str(silent)],
+            stdin=subprocess.PIPE)
         for f in range(T * FPS):
             page.evaluate("t => window.REEL.render(t)", f / FPS)
-            enc.stdin.write(page.screenshot(type="jpeg", quality=95))
+            enc.stdin.write(page.screenshot(type="png", omit_background=True))
             if f % 150 == 0:
                 print("frame", f, flush=True)
         enc.stdin.close()
         enc.wait()
         browser.close()
+    taps = cap["taps"]
+    tl["taps"] = [x["t"] for x in taps]
+    tl["entries"] = [x["t"] + .25 for x in taps if x["label"] in ("chip", "combo", "eintragen")]
+    tl["shutters"] = [x["t"] + .05 for x in taps if x["label"] == "trigger"]
     wav = mix(tl)
     target = OUT / "biss-reel.mp4"
     ffmpeg("-i", str(silent), "-i", str(wav), "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
@@ -208,5 +219,5 @@ if __name__ == "__main__":
         voice(sys.argv[2:] if what == "vo" else [])
     if what in ("music", "all"):
         music()
-    if what in ("video", "all"):
+    if what == "video":
         video()
