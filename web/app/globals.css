@@ -32,6 +32,23 @@
   --biss-cam: #0b0e0c;
   --biss-cam-ink: #f2f4f0;
   --biss-cam-muted: #9aa59c;
+  /* One colour per food category for its symbol, at least 3:1 on the tile. */
+  --biss-cat-bread: #95602f;
+  --biss-cat-grains: #9a7a00;
+  --biss-cat-fruit: #cf2f3d;
+  --biss-cat-vegetables: #d44f17;
+  --biss-cat-legumes: #3b8a35;
+  --biss-cat-potatoes: #857044;
+  --biss-cat-dairy: #1f7fb5;
+  --biss-cat-eggs: #c06a00;
+  --biss-cat-meat: #bf3369;
+  --biss-cat-sausage: #a8432a;
+  --biss-cat-fish: #0b8585;
+  --biss-cat-fats: #7f8212;
+  --biss-cat-sweets: #b23aa8;
+  --biss-cat-drinks: #3563cf;
+  --biss-cat-dishes: #7650c4;
+  --biss-cat-other: var(--biss-muted);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,6 +71,21 @@
     --biss-warn: #f0a63a;
     --biss-frame: #2b332e;
     --biss-shadow: rgba(0, 0, 0, 0.5);
+    --biss-cat-bread: #d9a066;
+    --biss-cat-grains: #e3bf3c;
+    --biss-cat-fruit: #ff7a7f;
+    --biss-cat-vegetables: #ff8a4c;
+    --biss-cat-legumes: #72cf68;
+    --biss-cat-potatoes: #cdb27c;
+    --biss-cat-dairy: #5fb8ec;
+    --biss-cat-eggs: #f6a53e;
+    --biss-cat-meat: #f27aa6;
+    --biss-cat-sausage: #e9846a;
+    --biss-cat-fish: #3fcfcf;
+    --biss-cat-fats: #c9cc45;
+    --biss-cat-sweets: #e985df;
+    --biss-cat-drinks: #86a8ff;
+    --biss-cat-dishes: #b49aff;
     color-scheme: dark;
   }
 }

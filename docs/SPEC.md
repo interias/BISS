@@ -101,7 +101,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
   - + springt zum nächsten Wert des Rasters, − zum vorigen. Hin und zurück ergibt wieder den Ausgangswert, kein Wert wird übersprungen.
   - Nie unter 1 g. Teller und Schnellzugriff enden bei 1.500 g, ein einzelner Eintrag hat keine Obergrenze.
-- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“.
+- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“. Jede Kategorie hat ihre eigene Farbe für ihr Symbol, im hellen und dunklen Modus; „Sonstiges“ bleibt grau.
 - **Live-Werte:** Das Sheet berechnet kcal/E/K/F lokal mit der Formel `Wert je 100 g × Gramm / 100`. Das ist reine Anzeige. Beim Speichern rechnet das Backend verbindlich ([ADR-0003](adr/0003-logic-in-backend.md)).
 - **Lebensmittel-Editor:**
   - Produktfoto (Kamera oder Galerie), Name und Marke.
