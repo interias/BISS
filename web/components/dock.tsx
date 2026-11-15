@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type MouseEvent } from "react";
-import { kindColor, photoOf, type Combo, type FoodSummary } from "@/lib/api";
+import { kindColor, photoOf, type Chip, type Combo, type FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -94,11 +94,11 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
 
 /**
  * Dock: the button for a new Schnellzugriff (a plus with the mark of its chips) and the cookbook of the own recipes first so they never need scrolling, then
- * the Schnellzugriff and recent chips, search field, the microphone and the camera button.
+ * the Schnellzugriff and recent chips in the order of the backend (the latest used first), search field,
+ * the microphone and the camera button.
  */
 export function Dock({
-  combos,
-  recent,
+  chips,
   onCombo,
   onComboHold,
   onNewCombo,
@@ -108,8 +108,7 @@ export function Dock({
   onDictate,
   onCamera,
 }: {
-  combos: Combo[];
-  recent: FoodSummary[];
+  chips: Chip[];
   onCombo: (combo: Combo) => void;
   onComboHold: (combo: Combo) => void;
   onNewCombo: () => void;
@@ -151,15 +150,22 @@ export function Dock({
             <path d="M12 6.5V19.5" />
           </svg>
         </button>
-        {combos.map((combo) => (
-          <ComboChip key={combo.id} combo={combo} onTap={() => onCombo(combo)} onHold={() => onComboHold(combo)} />
-        ))}
-        {recent.map((food) => {
+        {chips.map(({ combo, food }) => {
+          if (combo) {
+            return (
+              <ComboChip
+                key={`combo-${combo.id}`}
+                combo={combo}
+                onTap={() => onCombo(combo)}
+                onHold={() => onComboHold(combo)}
+              />
+            );
+          }
           const name = shortName(food.name);
           const grams = food.standard_serving.grams;
           return (
             <button
-              key={food.id}
+              key={`food-${food.id}`}
               type="button"
               aria-label={`${name} ${fmt(grams)} g`}
               title={food.name}

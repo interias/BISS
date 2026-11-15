@@ -102,6 +102,13 @@ class Suggestion(BaseModel):
     combo: "Combo | None" = None
 
 
+class Chip(BaseModel):
+    """A chip of the dock: a recent food or a Schnellzugriff; exactly one of them is set."""
+
+    food: FoodSummary | None = None
+    combo: "Combo | None" = None
+
+
 class Suggestions(BaseModel):
     """What the search shows before anything is typed (SPEC 6, the Wirt)."""
 
@@ -436,6 +443,10 @@ class Combo(BaseModel):
     name: str
     items: list[ComboItem]
     totals: Macros = Field(description="sum over the items")
+    last_used: datetime | None = Field(
+        default=None,
+        description="eaten_at of the latest entry group named like it; null: never logged",
+    )
 
 
 class RecipeItemIn(BaseModel):

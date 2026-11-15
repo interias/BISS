@@ -202,21 +202,22 @@ def entries_between(session: Session, first: date, last: date) -> list[tuple[Ent
 
 def recent_foods(
     session: Session, limit: int = 8, now: datetime | None = None
-) -> list[tuple[Food, StandardServing]]:
+) -> list[tuple[Food, StandardServing, datetime]]:
     """The foods eaten most, each once: the usage measure of the search (count and recency).
 
-    Ties go to the latest entry.
+    Ties go to the latest entry. Each comes with the time of its latest entry.
     """
-    ids = session.scalars(
+    rows = session.execute(
         text(
             f"""
-            SELECT u.food_id FROM ({USAGE_BY_FOOD}) u
+            SELECT u.food_id, u.last_eaten FROM ({USAGE_BY_FOOD}) u
             ORDER BY u.usage DESC, u.last_eaten DESC, u.last_id DESC
             LIMIT :limit
             """
         ),
         usage_params(now) | {"limit": limit},
     ).all()
+    ids = [food_id for food_id, _ in rows]
     by_id = {food.id: food for food in session.scalars(select(Food).where(Food.id.in_(ids)))}
     servings = standard_servings(session, ids)
-    return [(by_id[food_id], servings[food_id]) for food_id in ids]
+    return [(by_id[food_id], servings[food_id], last) for food_id, last in rows]

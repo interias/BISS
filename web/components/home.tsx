@@ -11,8 +11,7 @@ import {
   deleteCombo,
   deleteEntryGroup,
   dictatePlate,
-  getCombos,
-  getRecent,
+  getChips,
   getToday,
   logCombo,
   scanBarcode,
@@ -21,6 +20,7 @@ import {
   updateRecipe,
   uploadFoodImage,
   type BarcodeFood,
+  type Chip,
   type Combo,
   type ComboItemWrite,
   type Day,
@@ -51,7 +51,7 @@ import { SearchSheet } from "@/components/search-sheet";
 import { Sheet } from "@/components/sheet";
 import { Toast, useToast } from "@/components/toast";
 
-const load = () => Promise.all([getToday(), getRecent(), getCombos()]);
+const load = () => Promise.all([getToday(), getChips()]);
 
 const DICTATION_OFF = "Das Mikrofon ist aus. Erlaube es im Browser.";
 const DICTATION_FAILED = "Diktat hat nicht geklappt.";
@@ -103,8 +103,10 @@ type SheetState =
 /** The single screen: header, day summary, diary, dock, sheets and the toast. */
 export function Home() {
   const [day, setDay] = useState<Day | null>(null);
-  const [recent, setRecent] = useState<FoodSummary[]>([]);
-  const [combos, setCombos] = useState<Combo[]>([]);
+  // The dock's row: Schnellzugriffe and recent foods, the latest used first.
+  const [chips, setChips] = useState<Chip[]>([]);
+  const recent = chips.flatMap((chip) => (chip.food ? [chip.food] : []));
+  const combos = chips.flatMap((chip) => (chip.combo ? [chip.combo] : []));
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -122,10 +124,9 @@ export function Home() {
   const dictationRun = useRef(0);
 
   // Every change reloads the day from the backend, which computes all values (ADR-0003).
-  const apply = useCallback(([today, foods, saved]: [Day, FoodSummary[], Combo[]]) => {
+  const apply = useCallback(([today, row]: [Day, Chip[]]) => {
     setDay(today);
-    setRecent(foods);
-    setCombos(saved);
+    setChips(row);
   }, []);
   const reload = useCallback(() => load().then(apply), [apply]);
 
@@ -446,8 +447,7 @@ export function Home() {
       </main>
 
       <Dock
-        combos={combos}
-        recent={recent}
+        chips={chips}
         onCombo={(combo) => tapCombo(combo).catch(fail)}
         onComboHold={(combo) => setSheet({ kind: "combo", combo })}
         onNewCombo={() => setSheet({ kind: "combo" })}

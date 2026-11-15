@@ -569,7 +569,8 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips[0]).toHaveAccessibleName("Neuer Schnellzugriff");
   expect(chips[1]).toHaveAccessibleName("Meine Rezepte");
-  expect(chips[2]).toHaveAccessibleName("Schnellzugriff Bananenpause");
+  // Never logged yet: it follows the used chips.
+  expect(chips.at(-1)).toHaveAccessibleName("Schnellzugriff Bananenpause");
   expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);
 });
 

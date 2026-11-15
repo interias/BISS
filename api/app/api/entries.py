@@ -8,7 +8,8 @@ from app.api.deps import NowDep, SessionDep
 from app.barcode import chain
 from app.barcode.gtin import InvalidGtin
 from app.models import Food
-from app.services import entries
+from app.services import combos, entries
+from app.services.combos import ComboView
 from app.services.entries import NotFound
 
 router = APIRouter(tags=["entries"])
@@ -132,4 +133,19 @@ def delete_entry(entry_id: int, session: SessionDep) -> Response:
 @router.get("/recent")
 def recent(session: SessionDep) -> list[schemas.FoodSummary]:
     """Recent chips: the 8 most used foods (entries, recency), with the standard serving."""
-    return [convert.food_summary(food, serving) for food, serving in entries.recent_foods(session)]
+    return [
+        convert.food_summary(food, serving) for food, serving, _ in entries.recent_foods(session)
+    ]
+
+
+@router.get("/chips")
+def chips(session: SessionDep) -> list[schemas.Chip]:
+    """The chip row of the dock after "+ Schnellzugriff" and the cookbook: every
+    Schnellzugriff and the recent foods of /recent, the latest used first; a Schnellzugriff
+    never logged follows the used chips."""
+    return [
+        schemas.Chip(combo=convert.combo(chip))
+        if isinstance(chip, ComboView)
+        else schemas.Chip(food=convert.food_summary(*chip))
+        for chip in combos.dock_chips(session)
+    ]
