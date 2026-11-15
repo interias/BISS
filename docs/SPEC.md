@@ -56,12 +56,15 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
   - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
 - **Chips im Dock:**
-  - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) und das Kochbuch-Symbol stehen vorn, dann die Schnellzugriffe, dann die Zuletzt-Chips. Beide brauchen nie Scrollen.
+  - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) und das Kochbuch-Symbol stehen fest vorn. Beide brauchen nie Scrollen.
+  - Dahinter stehen Schnellzugriffe und Zuletzt-Chips in einer Reihe, das zuletzt verwendete zuerst. Was gerade eingetragen wurde, steht also gleich neben den festen Knöpfen.
+  - Verwendet heißt: der neueste Eintrag des Lebensmittels, beim Schnellzugriff die neueste Gruppe mit seinem Namen (`group_name`, Abschnitt 4), jeweils nach `eaten_at`. Ein Schnellzugriff steht vor den Lebensmitteln, die mit ihm eingetragen wurden.
+  - Ein Schnellzugriff, der noch nie eingetragen wurde, steht hinter allen verwendeten Chips, in der Reihenfolge des Anlegens.
   - Jeder Chip hat zwei Zeilen: oben der Name, unten klein „<Gramm> g · <kcal> kcal“.
   - Lange Namen enden nach etwa 14 Zeichen mit „…“. Der volle Name steht im Tooltip und für Screenreader.
-- **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint ein Toast mit „Rückgängig“ für 3 s.
+- **Zuletzt-Chip:** Ein Tap trägt die Standardportion ein. Danach erscheint der Toast „<Name> eingetragen · X kcal“ mit „Rückgängig“ für 3 s.
 - **Schnellzugriff** (E8, [ADR-0010](adr/0010-combo-template.md)):
-  - Die Chips stehen nach „+ Schnellzugriff“ in der Zuletzt-Reihe, farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
+  - Die Chips stehen in der Zuletzt-Reihe zwischen den Zuletzt-Chips (siehe „Chips im Dock“), farbig abgesetzt mit zwei gestapelten Quadraten. Unten stehen die Summe der Gramm und der kcal.
   - Ein Tap trägt alle Zutaten als Gruppe ein. Der Toast „<Name> eingetragen · X kcal“ bietet „Rückgängig“ für 3 s und entfernt dann die ganze Gruppe.
   - Langes Drücken (500 ms) oder das Kontextmenü öffnet das Blatt zum Anpassen: Zutaten mit −/+ und getippten Gramm (1–1.500 g), „tauschen“, ✕, „+ Zutat suchen“ und Kennzahlen live.
   - „Eintragen · X kcal“ trägt die angepassten Zutaten ein. Die Vorlage bleibt. Nur „Als Vorlage speichern“ ändert Name und Zutaten der Vorlage.
@@ -101,7 +104,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - 1 g unter 20 g, 5 g von 20 bis 100 g, 10 g ab 100 g.
   - + springt zum nächsten Wert des Rasters, − zum vorigen. Hin und zurück ergibt wieder den Ausgangswert, kein Wert wird übersprungen.
   - Nie unter 1 g. Teller und Schnellzugriff enden bei 1.500 g, ein einzelner Eintrag hat keine Obergrenze.
-- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“.
+- **Symbole:** Ein Lebensmittel ohne Foto zeigt das Symbol seiner Kategorie statt eines leeren Tellers, in Suche, Chips, Blättern und Tagebuch. Ohne Kategorie zeigt es das Symbol „Sonstiges“. Ein Gericht im Tagebuch zeigt das Symbol „Gerichte“. Jede Kategorie hat ihre eigene Farbe für ihr Symbol, im hellen und dunklen Modus; „Sonstiges“ bleibt grau.
 - **Live-Werte:** Das Sheet berechnet kcal/E/K/F lokal mit der Formel `Wert je 100 g × Gramm / 100`. Das ist reine Anzeige. Beim Speichern rechnet das Backend verbindlich ([ADR-0003](adr/0003-logic-in-backend.md)).
 - **Lebensmittel-Editor:**
   - Produktfoto (Kamera oder Galerie), Name und Marke.
@@ -109,6 +112,8 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Nährwerte je 100 g: kcal, Eiweiß, KH, Fett, Ballaststoffe; optional Zucker, gesättigte Fettsäuren, Salz.
   - Atwater-Hinweis live.
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
+  - „Speichern“ (neu: „Speichern & eintragen“) und „Abbrechen“ (aus dem Etikett: „Verwerfen“) stehen fest am unteren Rand des Blatts, die Felder scrollen darüber. Auch nach einem langen Etikett braucht Speichern kein Scrollen.
+- **Toast nach dem Eintragen:** Jeder neue Eintrag sagt „<Name> eingetragen · X kcal“, die kcal des Eintrags gerundet, mit „Rückgängig“ für 3 s. Das gilt für Zuletzt-Chip, Suche, Barcode, Etikett, Teller, Diktat, Rezept, eine Zutat zu einem Gericht und den Schnellzugriff (dort die Summe der Gruppe).
 - **Fehler:** Schlägt ein Aufruf fehl, sagt ein Toast „Das hat nicht geklappt. Verbindung prüfen.“. Ist das Backend beim Öffnen nicht erreichbar, steht das auf dem Hauptscreen mit „Erneut versuchen“. Kommt die App wieder in den Vordergrund, lädt sie den Tag neu.
 - **Kamera:**
   - Drei Auslöser: Barcode (automatisch), Etikett und Teller (E7).
@@ -182,7 +187,8 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/entries/group` | Gericht eintragen: ein Eintrag je Zutat mit gemeinsamer `group_id` |
 | PATCH / DELETE | `/entries/group/{id}` | Mahlzeit oder Name aller Einträge des Gerichts ändern, alle entfernen |
 | GET | `/recent` | Zuletzt-Chips: Lebensmittel nach Nutzung und Aktualität, mit Standardportion |
-| GET | `/combos` | Schnellzugriffe nach `position`, je Zutat Lebensmittel, Gramm und Makros, dazu die Summe (E8) |
+| GET | `/chips` | Chip-Reihe des Dock: alle Schnellzugriffe und die Lebensmittel von `/recent`, das zuletzt verwendete zuerst, nie eingetragene Schnellzugriffe am Ende; je Eintrag `food` oder `combo` |
+| GET | `/combos` | Schnellzugriffe nach `position`, je Zutat Lebensmittel, Gramm und Makros, dazu die Summe und `last_used` (neueste Gruppe mit seinem Namen, sonst `null`) (E8) |
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/recipes` | Rezept anlegen: `name`, `items`, `portions`, optional `cooked_grams` und `description`; legt sein Lebensmittel an ([ADR-0012](adr/0012-recipe-as-food.md)) |
@@ -289,7 +295,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 - `POST /plates/extract` liefert `dish`, `items`, `totals` und `notes`. Ein Item hat `food_id` (oder `null`), `name`, `grams`, `confidence`, `certainty` (`recognized`/`guessed`, in der App „erkannt“/„vermutet“, ab `confidence` 0,7 erkannt), das zugeordnete Lebensmittel, dessen `basis` und `density`, dessen Werte je 100 g bzw. 100 ml und `macros` für die Menge. Mit `basis` und `density` rechnet die Vorschau der App wie das Backend.
 - `totals` summiert die zugeordneten Items. Eingetragen wird erst nach der Bestätigung.
 
-**Prompt:** Er verlangt eine Zutat je sichtbarem Bestandteil, deutsch und generisch benannt wie im BLS (Lebensmittel, dann Zubereitung), und die Menge in Gramm wie gegessen. Er gibt Mengenanker vor, weil Schätzungen aus Fotos zu hoch ausfallen.
+**Prompt:** Er verlangt eine Zutat je sichtbarem Bestandteil, deutsch und generisch benannt wie im BLS (Lebensmittel, dann Zubereitung), und die Menge in Gramm wie gegessen. Er gibt Mengenanker vor, weil Schätzungen aus Fotos zu hoch ausfallen. Den Namen des Gerichts (`dish`) verlangt er kurz, höchstens etwa drei Wörter („Falafel-Bowl“, „Käsebrot mit Kaffee“), damit er im Tagebuch nicht abgeschnitten wird; das gilt auch für das Diktat.
 
 **Zuordnung:**
 - Jede Zutat läuft durch die Suche aus Abschnitt 6, lokal und ohne Netz.
@@ -335,7 +341,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, das zuletzt verwendete vorn in der Chip-Reihe, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
 
 ## 9. Betrieb
 

@@ -34,7 +34,7 @@ test("a recent chip sends only the food, Rückgängig deletes the new entry", as
   fireEvent.click(await within(chips).findByRole("button", { name: /Banane roh\s*120 g/ }));
 
   // ADR-0003: no grams, no meal; the backend picks the standard serving and the meal.
-  await screen.findByText("Banane roh eingetragen");
+  await screen.findByText("Banane roh eingetragen · 112 kcal");
   const post = calls.find((c) => c.method === "POST");
   expect(post).toEqual({ method: "POST", url: "/api/v1/entries", body: { food_id: 7 } });
   const diary = screen.getByRole("region", { name: "Tagebuch" });
@@ -72,7 +72,7 @@ test("the diary lists entries and groups newest first, each with its time", asyn
   fakeApi({ combos: [coffeeCombo()] });
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: /Banane roh\s*120 g/ }));
-  await screen.findByText("Banane roh eingetragen");
+  await screen.findByText("Banane roh eingetragen · 112 kcal");
   fireEvent.click(await comboChip());
   await screen.findByText("Kaffee eingetragen · 24 kcal");
   const diary = screen.getByRole("region", { name: "Tagebuch" });
@@ -232,7 +232,7 @@ async function photographPlate() {
 async function logPlate() {
   await photographPlate();
   fireEvent.click(await screen.findByRole("button", { name: "Eintragen · 399 kcal" }));
-  return await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  return await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen · 399 kcal");
 }
 
 test("the plate photo opens the result sheet; Eintragen stores the dish with its photo and logs one portion", async () => {
@@ -249,7 +249,7 @@ test("the plate photo opens the result sheet; Eintragen stores the dish with its
   expect(within(suggestions).queryByRole("button", { name: "+ Reis gekocht" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
-  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen · 399 kcal");
   // The dish is stored as a recipe of one portion, gets the plate photo and is logged as
   // that portion: no grams and no meal, the backend takes its defaults (ADR-0003).
   const writes = calls.filter((c) => c.method === "POST" || c.method === "PUT").slice(1);
@@ -317,7 +317,7 @@ test("a second try after a failed entry updates the stored dish instead of stori
 
   down = false;
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
-  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen · 399 kcal");
   expect(calls.filter((c) => c.url.startsWith("/api/v1/recipes")).map((c) => `${c.method} ${c.url}`)).toEqual([
     "POST /api/v1/recipes",
     "PATCH /api/v1/recipes/70",
@@ -328,7 +328,7 @@ test("Speichern after Bearbeiten takes a new snapshot of the entry for the same 
   const { calls } = fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: /Banane roh\s*120 g/ }));
-  await screen.findByText("Banane roh eingetragen");
+  await screen.findByText("Banane roh eingetragen · 112 kcal");
   const diary = screen.getByRole("region", { name: "Tagebuch" });
   fireEvent.click(within(diary).getByRole("button", { name: /Banane roh/ }));
   fireEvent.click(await screen.findByRole("button", { name: "Bearbeiten" }));
@@ -569,7 +569,8 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips[0]).toHaveAccessibleName("Neuer Schnellzugriff");
   expect(chips[1]).toHaveAccessibleName("Meine Rezepte");
-  expect(chips[2]).toHaveAccessibleName("Schnellzugriff Bananenpause");
+  // Never logged yet: it follows the used chips.
+  expect(chips.at(-1)).toHaveAccessibleName("Schnellzugriff Bananenpause");
   expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);
 });
 
@@ -683,7 +684,7 @@ test("a dictated meal opens the plate sheet without a photo; Eintragen logs the 
   expect(within(screen.getByRole("list", { name: "Zutaten" })).getAllByRole("listitem")).toHaveLength(3);
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
-  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen");
+  await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen · 399 kcal");
   const writes = calls.filter((c) => c.method === "POST" || c.method === "PUT").slice(1);
   expect(writes.map((c) => `${c.method} ${c.url}`)).toEqual(["POST /api/v1/recipes", "POST /api/v1/entries"]);
 });

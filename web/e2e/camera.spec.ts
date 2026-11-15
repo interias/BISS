@@ -236,6 +236,9 @@ test("tap budget: a label without a barcode is logged with Kamera + Etikett + 2 
   await expect(sheet.getByLabel("GTIN")).toHaveValue("");
   await expect(sheet.getByLabel("Name", { exact: true })).toHaveValue("Haferkeks Dinkel");
 
+  // The read values make the sheet long; "Speichern & eintragen" stays in view without scrolling.
+  await expect(sheet.getByRole("button", { name: "Speichern & eintragen" })).toBeInViewport();
+
   // First confirmation. The name repeats in every run, as there is no GTIN to tell the foods
   // apart; the test follows its own food and entry by id, so a second run passes as well.
   const [saved] = await Promise.all([

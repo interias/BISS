@@ -122,6 +122,11 @@ def test_prompt_asks_for_german_generic_names_and_amounts_as_eaten() -> None:
         assert words in PROMPT
 
 
+def test_prompts_ask_for_a_short_dish_name() -> None:
+    for prompt in (PROMPT, DICTATE_PROMPT):
+        assert "at most about three words" in prompt
+
+
 def answer(**fields) -> ResultMessage:
     base = {
         "subtype": "success",

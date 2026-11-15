@@ -20,7 +20,9 @@ class PlateIngredient(_Strict):
 
 
 class PlateDraft(_Strict):
-    dish: str = Field(description="short German name of the dish")
+    dish: str = Field(
+        description="short German name of the dish, at most about three words, e.g. 'Falafel-Bowl'"
+    )
     ingredients: list[PlateIngredient]
     notes: str = Field(description="short notes in German on doubts, empty when none")
 

@@ -418,12 +418,21 @@ export const deleteEntryGroup = (groupId: string) =>
 /** An item of a Schnellzugriff; `density` turns grams into ml for the preview of an ml food. */
 export type ComboItem = { food: FoodSummary; grams: number; density: number; macros: Macros };
 
-/** Schnellzugriff (ADR-0010): a saved template, logged as an entry group like a plate. */
-export type Combo = { id: number; name: string; items: ComboItem[]; totals: Macros };
+/**
+ * Schnellzugriff (ADR-0010): a saved template, logged as an entry group like a plate.
+ * `last_used`: the latest group logged under its name, null while it was never logged.
+ */
+export type Combo = { id: number; name: string; items: ComboItem[]; totals: Macros; last_used: string | null };
 
 export type ComboItemWrite = { food_id: number; grams: number };
 
 export const getCombos = () => request<Combo[]>("/combos");
+
+/** A chip of the dock: a recent food or a Schnellzugriff. */
+export type Chip = { food: FoodSummary; combo: null } | { food: null; combo: Combo };
+
+/** Every Schnellzugriff and the recent foods in one row, the latest used first (SPEC 3). */
+export const getChips = () => request<Chip[]>("/chips");
 
 /** From items, or from an entry group of the diary (its name unless one is given). */
 export const createCombo = (

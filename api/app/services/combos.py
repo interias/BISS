@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.macros import Macros, total
 from app.domain.meal import Meal
-from app.models import Combo, ComboItem, Food
+from app.models import Combo, ComboItem, Entry, Food
 from app.search.normalize import normalize
 from app.services import entries
 from app.services.entries import EntryGroup, snapshot
@@ -47,6 +47,8 @@ class ComboView:
     name: str
     items: list[ComboItemView]
     totals: Macros
+    # The latest entry group logged under its name (group_name = the combo's name, SPEC 4).
+    last_used: datetime | None = None
 
 
 def _combo(session: Session, combo_id: int) -> Combo:
@@ -81,6 +83,13 @@ def _views(session: Session, combos: list[Combo]) -> list[ComboView]:
         .order_by(ComboItem.position, ComboItem.id)
     ).all()
     servings = standard_servings(session, {food.id for _, food in rows})
+    last_used = dict(
+        session.execute(
+            select(Entry.group_name, func.max(Entry.eaten_at))
+            .where(Entry.group_id.is_not(None), Entry.group_name.in_({c.name for c in combos}))
+            .group_by(Entry.group_name)
+        ).all()
+    )
     views = []
     for combo in combos:
         items = [
@@ -88,14 +97,28 @@ def _views(session: Session, combos: list[Combo]) -> list[ComboView]:
             for item, food in rows
             if item.combo_id == combo.id
         ]
-        views.append(ComboView(combo.id, combo.name, items, total(i.macros for i in items)))
+        totals = total(i.macros for i in items)
+        views.append(ComboView(combo.id, combo.name, items, totals, last_used.get(combo.name)))
     return views
 
 
 def list_combos(session: Session) -> list[ComboView]:
-    """All combos by position, then by age; the dock shows them in this order."""
+    """All combos by position, then by age."""
     combos = session.scalars(select(Combo).order_by(Combo.position, Combo.id)).all()
     return _views(session, list(combos)) if combos else []
+
+
+Chip = ComboView | tuple[Food, StandardServing]
+
+
+def dock_chips(session: Session) -> list[Chip]:
+    """The chips of the dock (SPEC 3): every combo and the recent foods in one row, the
+    latest used first. A combo stands before the foods logged with it; the combos never
+    logged follow the used chips by position."""
+    used = [(combo.last_used, 1, combo) for combo in list_combos(session)]
+    used += [(last, 0, (food, serving)) for food, serving, last in entries.recent_foods(session)]
+    logged = sorted((use for use in used if use[0] is not None), key=lambda u: u[:2], reverse=True)
+    return [chip for *_, chip in logged] + [chip for last, _, chip in used if last is None]
 
 
 def get_combo(session: Session, combo_id: int) -> ComboView:

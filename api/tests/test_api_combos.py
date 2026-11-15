@@ -1,5 +1,6 @@
 """Schnellzugriff: /combos and its log, an entry group like a plate (ADR-0010)."""
 
+from datetime import datetime
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -160,7 +161,53 @@ def test_log_with_meal_and_override_items_leaves_the_template(
         (coffee_id, 200),
         (sugar_id, 10),
     ]
-    assert client.get(COMBOS).json()[0] == combo
+    assert client.get(COMBOS).json()[0] | {"last_used": None} == combo
+
+
+def test_last_used_is_the_latest_group_named_like_the_combo(
+    client: TestClient, session: Session
+) -> None:
+    combo = create(client, session)
+    assert combo["last_used"] is None
+    for eaten_at in (EATEN, "2026-10-30T12:00:00+01:00", "2026-10-28T07:00:00+01:00"):
+        client.post(f"{COMBOS}/{combo['id']}/log", json={"eaten_at": eaten_at})
+    # A Gericht of the same foods under another name and a single entry of one are no use.
+    coffee_id = combo["items"][0]["food"]["id"]
+    later = "2026-11-02T08:00:00+01:00"
+    plate = {"group_name": "Frühstück", "items": [{"food_id": coffee_id, "grams": 200}]}
+    assert client.post("/api/v1/entries/group", json=plate | {"eaten_at": later}).status_code == 201
+    single = {"food_id": coffee_id, "grams": 200, "eaten_at": later}
+    assert client.post("/api/v1/entries", json=single).status_code == 201
+
+    last_used = client.get(COMBOS).json()[0]["last_used"]
+
+    assert datetime.fromisoformat(last_used) == datetime.fromisoformat("2026-10-30T12:00:00+01:00")
+
+
+def test_chips_mix_combos_and_recent_foods_by_last_use(
+    client: TestClient, session: Session
+) -> None:
+    combo = create(client, session)
+    banana = add_food(session, "Banane roh", kcal=93)
+    rice = add_food(session, "Reis gekocht", kcal=130)
+    never = client.post(
+        COMBOS, json={"name": "Neu", "items": [{"food_id": rice.id, "grams": 150}]}
+    ).json()
+    for food, hour in ((banana, "06"), (rice, "09")):
+        body = {"food_id": food.id, "grams": 100, "eaten_at": f"2026-10-29T{hour}:00:00+01:00"}
+        assert client.post("/api/v1/entries", json=body).status_code == 201
+    client.post(f"{COMBOS}/{combo['id']}/log", json={"eaten_at": EATEN})
+
+    chips = client.get("/api/v1/chips").json()
+
+    names = [chip["combo"]["name"] if chip["combo"] else chip["food"]["name"] for chip in chips]
+    # Rice last; the combo before its foods logged with it at 07:30; the one never logged last.
+    assert names[:2] == ["Reis gekocht", "Kaffee"]
+    assert set(names[2:5]) == {item["food"]["name"] for item in combo["items"]}
+    assert names[5:] == ["Banane roh", "Neu"]
+    assert chips[0]["combo"] is None
+    assert chips[0]["food"]["standard_serving"] == {"label": "100 g", "grams": 100, "origin": None}
+    assert chips[-1] == {"food": None, "combo": never}
 
 
 def test_log_without_time_takes_now(client: TestClient, session: Session) -> None:
