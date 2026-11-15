@@ -21,5 +21,5 @@ Ein gesprochener Satz wie „zwei Scheiben Brot mit Käse und ein Kaffee“ soll
 ## Folgen und Risiko
 - Der Satz geht an das Sprachmodell und kann Anweisungen enthalten. Er steht in `<satz>`, spitze Klammern werden entfernt, der Aufruf hat keine Werkzeuge und ein festes Schema. Daraus kann nur ein falscher Vorschlag entstehen, den das Blatt vor dem Eintragen zeigt.
 - Die Spracherkennung fehlt in manchen Browsern (etwa Firefox). Dort bleibt der Knopf weg; Suche, Kamera und Chips gehen weiter.
-- Ein Aufruf mit Kaltstart der CLI dauert wie beim Teller einige Sekunden; das Blatt zeigt solange „Erkenne Gericht …“ mit dem gehörten Satz.
+- Ein Aufruf mit Kaltstart der CLI dauert wie beim Teller einige Sekunden; das Blatt zeigt solange „Erkenne Gericht …“ mit dem Ladebildschirm der Kamera, eigenen Sprüchen und dem gehörten Satz.
 - Einen Testsatz echter Diktate mit Schwellen gibt es noch nicht; geprüft sind Verdrahtung, Regeln und Ablauf mit dem Fake.

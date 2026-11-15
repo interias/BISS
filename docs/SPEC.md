@@ -120,7 +120,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Ohne Kamera, etwa ohne HTTPS, öffnet ein Auslöser die Fotoauswahl.
   - Nach der Extraktion öffnet der Editor und dann das Mengen-Sheet. Das Etikett-Foto ist im Editor als Produktfoto vorbelegt und wird mit dem Lebensmittel gespeichert; ein anderes Foto ersetzt es.
   - Der Auslöser „Teller“ schickt das Foto an die Teller-Erkennung („Erkenne Gericht …“) und öffnet das Ergebnis-Sheet. Ohne Kamera öffnet er die Fotoauswahl.
-  - **Ladebildschirm:** Solange das Backend ein Etikett oder einen Teller liest, verdeckt er das Kamerabild: eine von vier Animationen, je Foto zufällig, und ein kurzer Spruch, der alle 2 s wechselt („Zähle Erbsen …“). Die Statuszeile darunter sagt weiter, was läuft.
+  - **Ladebildschirm:** Solange das Backend ein Etikett oder einen Teller liest (oder im Blatt einen diktierten Satz), verdeckt er das Kamerabild: eine von vier Animationen, je Foto zufällig, und ein kurzer Spruch, der alle 2 s wechselt („Zähle Erbsen …“). Die Statuszeile darunter sagt weiter, was läuft.
 - **Teller-Ergebnis-Sheet** (E7):
   - Foto, „Erkannt · bitte prüfen“ und der Name des Gerichts als Eingabe.
   - Zutaten mit „erkannt“ oder „vermutet“ (vom Backend, nicht aus `confidence` abgeleitet), je −/+ (mindestens 1 g) und ✕.
@@ -130,7 +130,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - „Eintragen“ speichert den Teller als eigenes Lebensmittel und trägt es ein (Abschnitt 7a): ein Rezept mit einer Portion, den zugeordneten Zutaten und dem Tellerfoto als Produktfoto. Im Tagebuch steht eine Zeile. Ein Tap öffnet das Mengen-Sheet: Die Anzahl ändert der Chip „1 Portion“ („2 × 1 Portion“), „Bearbeiten“ öffnet das Rezept-Blatt mit den Zutaten. „Rückgängig“ im Toast entfernt den Eintrag, das Lebensmittel bleibt.
 - **Mahlzeit diktieren** ([ADR-0013](adr/0013-dictation.md)):
   - Das Mikrofon links neben der Kamera öffnet das Blatt „Ich höre zu“ mit dem gehörten Text in großer Schrift und „Fertig“. Ohne Spracherkennung im Browser fehlt der Knopf.
-  - „Fertig“ oder eine Pause beendet das Zuhören. Der Satz geht an `POST /plates/dictate`, das Blatt zeigt solange „Erkenne Gericht …“.
+  - „Fertig“ oder eine Pause beendet das Zuhören. Der Satz geht an `POST /plates/dictate`. Solange zeigt das Blatt „Erkenne Gericht …“ mit dem Ladebildschirm der Kamera (eine der vier Animationen, eigene Sprüche wie „Wiege jedes Wort …“) und darunter klein den gehörten Satz.
   - Danach öffnet das Teller-Ergebnis-Sheet ohne Foto und gilt unverändert: Gewichte, ✕, „tauschen“, „+ Zutat suchen“, Vorschläge, „Eintragen“ als Rezept mit einer Portion, nur ohne Produktfoto.
   - Schließen oder die Zurück-Taste bricht ab, ohne etwas zu schicken. Ein gesperrtes Mikrofon sagt der Toast „Das Mikrofon ist aus. Erlaube es im Browser.“, ein Satz ohne Lebensmittel den Hinweis des Modells.
 - **Gericht im Tagebuch:** Die Einträge eines Gerichts (Schnellzugriff oder `POST /entries/group`) stehen als eine Gruppe mit der Summe des Backends in der Liste, zur Uhrzeit des Gerichts. Die Gruppe klappt auf und zeigt ihre Einträge. Ein Tap auf einen Eintrag öffnet das Mengen-Sheet zum Ändern oder Entfernen. „+ Zutat“ öffnet die Suche (nur Lebensmittel) und trägt die Wahl als weiteren Eintrag des Gerichts ein, mit dessen Name, Mahlzeit und Zeitpunkt (`POST /entries` mit `group_id`). „Gericht entfernen“ löscht die Gruppe, „Rückgängig“ legt sie mit Name, Mahlzeit, Zeitpunkt und Mengen neu an.
