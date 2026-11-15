@@ -19,3 +19,6 @@ testdata/
 
 # Worktrees of helper agents
 .claude/worktrees/
+
+# Rendered reel (marketing/reel/build_reel.py video)
+marketing/reel/out/

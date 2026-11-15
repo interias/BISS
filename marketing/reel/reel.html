@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BISS in 90 Sekunden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+/* A 9:16 reel, 540 x 960 CSS px (rendered at 2x: 1080 x 1920). render(t) draws any moment, so
+   build_reel.py can capture it frame by frame. Tokens from docs/design/prototype.html, light theme. */
+:root{
+  --bg:#EDF0EA; --surface:#FFFFFF; --surface-2:#F4F6F1; --tile:#EEF1EA; --ink:#17201A; --muted:#5C665E; --line:#D8DDD3;
+  --accent:#B3245F; --accent-ink:#FFFFFF; --accent-soft:#F6DCE7; --scan:#0E7C86; --scan-soft:#D6EEF0;
+  --prot:#2F64D6; --carb:#C98E00; --fat:#23926A; --ok:#23926A;
+  --frame:#C9CFC4; --shadow:rgba(23,32,26,.16); --scrim:rgba(10,14,12,.45);
+  --cam:#0B0E0C; --cam-ink:#F2F4F0; --cam-muted:#9AA59C;
+  --font-display:'Bricolage Grotesque','Figtree',system-ui,sans-serif;
+  --font-body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+html,body{margin:0;height:100%;background:#0B0E0C;overflow:hidden}
+*{box-sizing:border-box}
+.num{font-variant-numeric:tabular-nums}
+
+.reel{position:absolute;left:0;top:0;width:540px;height:960px;overflow:hidden;transform-origin:0 0;color:var(--ink);font-family:var(--font-body);font-size:15px;
+  background:radial-gradient(120% 60% at 100% 0%,#F6DCE7 0%,transparent 55%),radial-gradient(90% 50% at 0% 100%,#D6EEF0 0%,transparent 60%),var(--bg)}
+
+/* Progress, head and counter */
+.rail{position:absolute;left:20px;right:20px;top:16px;display:flex;gap:4px;z-index:20}
+.rail i{flex:1;height:4px;border-radius:2px;background:rgba(23,32,26,.12);overflow:hidden}
+.rail b{display:block;height:100%;width:0;background:var(--accent)}
+.head{position:absolute;left:28px;right:28px;top:38px;height:148px}
+.panel{position:absolute;left:0;top:0;right:112px;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:9px;opacity:0}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:0;display:flex;gap:8px;align-items:center}
+.new{font-size:11px;letter-spacing:.08em;padding:3px 8px;border-radius:6px;background:var(--accent);color:#fff}
+.panel h2{font-family:var(--font-display);font-weight:800;font-size:44px;line-height:.98;margin:0;letter-spacing:-.015em}
+.budget{display:flex;align-items:center;gap:10px}
+.pill{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:14px;white-space:nowrap}
+.taps{display:flex;gap:6px}
+.taps i{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);display:block}
+.taps i.on{background:var(--accent);transform:scale(1.15)}
+.counter{position:absolute;right:0;top:50%;transform:translateY(-50%);width:100px;height:100px;border-radius:26px;background:var(--surface);box-shadow:0 14px 30px -16px var(--shadow);
+  display:grid;place-items:center;align-content:center;gap:0;opacity:0}
+.counter b{font-family:var(--font-display);font-weight:800;font-size:44px;line-height:1;color:var(--accent)}
+.counter span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800}
+
+/* Intro */
+.intro{position:absolute;inset:0;display:grid;place-items:center;z-index:5}
+.intro-in{display:grid;justify-items:center;gap:16px;margin-top:-40px}
+.intro-in > svg{width:150px;height:150px;filter:drop-shadow(0 18px 28px var(--shadow))}
+.intro h1{font-family:var(--font-display);font-weight:800;font-size:112px;letter-spacing:.08em;margin:0;line-height:.9;display:flex}
+.intro h1 span{display:inline-block}
+.intro p{margin:0;font-size:21px;color:var(--muted);font-weight:700}
+.intro .tagnew{display:inline-flex;gap:8px;align-items:center;height:38px;padding:0 16px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;font-size:15px}
+
+/* Phone */
+.phoneBox{position:absolute;left:96px;top:194px;width:348px;height:671px}
+.phone{position:absolute;left:0;top:0;width:404px;height:780px;transform-origin:0 0;transform:scale(.86);border-radius:44px;padding:10px;background:var(--frame);box-shadow:0 34px 60px -22px rgba(23,32,26,.35)}
+.screen{position:relative;width:384px;height:760px;border-radius:34px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:22px 20px 4px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand svg{width:26px;height:26px}
+.brand b{font-family:var(--font-display);font-weight:800;font-size:21px;letter-spacing:.06em}
+.date{color:var(--muted);font-size:12.5px;font-weight:600}
+.summary{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:center;margin:6px 20px 0;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.ring{position:relative;width:112px;height:112px}
+.ring svg{display:block;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .big{font-family:var(--font-display);font-weight:800;font-size:27px;line-height:1}
+.ring .small{color:var(--muted);font-size:11px;margin-top:3px}
+.macros{display:grid;gap:10px}
+.macro .row{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.macro .row span:first-child{font-weight:600}
+.macro .row span:last-child{color:var(--muted)}
+.bar{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;border-radius:4px}
+.diary{flex:1;min-height:0;overflow:hidden;padding:4px 20px 0;position:relative}
+.diary h3{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px;font-weight:700}
+.emptyline{color:var(--muted);font-size:13px;padding:10px 0}
+.entry{display:grid;grid-template-columns:auto 1fr auto;gap:0 12px;align-items:center;overflow:hidden;max-height:0;opacity:0;border-bottom:1px dashed var(--line)}
+.entry > *{margin-block:8px}
+.n{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.d{color:var(--muted);font-size:12px}
+.k{font-weight:700;font-size:14px;text-align:right}
+.k small{display:block;font-size:10.5px;color:var(--muted);font-weight:600}
+.nm-recipe{color:var(--accent)} .nm-scan{color:var(--scan)}
+.chev{display:inline-block;color:var(--muted);font-size:12px}
+.kids{overflow:hidden;max-height:0;border-bottom:1px dashed var(--line);padding-left:52px}
+.kid{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:13px;overflow:hidden}
+.kid .pic{--s:28px}
+.kid b{font-weight:600} .kid span.g{color:var(--muted);font-size:12px}
+.kid.add{max-height:0;opacity:0;padding-block:0}
+.dashpill{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1.5px dashed var(--accent);color:var(--accent);font-weight:700;font-size:12.5px;margin:6px 0 10px}
+
+.pic{--s:40px;width:var(--s);height:var(--s);flex:none;display:grid;place-items:center;border-radius:calc(var(--s)*.3);background:var(--tile);
+  box-shadow:inset 0 0 0 1px var(--line);font-size:calc(var(--s)*.52);line-height:1;
+  -webkit-mask:radial-gradient(circle at calc(100% - var(--s)*.04) calc(var(--s)*.04),transparent calc(var(--s)*.19),#000 calc(var(--s)*.19 + .6px));
+          mask:radial-gradient(circle at calc(100% - var(--s)*.04) calc(var(--s)*.04),transparent calc(var(--s)*.19),#000 calc(var(--s)*.19 + .6px))}
+.pic.combo{background:var(--accent-soft);color:var(--accent)}
+
+/* Dock */
+.dock{border-top:1px solid var(--line);background:var(--surface);padding:10px 10px 18px}
+.chiprow{display:flex;gap:5px;padding-bottom:10px;overflow:hidden}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);text-align:left}
+.chip .t{display:grid;line-height:1.15}
+.chip .t b{font-size:12.5px;font-weight:700}
+.chip .t small{font-size:10px;color:var(--muted);font-weight:500}
+.chip .pic{--s:32px;border-radius:50%;-webkit-mask:none;mask:none}
+.chip.plus{padding:0 9px;gap:2px;border:1.5px dashed var(--accent);color:var(--accent);font-weight:800;font-size:16px;background:none}
+.chip.book{padding:0 10px;color:var(--accent)}
+.chip.combo{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.actionbar{display:flex;gap:8px;align-items:center}
+.search{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden}
+.mic{width:52px;height:52px;border-radius:16px;border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;flex:none}
+.shoot{width:60px;height:60px;border-radius:20px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;box-shadow:0 8px 18px -8px var(--accent)}
+
+.toast{position:absolute;left:14px;right:14px;bottom:146px;z-index:15;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--ink);color:var(--surface);font-size:13.5px;font-weight:600;opacity:0}
+.toast u{color:var(--accent-soft);text-decoration:none;font-weight:700}
+.ghost{position:absolute;left:0;top:0;z-index:16;font-size:22px;opacity:0}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:40;opacity:0}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 20px 22px;transform:translateY(105%)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.sheet h4{font-family:var(--font-display);font-weight:700;font-size:21px;margin:0;line-height:1.15}
+.sub{color:var(--muted);margin:3px 0 0;font-size:13px}
+.kick{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:12px 0 2px}
+.head2{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-bottom:14px}
+.amount{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 12px}
+.step{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-size:22px;font-weight:600;display:grid;place-items:center}
+.amount output{font-family:var(--font-display);font-weight:800;font-size:42px;min-width:140px;text-align:center}
+.amount output small{font-size:19px;color:var(--muted);font-weight:700;margin-left:2px}
+.pchips{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+.pchip{padding:7px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;font-weight:600}
+.pchip.on{background:var(--accent-soft);border-color:var(--accent)}
+.quad{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;margin-bottom:16px}
+.quad div{padding:9px 4px;text-align:center;border-left:1px solid var(--line)}
+.quad div:first-child{border-left:0}
+.quad b{display:block;font-size:16px}
+.quad span{font-size:11px;color:var(--muted);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.primary{width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15.5px;display:flex;align-items:center;justify-content:center;gap:.4em;white-space:nowrap}
+.sfield{display:flex;align-items:center;gap:10px;height:50px;padding:0 14px;border-radius:14px;border:1.5px solid var(--accent);background:var(--surface-2);font-weight:600;margin-bottom:6px}
+.sfield .ph{color:var(--muted);font-weight:500}
+.caret{width:2px;height:20px;background:var(--accent)}
+.hit{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.hit b{font-weight:600;font-size:14.5px} .hit small{display:block;color:var(--muted);font-size:12px}
+.hit .k{font-size:13px}
+.mark{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:1px}
+.for{font-size:12px;color:var(--muted);font-weight:700;margin:0 0 8px}
+.field{display:grid;gap:3px;margin-bottom:8px}
+.field label{font-size:11.5px;font-weight:700;color:var(--muted)}
+.field div{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);padding:0 12px;display:flex;align-items:center;font-weight:600}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.okline{display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ok);margin:4px 0 12px;opacity:0}
+.photo{position:relative;height:150px;border-radius:16px;overflow:hidden;background:var(--tile);margin-bottom:10px}
+.photo svg{width:100%;height:100%;display:block}
+.bub{position:absolute;padding:4px 9px;border-radius:999px;background:var(--surface);color:var(--ink);font-size:11.5px;font-weight:700;box-shadow:0 4px 10px var(--shadow);opacity:0}
+.ing{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13.5px;opacity:0}
+.ing em{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--muted)}
+.ing em.ok{color:var(--ok)}
+.hint{font-size:12.5px;color:var(--muted);margin:10px 0 0;font-weight:600}
+.rcard{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+
+/* Dictation */
+.dict{text-align:center}
+.dict .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800;margin:2px 0 14px}
+.waves{position:relative;width:76px;height:76px;margin:0 auto 14px;display:grid;place-items:center}
+.waves i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent)}
+.waves span{position:relative;width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center}
+.heard{font-family:var(--font-display);font-weight:700;font-size:24px;line-height:1.18;min-height:2.4em;margin:0 0 16px;text-wrap:balance}
+.heard.ph{color:var(--muted)}
+.heard.small{font-size:15px;color:var(--muted);min-height:0;font-family:var(--font-body);font-weight:600}
+.dload{display:grid;justify-items:center;gap:14px;padding:6px 0 10px}
+.dload b{font-family:var(--font-display);font-size:19px}
+
+/* Camera */
+.cam{position:absolute;inset:0;z-index:30;background:var(--cam);color:var(--cam-ink);opacity:0;display:flex;flex-direction:column}
+.cam .bar1{display:flex;justify-content:space-between;align-items:center;padding:24px 20px 8px;font-size:13px;font-weight:600;color:var(--cam-muted)}
+.view{position:relative;flex:1;margin:8px 16px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 40%,#2a3330,#101413)}
+.view .obj{position:absolute;inset:0;display:grid;place-items:center;opacity:0}
+.view .obj svg{width:78%;max-height:80%}
+.frame{position:absolute;inset:22% 12%;border-radius:18px;border:2px solid rgba(242,244,240,.55)}
+.scanline{position:absolute;left:12%;right:12%;height:3px;border-radius:2px;background:var(--scan);box-shadow:0 0 18px 4px var(--scan);opacity:0}
+.found{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);padding:6px 12px;border-radius:999px;background:var(--scan);color:#fff;font-size:12px;font-weight:700;opacity:0;white-space:nowrap}
+.trigs{display:flex;justify-content:center;gap:10px;padding:14px 16px 26px}
+.trig{display:grid;justify-items:center;gap:6px;width:86px;font-size:12px;font-weight:700;color:var(--cam-muted)}
+.trig i{width:54px;height:54px;border-radius:50%;border:3px solid var(--cam-muted);display:grid;place-items:center}
+.trig.on{color:var(--cam-ink)} .trig.on i{border-color:var(--cam-ink);background:rgba(242,244,240,.12)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:2}
+.loading{position:absolute;inset:0;z-index:3;background:var(--cam);display:grid;place-items:center;align-content:center;gap:18px;opacity:0}
+.peas{display:flex;gap:10px}
+.peas i{width:18px;height:18px;border-radius:50%;background:var(--fat)}
+.loading b{font-family:var(--font-display);font-size:19px}
+.loading small{color:var(--cam-muted);font-size:12.5px}
+
+/* Cursor, in reel coordinates */
+.cursor{position:absolute;left:0;top:0;z-index:60;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:color-mix(in srgb,var(--ink) 22%,transparent);border:2.5px solid var(--surface);box-shadow:0 4px 14px var(--shadow);opacity:0}
+.ripple{position:absolute;left:0;top:0;z-index:59;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:3px solid var(--accent);opacity:0}
+canvas.confetti{position:absolute;inset:0;width:540px;height:960px;z-index:80}
+
+/* Subtitle */
+.subline{position:absolute;left:24px;right:24px;top:880px;height:66px;display:grid;place-items:center;z-index:50}
+.subline span{display:inline-block;max-width:100%;padding:8px 14px;border-radius:14px;background:rgba(23,32,26,.86);color:#fff;font-size:18px;font-weight:700;line-height:1.25;text-align:center;text-wrap:balance;opacity:0}
+.subline span.user{background:var(--accent)}
+
+/* Finale */
+.finale{position:absolute;left:28px;right:28px;top:200px;z-index:30;opacity:0;background:var(--surface);border-radius:28px;padding:14px 22px 10px;box-shadow:0 30px 60px -28px var(--shadow)}
+.finale li{display:grid;grid-template-columns:24px 1fr auto 30px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);opacity:0}
+.finale li span{font-weight:700;font-size:17px}
+.finale li small{color:var(--muted);font-size:12.5px;font-weight:600;text-align:right}
+.finale li b{font-family:var(--font-display);font-weight:800;font-size:22px;color:var(--accent);text-align:right}
+.finale li svg{color:var(--ok)}
+.finale ul{list-style:none;margin:0;padding:0}
+.finale .sum{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 4px;opacity:0}
+.finale .sum span{font-weight:800;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.finale .sum b{font-family:var(--font-display);font-weight:800;font-size:34px;color:var(--accent)}
+.end{position:absolute;inset:0;z-index:70;display:grid;place-items:center;opacity:0;
+  background:radial-gradient(120% 60% at 100% 0%,#F6DCE7 0%,transparent 55%),radial-gradient(90% 50% at 0% 100%,#D6EEF0 0%,transparent 60%),var(--bg)}
+.end-in{display:grid;justify-items:center;gap:20px;text-align:center;padding:0 30px}
+.end svg.logo{width:130px;height:130px;filter:drop-shadow(0 18px 28px var(--shadow))}
+.end h2{font-family:var(--font-display);font-weight:800;font-size:56px;margin:0;line-height:1;text-wrap:balance}
+.stats{display:flex;gap:30px;justify-content:center;margin:8px 0}
+.stats div{display:grid;gap:2px}
+.stats b{font-family:var(--font-display);font-weight:800;font-size:44px;color:var(--accent);font-variant-numeric:tabular-nums}
+.stats span{font-size:13px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+.modes{display:flex;gap:10px}
+.modes span{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 16px;border-radius:999px;background:var(--surface);font-weight:800;font-size:16px;box-shadow:0 10px 20px -14px var(--shadow)}
+.modes svg{color:var(--accent)}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="logo" viewBox="0 0 512 512">
+      <mask id="cookie" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+        <circle cx="256" cy="262" r="156" fill="#fff"/>
+        <path d="M232 92 L262 128 L254 156 L292 168 L300 198 L336 204 L348 236 L392 240 L430 256 L560 256 L560 -40 L232 -40 Z" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+      </mask>
+      <rect width="512" height="512" rx="116" fill="#B3245F"/>
+      <rect width="512" height="512" fill="#FFFFFF" mask="url(#cookie)"/>
+      <g fill="#B3245F"><circle cx="196" cy="230" r="15"/><circle cx="176" cy="318" r="13"/><circle cx="262" cy="334" r="15"/><circle cx="330" cy="300" r="12"/><circle cx="244" cy="262" r="10"/></g>
+    </symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-combo" viewBox="0 0 24 24"><rect x="8" y="3" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="8" width="13" height="13" rx="3" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M9.5 6v12M13 6v12M15 6v12M18 6v12M20 6v12" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-label" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-plate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-tap" viewBox="0 0 24 24"><path d="M9 11V5.5a1.8 1.8 0 0 1 3.6 0V11m0-1.2a1.8 1.8 0 0 1 3.6 0V12m0-1a1.8 1.8 0 0 1 3.6 0v4a7 7 0 0 1-7 7h-.8a6 6 0 0 1-4.6-2.2L4.6 16a1.8 1.8 0 0 1 2.8-2.3L9 15.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="bowl" viewBox="0 0 240 160">
+      <rect width="240" height="160" fill="#6B4B33"/>
+      <circle cx="120" cy="80" r="70" fill="#F3F1EC"/><circle cx="120" cy="80" r="58" fill="#E4E0D6"/>
+      <path d="M70 70 a50 50 0 0 1 50 -46 v56 z" fill="#FBFAF6"/><g fill="#EEEAE0"><circle cx="90" cy="52" r="3"/><circle cx="102" cy="44" r="3"/><circle cx="84" cy="66" r="3"/><circle cx="108" cy="60" r="3"/></g>
+      <g fill="#F08A5D"><rect x="124" y="34" width="44" height="14" rx="6" transform="rotate(18 146 41)"/><rect x="128" y="52" width="44" height="14" rx="6" transform="rotate(18 150 59)"/><rect x="132" y="70" width="40" height="13" rx="6" transform="rotate(18 152 76)"/></g>
+      <g><path d="M74 96 q20 -14 42 0 q-20 26 -42 0z" fill="#7DA543"/><path d="M80 96 q14 -8 30 0 q-14 16 -30 0z" fill="#C9DB7A"/></g>
+      <g fill="#5E9E4E"><circle cx="138" cy="108" r="10"/><circle cx="158" cy="98" r="10"/><circle cx="150" cy="122" r="9"/></g>
+      <g fill="#CFE7B2"><circle cx="138" cy="108" r="6"/><circle cx="158" cy="98" r="6"/><circle cx="150" cy="122" r="5.5"/></g>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="reel" id="reel">
+  <div class="rail" id="rail"></div>
+  <section class="head" id="head">
+    <div class="counter" id="counter"><b class="num" id="count">0</b><span>Taps</span></div>
+  </section>
+
+  <div class="phoneBox" id="phoneBox">
+    <div class="phone" id="phone">
+      <div class="screen" id="screen">
+        <header class="top">
+          <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><b>BISS</b></div>
+          <span class="date">Sonntag, 15. Nov.</span>
+        </header>
+        <section class="summary">
+          <div class="ring">
+            <svg width="112" height="112" viewBox="0 0 112 112" aria-hidden="true">
+              <circle cx="56" cy="56" r="48" fill="none" stroke="var(--surface-2)" stroke-width="11"/>
+              <circle id="arc" cx="56" cy="56" r="48" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 400"/>
+            </svg>
+            <div class="c"><span class="big num" id="kcal">0</span><span class="small">von 2.800 kcal</span></div>
+          </div>
+          <div class="macros" id="macros"></div>
+        </section>
+        <section class="diary" id="diary">
+          <h3>Heute</h3>
+          <div class="emptyline" id="emptyline">Noch nichts eingetragen.</div>
+          <div id="rows"></div>
+        </section>
+        <footer class="dock">
+          <div class="chiprow">
+            <span class="chip plus">+<svg width="14" height="14"><use href="#i-combo"/></svg></span>
+            <span class="chip book" id="chipBook"><svg width="20" height="20"><use href="#i-book"/></svg></span>
+            <span class="chip combo" id="chipCombo"><span class="pic combo"><svg width="18" height="18"><use href="#i-combo"/></svg></span><span class="t"><b>Frühstück</b><small>275 g · 300 kcal</small></span></span>
+            <span class="chip" id="chipOats"><span class="pic">🥣</span><span class="t"><b>Haferflocken</b><small>60 g · 222 kcal</small></span></span>
+          </div>
+          <div class="actionbar">
+            <span class="search" id="searchBtn"><svg width="20" height="20" style="flex:none"><use href="#i-search"/></svg>Lebensmittel suchen</span>
+            <span class="mic" id="micBtn"><svg width="22" height="22"><use href="#i-mic"/></svg></span>
+            <span class="shoot" id="shootBtn"><svg width="26" height="26"><use href="#i-cam"/></svg></span>
+          </div>
+        </footer>
+
+        <div class="toast" id="toast"><span id="toastText"></span><u>Rückgängig</u></div>
+        <span class="ghost" id="g0">🥛</span><span class="ghost" id="g1">🫐</span><span class="ghost" id="g2">🌰</span>
+
+        <div class="cam" id="cam">
+          <div class="bar1"><span>✕</span><span id="camHint">Barcode in den Rahmen halten</span><span></span></div>
+          <div class="view">
+            <div class="obj" id="objBar"><svg viewBox="0 0 240 160" aria-hidden="true">
+              <rect x="10" y="20" width="220" height="120" rx="14" fill="#C9862F"/><rect x="10" y="20" width="220" height="34" rx="14" fill="#7A3E1C"/>
+              <text x="26" y="44" font-family="Figtree,sans-serif" font-weight="700" font-size="17" fill="#fff">PROTEIN · Erdnuss</text>
+              <rect x="120" y="72" width="94" height="54" rx="4" fill="#fff"/>
+              <g fill="#111"><rect x="128" y="78" width="3" height="38"/><rect x="134" y="78" width="2" height="38"/><rect x="139" y="78" width="4" height="38"/><rect x="146" y="78" width="2" height="38"/><rect x="151" y="78" width="3" height="38"/><rect x="157" y="78" width="5" height="38"/><rect x="165" y="78" width="2" height="38"/><rect x="170" y="78" width="3" height="38"/><rect x="176" y="78" width="2" height="38"/><rect x="181" y="78" width="4" height="38"/><rect x="188" y="78" width="2" height="38"/><rect x="193" y="78" width="3" height="38"/><rect x="199" y="78" width="5" height="38"/></g>
+              <text x="26" y="96" font-family="Figtree,sans-serif" font-weight="600" font-size="12" fill="#fff">45 g</text>
+            </svg></div>
+            <div class="obj" id="objDrink"><svg viewBox="0 0 240 160" aria-hidden="true">
+              <rect x="60" y="6" width="120" height="150" rx="10" fill="#E9E2D0"/><rect x="60" y="6" width="120" height="40" rx="10" fill="#3D6B4F"/>
+              <text x="74" y="32" font-family="Figtree,sans-serif" font-weight="700" font-size="14" fill="#fff">Hafer-Drink</text>
+              <rect x="72" y="56" width="96" height="88" rx="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <text x="78" y="72" font-family="Figtree,sans-serif" font-weight="800" font-size="9" fill="#111">Nährwerte je 100 ml</text>
+              <g font-family="Figtree,sans-serif" font-size="8.5" fill="#222"><text x="78" y="88">Energie 59 kcal</text><text x="78" y="101">Fett 3,0 g</text><text x="78" y="114">Kohlenhydrate 6,6 g</text><text x="78" y="127">Eiweiß 1,0 g</text></g>
+            </svg></div>
+            <div class="obj" id="objPlate"><svg viewBox="0 0 240 160" aria-hidden="true"><use href="#bowl"/></svg></div>
+            <div class="frame"></div>
+            <div class="scanline" id="scanline"></div>
+            <div class="found" id="found">Barcode erkannt · 4012345678901</div>
+          </div>
+          <div class="trigs">
+            <span class="trig on" id="trigBar"><i><svg width="24" height="24"><use href="#i-barcode"/></svg></i>Barcode</span>
+            <span class="trig" id="trigLabel"><i><svg width="22" height="22"><use href="#i-label"/></svg></i>Etikett</span>
+            <span class="trig" id="trigPlate"><i><svg width="22" height="22"><use href="#i-plate"/></svg></i>Teller</span>
+          </div>
+          <div class="flash" id="flash"></div>
+          <div class="loading" id="loading"><div class="peas"><i></i><i></i><i></i></div><b id="quote">Zähle Erbsen …</b><small id="status">Etikett wird gelesen</small></div>
+        </div>
+
+        <div class="scrim" id="scrim"></div>
+
+        <div class="sheet" id="sSearch">
+          <div class="grab"></div>
+          <p class="for" id="searchFor">Zutat für Frühstück</p>
+          <div class="sfield"><svg width="20" height="20"><use href="#i-search"/></svg><span id="typed"></span><i class="caret" id="caret"></i><span class="ph" id="ph">Lebensmittel suchen</span></div>
+          <div id="modeEmpty">
+            <p class="kick">Jetzt wahrscheinlich</p>
+            <div class="hit" id="sugShake"><span class="pic combo"><svg width="20" height="20"><use href="#i-combo"/></svg></span><span><b>Proteinshake</b><small>2 Zutaten · 330 g</small></span><span class="k">250 kcal<small>E 35 K 16 F 5</small></span></div>
+            <div class="hit"><span class="pic">🍎</span><span><b>Apfel, roh</b><small>BLS · je 100 g</small></span><span class="k">54 kcal<small>E 0 K 11 F 0</small></span></div>
+            <p class="kick">Zuletzt</p>
+            <div class="hit"><span class="pic combo"><svg width="20" height="20"><use href="#i-combo"/></svg></span><span><b>Frühstück</b><small>3 Zutaten · 275 g</small></span><span class="k">300 kcal<small>E 19 K 33 F 11</small></span></div>
+            <div class="hit"><span class="pic">🥣</span><span><b>Haferflocken</b><small>BLS · je 100 g</small></span><span class="k">370 kcal<small>E 13 K 59 F 7</small></span></div>
+          </div>
+          <div id="modeApple">
+            <div class="hit" id="hitApple"><span class="pic">🍎</span><span><b>Apfel, roh</b><small>BLS · je 100 g</small></span><span class="k">54 kcal<small>E 0 K 11 F 0</small></span></div>
+            <div class="hit"><span class="pic">🥫</span><span><b>Apfelmus</b><small>BLS · je 100 g</small></span><span class="k">78 kcal<small>E 0 K 18 F 0</small></span></div>
+            <div class="hit"><span class="pic">🧃</span><span><b>Apfelsaft</b><small>BLS · je 100 ml</small></span><span class="k">45 kcal<small>E 0 K 10 F 0</small></span></div>
+            <div class="hit"><span class="pic">🥧</span><span><b class="nm-recipe">Apfelkuchen</b><span class="mark">Rezept</span><small>Rezept · je 100 g</small></span><span class="k">265 kcal<small>E 4 K 34 F 12</small></span></div>
+          </div>
+          <div id="modeBanana">
+            <div class="hit" id="hitBanana"><span class="pic">🍌</span><span><b>Banane, roh</b><small>BLS · je 100 g</small></span><span class="k">88 kcal<small>E 1 K 20 F 0</small></span></div>
+            <div class="hit"><span class="pic">🍌</span><span><b>Bananenchips</b><small>BLS · je 100 g</small></span><span class="k">519 kcal<small>E 2 K 58 F 31</small></span></div>
+            <div class="hit"><span class="pic">🍞</span><span><b class="nm-recipe">Bananenbrot</b><span class="mark">Rezept</span><small>Rezept · je 100 g</small></span><span class="k">290 kcal<small>E 5 K 45 F 9</small></span></div>
+          </div>
+        </div>
+
+        <div class="sheet" id="sAmount">
+          <div class="grab"></div>
+          <div class="head2"><span class="pic" id="aPic" style="--s:58px">🍎</span><div><h4 id="aName">Apfel</h4><p class="sub" id="aSrc">BLS · je 100 g</p></div></div>
+          <div class="amount"><span class="step">−</span><output class="num"><span id="aGrams">150</span><small>g</small></output><span class="step">+</span></div>
+          <div class="pchips"><span class="pchip on" id="aChip">1 Apfel (M) · 150 g</span><span class="pchip">zuletzt · 120 g</span></div>
+          <div class="quad">
+            <div><b class="num" id="aK">81</b><span>kcal</span></div>
+            <div><b class="num" id="aP">0</b><span><i class="dot" style="background:var(--prot)"></i>E</span></div>
+            <div><b class="num" id="aC">17</b><span><i class="dot" style="background:var(--carb)"></i>K</span></div>
+            <div><b class="num" id="aF">0</b><span><i class="dot" style="background:var(--fat)"></i>F</span></div>
+          </div>
+          <span class="primary" id="amtGo">Eintragen · 81 kcal</span>
+        </div>
+
+        <div class="sheet" id="sEditor">
+          <div class="grab"></div>
+          <p class="eyebrow" style="font-size:10.5px">Neues Lebensmittel · vom Etikett</p>
+          <h4 style="margin:4px 0 12px">Bitte kurz prüfen</h4>
+          <div class="field"><label>Name</label><div data-fill="Hafer-Drink Barista"></div></div>
+          <div class="grid4">
+            <div class="field"><label>kcal je 100 ml</label><div data-fill="59"></div></div>
+            <div class="field"><label>Eiweiß g</label><div data-fill="1,0"></div></div>
+            <div class="field"><label>Kohlenhydrate g</label><div data-fill="6,6"></div></div>
+            <div class="field"><label>Fett g</label><div data-fill="3,0"></div></div>
+          </div>
+          <div class="okline" id="okline"><svg width="18" height="18"><use href="#i-check"/></svg>Die Werte passen zusammen.</div>
+          <span class="primary" id="edGo">Speichern</span>
+        </div>
+
+        <div class="sheet" id="sPlate">
+          <div class="grab"></div>
+          <p class="eyebrow" style="font-size:10.5px">Erkannt · bitte prüfen</p>
+          <h4 style="margin:4px 0 10px">Bowl mit Lachs</h4>
+          <div class="photo"><svg viewBox="0 0 240 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#bowl"/></svg>
+            <span class="bub" style="left:14%;top:22%">Reis · 150 g</span><span class="bub" style="left:56%;top:16%">Lachs · 120 g</span>
+            <span class="bub" style="left:20%;top:64%">Avocado · 60 g</span><span class="bub" style="left:60%;top:66%">Gurke · 50 g</span>
+          </div>
+          <div class="ing"><span>Reis, gekocht</span><em class="ok">erkannt</em><b>150 g</b></div>
+          <div class="ing"><span>Lachs</span><em class="ok">erkannt</em><b>120 g</b></div>
+          <div class="ing"><span>Avocado</span><em class="ok">erkannt</em><b>60 g</b></div>
+          <div class="ing"><span>Gurke</span><em>vermutet</em><b>50 g</b></div>
+          <span class="primary" id="plateGo" style="margin-top:12px">Eintragen · <span class="num" id="plateK">0</span> kcal</span>
+        </div>
+
+        <div class="sheet dict" id="sDict">
+          <div class="grab"></div>
+          <p class="kk" id="dictKick">Ich höre zu</p>
+          <div id="listen">
+            <div class="waves"><i id="w1"></i><i id="w2"></i><span><svg width="26" height="26"><use href="#i-mic"/></svg></span></div>
+            <p class="heard" id="heard"></p>
+            <span class="primary" id="fertig"><svg width="15" height="15" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/></svg>Fertig</span>
+          </div>
+          <div id="dread">
+            <div class="dload"><div class="peas"><i></i><i></i><i></i></div><b id="dquote">Wiege jedes Wort …</b></div>
+            <p class="heard small">„Zwei Scheiben Brot mit Käse und ein Kaffee“</p>
+            <p class="sub" style="margin-bottom:8px">Die Lebensmittel werden gesucht und geschätzt.</p>
+          </div>
+        </div>
+
+        <div class="sheet" id="sDictRes">
+          <div class="grab"></div>
+          <p class="eyebrow" style="font-size:10.5px">Erkannt · bitte prüfen</p>
+          <h4 style="margin:4px 0 10px">Käsebrot und Kaffee</h4>
+          <div class="ing"><span>Vollkornbrot · 2 Scheiben</span><em class="ok">erkannt</em><b>100 g</b></div>
+          <div class="ing"><span>Gouda</span><em class="ok">erkannt</em><b>40 g</b></div>
+          <div class="ing"><span>Kaffee, schwarz</span><em>vermutet</em><b>200 g</b></div>
+          <p class="hint">Mengen sind geschätzt. Fehlt etwas?</p>
+          <span class="primary" id="dictGo" style="margin-top:14px">Eintragen · <span class="num" id="dictK">0</span> kcal</span>
+        </div>
+
+        <div class="sheet" id="sRecipes">
+          <div class="grab"></div>
+          <p class="eyebrow" style="font-size:10.5px">Kochbuch</p>
+          <h4 style="margin:4px 0 6px">Meine Rezepte</h4>
+          <div class="rcard" id="recLasagne"><span class="pic" style="--s:52px">🍝</span><div><b class="nm-recipe">Lasagne</b><p class="sub">4 Portionen · 610 kcal je Portion</p></div></div>
+          <div class="rcard"><span class="pic" style="--s:52px">🍛</span><div><b class="nm-recipe">Linsen-Dal</b><p class="sub">3 Portionen · 420 kcal je Portion</p></div></div>
+          <div class="rcard"><span class="pic" style="--s:52px">🍞</span><div><b class="nm-recipe">Dinkelbrot</b><p class="sub">20 Scheiben · 96 kcal je Scheibe</p></div></div>
+          <span class="dashpill" style="margin-top:12px">+ Neues Rezept</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finale" id="finale"><ul id="checklist"></ul><div class="sum" id="sum"><span>Zusammen</span><b class="num" id="sumN">0 Taps</b></div></div>
+
+  <div class="intro" id="intro">
+    <div class="intro-in">
+      <svg viewBox="0 0 512 512" aria-hidden="true">
+        <defs><mask id="biteMask"><rect width="512" height="512" fill="#fff"/><circle id="biteC" cx="470" cy="42" r="0" fill="#000"/><circle id="biteC2" cx="380" cy="10" r="0" fill="#000"/></mask></defs>
+        <g mask="url(#biteMask)"><use href="#logo"/></g>
+      </svg>
+      <h1 id="introWord"><span>B</span><span>I</span><span>S</span><span>S</span></h1>
+      <p id="introTag">Dein Essen. Weniger Taps.</p>
+      <span class="tagnew" id="introNew"><svg width="18" height="18"><use href="#i-mic"/></svg>Jetzt auch per Sprache</span>
+    </div>
+  </div>
+
+  <div class="end" id="end">
+    <div class="end-in">
+      <svg class="logo" aria-hidden="true"><use href="#logo"/></svg>
+      <h2>Weniger tippen. Mehr genießen.</h2>
+      <div class="stats">
+        <div><b class="num" id="stA">10</b><span>Wege</span></div>
+        <div><b class="num" id="stB">26</b><span>Taps</span></div>
+        <div><b class="num" id="stC">2.782</b><span>kcal</span></div>
+      </div>
+      <div class="modes">
+        <span id="md0"><svg width="18" height="18"><use href="#i-tap"/></svg>Tippen</span>
+        <span id="md1"><svg width="18" height="18"><use href="#i-cam"/></svg>Scannen</span>
+        <span id="md2"><svg width="18" height="18"><use href="#i-mic"/></svg>Sprechen</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="subline" id="subline"><span id="subText"></span></p>
+  <div class="cursor" id="cursor"></div>
+  <div class="ripple" id="ripple"></div>
+  <canvas class="confetti" id="confetti" width="1080" height="1920"></canvas>
+</div>
+
+<script>
+'use strict';
+const T = 90, GOAL = {k:2800, p:170, c:320, f:100};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = p => 1 - Math.pow(1 - p, 3);
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const win = (t, a, b, d = .25) => ease(seg(t, a, a + d)) * (1 - ease(seg(t, b, b + d)));
+const de = n => Math.round(n).toLocaleString('de-DE');
+
+/* ---- Script: scenes, voice-over, taps, entries ---- */
+const SCENES = [
+  {id:'intro', start:0},
+  {id:'recent', start:5, title:'Zuletzt-Chip', budget:'1 Tap'},
+  {id:'combo', start:11, title:'Schnellzugriff', budget:'1 Tap'},
+  {id:'empty', start:17, title:'Leere Suche', budget:'Suche + 1'},
+  {id:'search', start:23, title:'Suche', budget:'Suche + 2'},
+  {id:'barcode', start:30, title:'Barcode', budget:'Kamera + 1'},
+  {id:'label', start:36, title:'Etikett-Foto', budget:'Kamera + Auslöser + 2'},
+  {id:'plate', start:43, title:'Teller-Foto', budget:'Kamera + Auslöser + 1'},
+  {id:'dictate', start:50, title:'Diktieren', budget:'Mikrofon + Fertig + 1', isNew:true},
+  {id:'recipe', start:62, title:'Rezept', budget:'Kochbuch + 2'},
+  {id:'addfood', start:68, title:'Zutat ergänzen', budget:'Aufklappen + 3'},
+  {id:'finale', start:75},
+];
+SCENES.forEach((s, i) => s.end = SCENES[i + 1] ? SCENES[i + 1].start : T);
+const WAYS = SCENES.filter(s => s.title);
+
+const VO = [
+  {id:'intro', start:.8, text:'Essen eintragen? Mit BISS geht das schneller, als du denkst.'},
+  {id:'recent', start:5.4, text:'Morgens die Haferflocken: ein Tap auf den Chip. Fertig.'},
+  {id:'combo', start:11.4, text:'Dein festes Frühstück ist ein Schnellzugriff. Auch nur ein Tap.'},
+  {id:'empty', start:17.4, text:'Suche öffnen, und BISS weiß schon, was du wahrscheinlich willst.'},
+  {id:'search', start:23.4, text:'Etwas Neues? Kurz tippen, Treffer wählen, die Menge steht schon da.'},
+  {id:'barcode', start:30.4, text:'Packung vor die Kamera. Der Barcode wird erkannt, ganz ohne Auslösen.'},
+  {id:'label', start:36.4, text:'Unbekanntes Produkt? Ein Foto vom Etikett, und die Nährwerte sind drin.'},
+  {id:'plate', start:43.4, text:'Sogar dein Teller wird erkannt. Zutaten, Mengen, eine Bestätigung.'},
+  {id:'dictate', start:50.4, text:'Ganz neu: Sag einfach, was du gegessen hast.'},
+  {id:'user', start:54.0, text:'„Zwei Scheiben Brot mit Käse und ein Kaffee.“', user:true},
+  {id:'dictate2', start:58.4, text:'BISS macht daraus ein Gericht. Kurz prüfen, eintragen.'},
+  {id:'recipe', start:62.5, text:'Deine eigenen Rezepte? Kochbuch auf, Lasagne wählen, eine Portion.'},
+  {id:'addfood', start:68.4, text:'Noch eine Banane zum Frühstück? Gericht aufklappen, Zutat ergänzen.'},
+  {id:'finale', start:75.6, text:'Zehn Wege, Essen einzutragen. Tippen, scannen oder einfach sprechen.'},
+  {id:'outro', start:83.4, text:'BISS. Weniger tippen. Mehr genießen.'},
+];
+VO.forEach(v => v.dur = 3.5);
+
+const TAPS = [
+  [7.4,'#chipOats'], [13.4,'#chipCombo'],
+  [19.0,'#searchBtn'], [21.0,'#sugShake'],
+  [24.4,'#searchBtn'], [26.8,'#hitApple'], [28.6,'#amtGo'],
+  [31.0,'#shootBtn'], [34.9,'#amtGo'],
+  [37.0,'#shootBtn'], [37.8,'#trigLabel'], [41.0,'#edGo'], [42.4,'#amtGo'],
+  [44.0,'#shootBtn'], [44.8,'#trigPlate'], [49.2,'#plateGo'],
+  [53.2,'#micBtn'], [57.6,'#fertig'], [61.3,'#dictGo'],
+  [63.6,'#chipBook'], [65.0,'#recLasagne'], [66.9,'#amtGo'],
+  [69.6,'#grpFruh'], [70.8,'#addIng'], [72.6,'#hitBanana'], [74.1,'#amtGo'],
+].map(([t, sel]) => ({t, sel, scene: SCENES.findLast(s => s.start <= t).id}));
+const SHUTTERS = [37.85, 44.85];
+
+// Newest first, as the diary shows them. t is when each one lands.
+const ENTRIES = [
+  {id:'lasagne', t:67.1, at:'19:30', pic:'🍝', name:'Lasagne', cls:'nm-recipe', d:'1 Portion · 380 g', k:610, p:32, c:52, f:29, toast:'Lasagne eingetragen · 610 kcal'},
+  {id:'kaese', t:61.6, at:'16:00', pic:'🥪', name:'Käsebrot und Kaffee', d:'1 Portion · 340 g', k:369, p:22, c:40, f:13, toast:'Käsebrot und Kaffee eingetragen · 369 kcal'},
+  {id:'bowl', t:49.5, at:'13:10', pic:'🥗', name:'Bowl mit Lachs', d:'1 Portion · 380 g', k:547, p:33, c:50, f:22, toast:'Bowl mit Lachs eingetragen · 547 kcal'},
+  {id:'drink', t:42.6, at:'11:06', pic:'🥛', name:'Hafer-Drink Barista', cls:'nm-scan', d:'200 g', k:118, p:2, c:13, f:6, toast:'Hafer-Drink eingetragen · 118 kcal'},
+  {id:'bar', t:35.1, at:'11:05', pic:'🍫', name:'Proteinriegel Erdnuss', cls:'nm-scan', d:'1 Riegel · 45 g', k:180, p:15, c:14, f:7, toast:'Proteinriegel eingetragen · 180 kcal'},
+  {id:'apple', t:28.8, at:'10:20', pic:'🍎', name:'Apfel', d:'1 Apfel (M) · 150 g', k:81, p:0, c:17, f:0, toast:'Apfel eingetragen · 81 kcal'},
+  {id:'shake', t:21.3, at:'10:00', pic:'combo', name:'Proteinshake', d:'2 Zutaten · 330 g', k:250, p:35, c:16, f:5, toast:'Proteinshake eingetragen · 250 kcal'},
+  {id:'fruh', t:13.8, at:'08:30', pic:'combo', name:'Frühstück', d:'3 Zutaten · 275 g', k:300, p:19, c:33, f:11, toast:'Frühstück eingetragen · 300 kcal'},
+  {id:'oats', t:7.6, at:'07:12', pic:'🥣', name:'Haferflocken', d:'60 g', k:222, p:8, c:35, f:4, toast:'Haferflocken eingetragen · 222 kcal'},
+];
+const BANANA = {t:74.3, k:105, p:1, c:26, f:0, toast:'Banane zu Frühstück · 105 kcal'};
+
+const AMOUNT = [
+  {open:26.9, close:28.65, pic:'🍎', name:'Apfel', cls:'', src:'BLS · je 100 g', g:150, chip:'1 Apfel (M) · 150 g', k:81, p:0, c:17, f:0},
+  {open:33.6, close:34.95, pic:'🍫', name:'Proteinriegel Erdnuss', cls:'nm-scan', src:'Open Food Facts · Scan', g:45, chip:'1 Riegel · 45 g', k:180, p:15, c:14, f:7},
+  {open:41.1, close:42.45, pic:'🥛', name:'Hafer-Drink Barista', cls:'nm-scan', src:'Etikett · je 100 ml', g:200, chip:'1 Glas · 200 ml', k:118, p:2, c:13, f:6},
+  {open:65.1, close:66.95, pic:'🍝', name:'Lasagne', cls:'nm-recipe', src:'Rezept · 4 Portionen', g:380, chip:'1 Portion · 380 g', k:610, p:32, c:52, f:29},
+  {open:72.7, close:74.15, pic:'🍌', name:'Banane', cls:'', src:'BLS · je 100 g', g:120, chip:'1 Banane (M) · 120 g', k:105, p:1, c:26, f:0},
+];
+const SEARCH = [[19.1, 21.05, 'empty'], [24.5, 26.85, 'apple'], [70.9, 72.65, 'banana']];
+const CAM = [[31.1, 35.1], [37.1, 42.6], [44.1, 49.5]];
+
+/* ---- Build the dynamic parts ---- */
+const head = $('#head');
+SCENES.filter(s => s.title || s.id === 'finale').forEach(s => {
+  const p = document.createElement('div');
+  p.className = 'panel'; p.dataset.scene = s.id;
+  const n = TAPS.filter(x => x.scene === s.id).length;
+  p.innerHTML = s.title
+    ? `<p class="eyebrow">Weg ${WAYS.indexOf(s) + 1} von ${WAYS.length}${s.isNew ? '<span class="new">Neu</span>' : ''}</p><h2>${s.title}</h2>
+       <div class="budget"><span class="pill">${s.budget}</span><span class="taps">${'<i></i>'.repeat(n)}</span></div>`
+    : `<p class="eyebrow">Ein Tag, ${WAYS.length} Wege</p><h2>${TAPS.length} Taps für alles.</h2>`;
+  head.appendChild(p);
+});
+$('#rail').innerHTML = SCENES.slice(1).map(() => '<i><b></b></i>').join('');
+$('#checklist').innerHTML = WAYS.map(s =>
+  `<li><svg width="20" height="20"><use href="#i-check"/></svg><span>${s.title}</span><small>${s.budget}</small><b>${TAPS.filter(x => x.scene === s.id).length}</b></li>`).join('');
+$('#macros').innerHTML = [['Eiweiß','prot','p'],['Kohlenhydrate','carb','c'],['Fett','fat','f']].map(([n, v, k]) =>
+  `<div class="macro"><div class="row"><span>${n}</span><span class="num" id="m${k}">0 / ${GOAL[k]} g</span></div><div class="bar"><i id="b${k}" style="background:var(--${v})"></i></div></div>`).join('');
+const comboPic = '<span class="pic combo"><svg width="20" height="20"><use href="#i-combo"/></svg></span>';
+$('#rows').innerHTML = ENTRIES.map(e => `
+  <div class="entry" data-id="${e.id}"${e.id === 'fruh' ? ' id="grpFruh"' : ''}>${e.pic === 'combo' ? comboPic : `<span class="pic">${e.pic}</span>`}
+    <span style="min-width:0"><span class="n ${e.cls || ''}">${e.name}${e.id === 'fruh' ? '<i class="chev" id="chev">▾</i>' : ''}</span><span class="d" id="d-${e.id}">${e.at} · ${e.d}</span></span>
+    <span class="k num"><span id="k-${e.id}">${e.k}</span> kcal<small>E ${e.p} K ${e.c} F ${e.f}</small></span></div>
+  ${e.id === 'fruh' ? `<div class="kids" id="kids">
+    <div class="kid"><span class="pic">🥛</span><b>Skyr</b><span class="g">150 g · 95 kcal</span></div>
+    <div class="kid"><span class="pic">🫐</span><b>Heidelbeeren</b><span class="g">100 g · 42 kcal</span></div>
+    <div class="kid"><span class="pic">🌰</span><b>Walnüsse</b><span class="g">25 g · 163 kcal</span></div>
+    <div class="kid add" id="kidBanana"><span class="pic">🍌</span><b>Banane</b><span class="g">120 g · 105 kcal</span></div>
+    <span class="dashpill" id="addIng">+ Zutat</span></div>` : ''}`).join('');
+const rowEl = id => $(`.entry[data-id="${id}"]`);
+const fillEls = $$('#sEditor [data-fill]');
+const WORDS = 'Zwei Scheiben Brot mit Käse und ein Kaffee'.split(' ');
+
+/* ---- Render one frame from time t ---- */
+const css = (el, o, tf) => { el.style.opacity = o; if (tf !== undefined) el.style.transform = tf; };
+const reel = $('#reel');
+let reelScale = 1;
+// A hidden element (Fertig, once reading starts) keeps the place it last had.
+const seen = {};
+const center = sel => {
+  const r = $(sel).getBoundingClientRect(), b = reel.getBoundingClientRect();
+  if (!r.width && seen[sel]) return seen[sel];
+  return seen[sel] = [(r.left + r.width / 2 - b.left) / reelScale, (r.top + r.height / 2 - b.top) / reelScale];
+};
+let lastAmount = -1;
+
+function render(t){
+  // Intro
+  const out = ease(seg(t, 4.0, 4.6));
+  css($('#intro'), 1 - out, `scale(${1 - .15 * out})`);
+  $('#biteC').setAttribute('r', 80 * ease(seg(t, .5, .8)));
+  $('#biteC2').setAttribute('r', 55 * ease(seg(t, .75, 1.05)));
+  $$('#introWord span').forEach((s, i) => css(s, ease(seg(t, 1 + i * .12, 1.35 + i * .12)), `translateY(${(1 - ease(seg(t, 1 + i * .12, 1.4 + i * .12))) * 40}px)`));
+  css($('#introTag'), ease(seg(t, 1.8, 2.3)));
+  css($('#introNew'), ease(seg(t, 2.5, 2.9)), `scale(${.8 + .2 * ease(seg(t, 2.5, 2.9))})`);
+  const ph = ease(seg(t, 4.1, 5.1)), fin = ease(seg(t, 75.1, 75.7));
+  css($('#phoneBox'), ph * (1 - fin), `translateY(${(1 - ph) * 60 + fin * 20}px) scale(${1 - .06 * fin})`);
+  css($('#counter'), ease(seg(t, 5, 5.5)) * (1 - ease(seg(t, 75, 75.4))));
+  $('#count').textContent = TAPS.filter(x => x.t <= t).length;
+  $('#count').style.transform = `scale(${1 + .25 * win(t, (TAPS.findLast(x => x.t <= t) || {t:-9}).t, (TAPS.findLast(x => x.t <= t) || {t:-9}).t + .1, .1)})`;
+
+  // Head panels and their tap dots
+  $$('.panel').forEach(p => {
+    const s = SCENES.find(x => x.id === p.dataset.scene);
+    const v = s.id === 'finale' ? win(t, 75.2, 82.3, .4) : win(t, s.start + .1, s.end - .35, .4);
+    css(p, v, `translateY(${(1 - v) * 18}px)`);
+    p.querySelectorAll('.taps i').forEach((d, i) => d.classList.toggle('on', TAPS.filter(x => x.scene === s.id)[i].t <= t));
+  });
+  $$('.rail b').forEach((b, i) => b.style.width = seg(t, SCENES[i + 1].start, SCENES[i + 1].end) * 100 + '%');
+
+  // Day summary
+  const tot = {k:0, p:0, c:0, f:0};
+  [...ENTRIES, BANANA].forEach(e => { const q = ease(seg(t, e.t, e.t + .8)); for (const k in tot) tot[k] += e[k] * q; });
+  ENTRIES.forEach(e => {
+    const r = ease(seg(t, e.t, e.t + .45)), el = rowEl(e.id);
+    el.style.maxHeight = r * 64 + 'px'; css(el, r, `translateX(${(1 - r) * -16}px)`);
+  });
+  $('#kcal').textContent = de(tot.k);
+  const C = 2 * Math.PI * 48;
+  $('#arc').setAttribute('stroke-dasharray', `${C * clamp(tot.k / GOAL.k)} ${C}`);
+  for (const k of ['p', 'c', 'f']) { $('#m' + k).textContent = `${Math.round(tot[k])} / ${GOAL[k]} g`; $('#b' + k).style.width = clamp(tot[k] / GOAL[k]) * 100 + '%'; }
+  css($('#emptyline'), 1 - seg(t, 7.4, 7.7));
+  $('#emptyline').style.display = t > 7.7 ? 'none' : '';
+
+  // Breakfast group: open it, add the banana
+  const open = ease(seg(t, 69.7, 70.1));
+  $('#kids').style.maxHeight = open * 240 + 'px';
+  $('#chev').style.transform = `rotate(${open * 180}deg)`;
+  const bq = ease(seg(t, BANANA.t, BANANA.t + .45));
+  $('#kidBanana').style.maxHeight = bq * 44 + 'px'; $('#kidBanana').style.paddingBlock = bq * 6 + 'px'; css($('#kidBanana'), bq);
+  $('#k-fruh').textContent = Math.round(300 + 105 * ease(seg(t, BANANA.t, BANANA.t + .8)));
+  $('#d-fruh').textContent = t >= BANANA.t ? '08:30 · 4 Zutaten · 395 g' : '08:30 · 3 Zutaten · 275 g';
+  const fr = rowEl('fruh'), sc = ease(seg(t, 68.2, 69.0));
+  $('#rows').style.transform = `translateY(${-sc * Math.max(0, fr.offsetTop - $('#rows').offsetTop - 4)}px)`;
+  rowEl('fruh').style.background = win(t, 69.6, 70.3, .2) ? `color-mix(in srgb,var(--accent-soft) ${win(t, 69.6, 70.3, .2) * 100}%,transparent)` : '';
+
+  // Toast
+  const te = [...ENTRIES, BANANA].find(e => t >= e.t - .1 && t < e.t + 2.6);
+  const tv = te ? win(t, te.t - .1, te.t + 2.3, .2) : 0;
+  css($('#toast'), tv, `translateY(${(1 - tv) * 12}px)`);
+  if (te) $('#toastText').textContent = te.toast;
+
+  // Combo ghosts fly from the chip into the diary
+  const sr = $('#screen').getBoundingClientRect(), cr = $('#chipCombo').getBoundingClientRect(), dr = $('#rows').getBoundingClientRect();
+  const ps = sr.width / 384;
+  ['#g0', '#g1', '#g2'].forEach((g, i) => {
+    const a = 13.45 + i * .08, p = ease(seg(t, a, a + .55));
+    const x0 = (cr.left - sr.left) / ps + 20, y0 = (cr.top - sr.top) / ps + 8, x1 = (dr.left - sr.left) / ps + 8, y1 = (dr.top - sr.top) / ps + 6;
+    const x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 80;
+    css($(g), t > a && p < 1 ? 1 : 0, `translate(${x}px,${y}px) scale(${1.2 - .5 * p})`);
+  });
+
+  // Camera
+  let cv = 0, ci = -1;
+  CAM.forEach(([a, b], i) => { const v = win(t, a, b, .25); if (v > cv) { cv = v; ci = i; } });
+  css($('#cam'), cv, `scale(${.96 + .04 * cv})`);
+  [['#objBar', 31.3], ['#objDrink', 37.2], ['#objPlate', 44.2]].forEach(([o, a], i) => {
+    const v = ease(seg(t, a, a + .5));
+    css($(o), ci === i ? v : 0, `translateX(${(1 - v) * 60}%) rotate(${(1 - v) * -8}deg)`);
+  });
+  $('#camHint').textContent = ci === 0 ? 'Barcode in den Rahmen halten' : ci === 1 ? 'Kein Barcode? Etikett fotografieren' : 'Gericht von oben fotografieren';
+  const sl = seg(t, 32.0, 33.0);
+  css($('#scanline'), ci === 0 && sl > 0 && sl < 1 ? 1 : 0);
+  $('#scanline').style.top = 22 + 56 * (sl < .5 ? sl * 2 : 2 - sl * 2) + '%';
+  css($('#found'), win(t, 33.0, 33.9, .15));
+  $('#trigBar').classList.toggle('on', ci === 0 || (ci === 1 && t < 37.8) || (ci === 2 && t < 44.8));
+  $('#trigLabel').classList.toggle('on', ci === 1 && t >= 37.8);
+  $('#trigPlate').classList.toggle('on', ci === 2 && t >= 44.8);
+  css($('#flash'), Math.max(...SHUTTERS.map(s => win(t, s, s + .05, .08))) * .9);
+  const lv = Math.max(win(t, 38.0, 39.6, .2), win(t, 45.0, 46.4, .2));
+  css($('#loading'), lv);
+  const isPlate = t > 43;
+  const qs = isPlate ? ['Zähle Erbsen …', 'Verhandle mit dem Salat …'] : ['Entziffere das Kleingedruckte …', 'Rechne kJ in kcal …'];
+  $('#quote').textContent = qs[Math.floor((t - (isPlate ? 45 : 38)) / .8) % 2 ? 1 : 0];
+  $('#status').textContent = isPlate ? 'Erkenne Gericht …' : 'Etikett wird gelesen';
+  $$('.peas i').forEach((p, i) => p.style.transform = `translateY(${-Math.abs(Math.sin(t * 6 + i * .9)) * 14}px)`);
+
+  // Sheets
+  const sheets = {
+    sSearch: Math.max(...SEARCH.map(([a, b]) => win(t, a, b))),
+    sAmount: Math.max(...AMOUNT.map(a => win(t, a.open, a.close))),
+    sEditor: win(t, 39.5, 41.05),
+    sPlate: win(t, 46.3, 49.25),
+    sDict: win(t, 53.3, 59.2),
+    sDictRes: win(t, 59.3, 61.35),
+    sRecipes: win(t, 63.7, 65.05),
+  };
+  for (const id in sheets) $('#' + id).style.transform = `translateY(${(1 - sheets[id]) * 105}%)`;
+  css($('#scrim'), Math.max(...Object.values(sheets)));
+
+  // Search: empty with suggestions, or typed
+  const sm = (SEARCH.findLast(([a]) => t >= a - .3) || SEARCH[0])[2];
+  $('#modeEmpty').style.display = sm === 'empty' ? '' : 'none';
+  $('#modeApple').style.display = sm === 'apple' ? '' : 'none';
+  $('#modeBanana').style.display = sm === 'banana' ? '' : 'none';
+  $('#searchFor').style.display = sm === 'banana' ? '' : 'none';
+  const word = sm === 'apple' ? 'Apfel' : sm === 'banana' ? 'Banane' : '';
+  const ta = sm === 'apple' ? 25.0 : 71.3;
+  $('#typed').textContent = word.slice(0, Math.floor(seg(t, ta, ta + .9) * word.length + .001));
+  $('#ph').style.display = $('#typed').textContent ? 'none' : '';
+  css($('#caret'), Math.floor(t * 2.5) % 2 ? .2 : 1);
+  $$('#modeEmpty .hit, #modeEmpty .kick').forEach((h, i) => css(h, ease(seg(t, 19.3 + i * .1, 19.6 + i * .1))));
+  $$('#modeApple .hit').forEach((h, i) => css(h, ease(seg(t, 25.6 + i * .12, 25.9 + i * .12))));
+  $$('#modeBanana .hit').forEach((h, i) => css(h, ease(seg(t, 71.8 + i * .12, 72.1 + i * .12))));
+
+  // Amount sheet content
+  const ai = AMOUNT.findLastIndex(a => t >= a.open - .3);
+  if (ai !== lastAmount && ai >= 0) {
+    const a = AMOUNT[ai]; lastAmount = ai;
+    $('#aPic').textContent = a.pic; $('#aName').textContent = a.name; $('#aName').className = a.cls;
+    $('#aSrc').textContent = a.src; $('#aGrams').textContent = a.g; $('#aChip').textContent = a.chip;
+    $('#aK').textContent = a.k; $('#aP').textContent = a.p; $('#aC').textContent = a.c; $('#aF').textContent = a.f;
+    $('#amtGo').textContent = `Eintragen · ${a.k} kcal`;
+  }
+
+  // Editor fills itself from the label
+  fillEls.forEach((el, i) => {
+    const s = el.dataset.fill, a = 39.7 + i * .14, q = seg(t, a, a + .3);
+    el.textContent = s.slice(0, Math.round(q * s.length));
+  });
+  css($('#okline'), ease(seg(t, 40.5, 40.7)));
+
+  // Plate result
+  $$('#sPlate .bub').forEach((b, i) => { const q = seg(t, 46.6 + i * .22, 46.9 + i * .22); css(b, ease(q), `scale(${.4 + .6 * ease(q)})`); });
+  $$('#sPlate .ing').forEach((r, i) => css(r, ease(seg(t, 47.0 + i * .22, 47.3 + i * .22))));
+  $('#plateK').textContent = Math.round(547 * ease(seg(t, 47.0, 48.2)));
+
+  // Dictation: listening, then reading, then the result
+  const user = VO.find(v => v.id === 'user');
+  const reading = t >= 57.7;
+  $('#listen').style.display = reading ? 'none' : '';
+  $('#dread').style.display = reading ? '' : 'none';
+  $('#dictKick').textContent = reading ? 'Erkenne Gericht …' : 'Ich höre zu';
+  const nw = Math.floor(seg(t, user.start + .1, user.start + user.dur * .92) * WORDS.length + .001);
+  $('#heard').textContent = nw ? WORDS.slice(0, nw).join(' ') : '„Zwei Scheiben Brot mit Käse und ein Kaffee“';
+  $('#heard').className = nw ? 'heard' : 'heard ph';
+  const talk = t > user.start && t < user.start + user.dur ? 1 : .35;
+  ['#w1', '#w2'].forEach((w, i) => { const p = ((t * .9 + i * .5) % 1); css($(w), (1 - p) * talk, `scale(${1 + p * .7})`); });
+  $('#dquote').textContent = ['Wiege jedes Wort …', 'Zähle die Brotscheiben …'][Math.floor((t - 57.7) / .8) % 2 ? 1 : 0];
+  $$('#sDictRes .ing').forEach((r, i) => css(r, ease(seg(t, 59.6 + i * .22, 59.9 + i * .22))));
+  $('#dictK').textContent = Math.round(369 * ease(seg(t, 59.6, 60.6)));
+
+  renderCursor(t);
+
+  // Subtitle
+  const vo = VO.find(v => t >= v.start && t < v.start + v.dur + .25);
+  const sv = vo ? win(t, vo.start, vo.start + vo.dur + .05, .2) : 0;
+  css($('#subText'), sv, `translateY(${(1 - sv) * 8}px)`);
+  if (vo) { $('#subText').textContent = vo.text; $('#subText').className = vo.user ? 'user' : ''; }
+
+  // Finale: the checklist, then the end card
+  const fv = win(t, 75.3, 82.3, .4);
+  css($('#finale'), fv, `translateY(${(1 - fv) * 30}px)`);
+  $$('#checklist li').forEach((li, i) => { const q = ease(seg(t, 75.8 + i * .42, 76.2 + i * .42)); css(li, q, `translateX(${(1 - q) * -14}px)`); });
+  const sq = ease(seg(t, 80.2, 80.6));
+  css($('#sum'), sq);
+  $('#sumN').textContent = `${Math.round(TAPS.length * ease(seg(t, 80.2, 81.2)))} Taps`;
+  const ev = ease(seg(t, 82.5, 83.1));
+  css($('#end'), ev);
+  $('.end-in').style.transform = `translateY(${(1 - ev) * 20}px)`;
+  $('#stA').textContent = Math.round(WAYS.length * ease(seg(t, 83.4, 84.4)));
+  $('#stB').textContent = Math.round(TAPS.length * ease(seg(t, 83.5, 84.6)));
+  $('#stC').textContent = de(2782 * ease(seg(t, 83.6, 84.9)));
+  ['#md0', '#md1', '#md2'].forEach((m, i) => { const q = ease(seg(t, 85.6 + i * .3, 86 + i * .3)); css($(m), q, `translateY(${(1 - q) * 12}px)`); });
+  drawConfetti(t);
+}
+
+function renderCursor(t){
+  const cur = $('#cursor'), rip = $('#ripple');
+  const groups = {};
+  TAPS.forEach(x => (groups[x.scene] ||= []).push(x));
+  const g = Object.values(groups).find(g => t >= g[0].t - 1.1 && t <= g[g.length - 1].t + .6);
+  const b = reel.getBoundingClientRect(), pr = $('#phoneBox').getBoundingClientRect();
+  const box = {l:(pr.left - b.left) / reelScale, t:(pr.top - b.top) / reelScale, w:pr.width / reelScale, h:pr.height / reelScale};
+  if (!g) css(cur, 0);
+  else {
+    const rest = [box.l + box.w * .82, box.t + box.h * .68];
+    let i = g.findIndex(x => x.t >= t - .12); if (i < 0) i = g.length - 1;
+    const inPhone = ([x, y]) => [clamp(x, box.l + 20, box.l + box.w - 20), clamp(y, box.t + 20, box.t + box.h - 20)];
+    const to = inPhone(center(g[i].sel)), from = i > 0 ? inPhone(center(g[i - 1].sel)) : rest;
+    const m = ease(seg(t, g[i].t - .75, g[i].t - .12));
+    const x = from[0] + (to[0] - from[0]) * m, y = from[1] + (to[1] - from[1]) * m;
+    const press = 1 - .25 * win(t, g[i].t - .08, g[i].t + .02, .06);
+    const v = Math.min(ease(seg(t, g[0].t - 1.1, g[0].t - .8)), 1 - ease(seg(t, g[g.length - 1].t + .3, g[g.length - 1].t + .6)));
+    css(cur, v, `translate(${x}px,${y}px) scale(${press})`);
+  }
+  const last = TAPS.findLast(x => x.t <= t);
+  const rp = last ? seg(t, last.t, last.t + .45) : 1;
+  if (last && rp < 1) { const [x, y] = center(last.sel); css(rip, 1 - rp, `translate(${x}px,${y}px) scale(${.3 + rp})`); }
+  else css(rip, 0);
+}
+
+/* Confetti: positions are a pure function of t */
+const palette = ['#B3245F', '#2F64D6', '#C98E00', '#23926A', '#0E7C86'];
+let rnd = 7; const R = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+const BITS = Array.from({length:160}, () => ({x:R(), vx:(R() - .5) * .9, vy:-(.6 + R() * .9), rot:R() * 6, vr:(R() - .5) * 10, c:Math.floor(R() * 5), w:10 + R() * 10}));
+function drawConfetti(t){
+  const cv = $('#confetti'), cx = cv.getContext('2d');
+  cx.clearRect(0, 0, cv.width, cv.height);
+  const dt = t - 83.4;
+  if (dt < 0 || dt > 4.5) return;
+  const W = cv.width, H = cv.height;
+  cx.globalAlpha = 1 - seg(dt, 3.3, 4.5);
+  BITS.forEach(b => {
+    const x = (b.x * .8 + .1) * W + b.vx * dt * W * .5;
+    const y = H * .5 + (b.vy * dt + .55 * dt * dt) * H * .45;
+    cx.save(); cx.translate(x, y); cx.rotate(b.rot + b.vr * dt);
+    cx.fillStyle = palette[b.c]; cx.fillRect(-b.w / 2, -b.w / 4, b.w, b.w / 2); cx.restore();
+  });
+}
+
+/* ---- API for build_reel.py, and a silent preview loop otherwise ---- */
+window.REEL = {
+  render,
+  setDurations(d){
+    VO.forEach(v => { if (d[v.id]) v.dur = d[v.id]; });
+    render(0);
+    return {vo: VO.map(({id, start, dur}) => ({id, start, dur})), taps: TAPS.map(x => x.t),
+            entries: [...ENTRIES, BANANA].map(e => e.t), shutters: SHUTTERS};
+  },
+};
+const q = new URLSearchParams(location.search);
+if (!q.has('capture')) {
+  const fit = () => { reelScale = Math.min(innerWidth / 540, innerHeight / 960); reel.style.transform = `translate(${(innerWidth - 540 * reelScale) / 2}px,${(innerHeight - 960 * reelScale) / 2}px) scale(${reelScale})`; };
+  addEventListener('resize', fit); fit();
+  const t0 = performance.now() - (+q.get('t') || 0) * 1000;
+  const loop = () => { render(((performance.now() - t0) / 1000) % T); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+} else render(0);
+</script>
+</html>
