@@ -289,7 +289,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 - `POST /plates/extract` liefert `dish`, `items`, `totals` und `notes`. Ein Item hat `food_id` (oder `null`), `name`, `grams`, `confidence`, `certainty` (`recognized`/`guessed`, in der App „erkannt“/„vermutet“, ab `confidence` 0,7 erkannt), das zugeordnete Lebensmittel, dessen `basis` und `density`, dessen Werte je 100 g bzw. 100 ml und `macros` für die Menge. Mit `basis` und `density` rechnet die Vorschau der App wie das Backend.
 - `totals` summiert die zugeordneten Items. Eingetragen wird erst nach der Bestätigung.
 
-**Prompt:** Er verlangt eine Zutat je sichtbarem Bestandteil, deutsch und generisch benannt wie im BLS (Lebensmittel, dann Zubereitung), und die Menge in Gramm wie gegessen. Er gibt Mengenanker vor, weil Schätzungen aus Fotos zu hoch ausfallen.
+**Prompt:** Er verlangt eine Zutat je sichtbarem Bestandteil, deutsch und generisch benannt wie im BLS (Lebensmittel, dann Zubereitung), und die Menge in Gramm wie gegessen. Er gibt Mengenanker vor, weil Schätzungen aus Fotos zu hoch ausfallen. Den Namen des Gerichts (`dish`) verlangt er kurz, höchstens etwa drei Wörter („Falafel-Bowl“, „Käsebrot mit Kaffee“), damit er im Tagebuch nicht abgeschnitten wird; das gilt auch für das Diktat.
 
 **Zuordnung:**
 - Jede Zutat läuft durch die Suche aus Abschnitt 6, lokal und ohne Netz.
