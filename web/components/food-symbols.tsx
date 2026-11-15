@@ -3,7 +3,8 @@ import type { Category } from "@/lib/api";
 
 /*
  * Symbols of the food categories for foods without a photo, drawn for BISS: one line style
- * on a 24 grid, stroke in currentColor (the muted ink), so they follow light and dark.
+ * on a 24 grid, stroke in currentColor. The colour is the category's own token
+ * (--biss-cat-<category> in globals.css), so they follow light and dark.
  */
 const PATHS: Record<Category, ReactNode> = {
   // A loaf with three cuts.
@@ -125,6 +126,7 @@ const PATHS: Record<Category, ReactNode> = {
 
 /** The symbol of a category; without one (null) the symbol of "other". */
 export function FoodSymbol({ category }: { category: Category | null }) {
+  const key = category ?? "other";
   return (
     <svg
       viewBox="0 0 24 24"
@@ -133,10 +135,10 @@ export function FoodSymbol({ category }: { category: Category | null }) {
       strokeWidth="1.6"
       strokeLinecap="round"
       strokeLinejoin="round"
-      data-category={category ?? "other"}
-      className="text-muted-foreground"
+      data-category={key}
+      style={{ color: `var(--biss-cat-${key})` }}
     >
-      {PATHS[category ?? "other"]}
+      {PATHS[key]}
     </svg>
   );
 }
