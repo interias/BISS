@@ -206,6 +206,9 @@ export function Home() {
     }
   };
 
+  /** Every logged entry says what it brought: "<Name> eingetragen · X kcal". */
+  const loggedText = (name: string, kcal: number) => `${name} eingetragen · ${fmt(kcal)} kcal`;
+
   const undo = (entryId: number) => () => {
     deleteEntry(entryId).then(reload).catch(fail);
   };
@@ -214,12 +217,12 @@ export function Home() {
     // Only the food: the backend takes the standard serving and the suggested meal.
     const entry = await createEntry({ food_id: food.id });
     await reload();
-    show(`${shortName(food.name)} eingetragen`, undo(entry.id));
+    show(loggedText(shortName(food.name), entry.macros.kcal), undo(entry.id));
   };
 
   /** The toast of a logged Schnellzugriff; "Rückgängig" removes the whole group, as for a plate. */
   const comboLogged = (name: string, group: EntryGroup) =>
-    show(`${name} eingetragen · ${fmt(group.totals.kcal)} kcal`, () => {
+    show(loggedText(name, group.totals.kcal), () => {
       deleteEntryGroup(group.group_id).then(reload).catch(fail);
     });
 
@@ -268,7 +271,7 @@ export function Home() {
         show("Gespeichert");
       } else {
         const created = await createEntry({ ...target, grams });
-        show(`${shortName(created.food.name)} eingetragen`, undo(created.id));
+        show(loggedText(shortName(created.food.name), created.macros.kcal), undo(created.id));
       }
     }).catch(fail);
 
@@ -324,7 +327,7 @@ export function Home() {
       if (photo) await uploadFoodImage(recipe.food_id, photo).catch(console.error);
       // Without grams: the standard serving, which is the one portion.
       const entry = await createEntry({ food_id: recipe.food_id });
-      show(`${name} eingetragen`, undo(entry.id));
+      show(loggedText(name, entry.macros.kcal), undo(entry.id));
     }).catch(fail);
 
   /** The heard sentence goes to the backend; its dish opens the plate sheet. */

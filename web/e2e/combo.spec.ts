@@ -126,7 +126,7 @@ test("tap budget: a Schnellzugriff used before is logged from the empty search w
   expect(group.entries).toHaveLength(2);
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText(`${combo.name} eingetragen`);
+  await expect(page.getByRole("status")).toContainText(new RegExp(`${combo.name} eingetragen · \\d+ kcal`));
   expect(await taps(), "Suche + 1").toBe(2);
 });
 

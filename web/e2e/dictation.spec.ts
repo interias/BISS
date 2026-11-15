@@ -96,7 +96,7 @@ test("tap budget: a dictated meal is logged with Mikrofon + Fertig + 1 confirmat
   expect(uploads, "a dictated dish has no photo").toEqual([]);
 
   await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toContainText(DISH);
-  await expect(page.getByText(`${DISH} eingetragen`)).toBeVisible();
+  await expect(page.getByText(new RegExp(`${DISH} eingetragen · \\d+ kcal`))).toBeVisible();
   expect(await taps(), "Mikrofon + Fertig + Eintragen").toBe(3);
 });
 

@@ -99,7 +99,7 @@ test("tap budget: a plate is logged with Kamera + Teller + 1 confirmation", asyn
   await expect(row).toContainText(DISH);
   await expect(row.locator("img")).toHaveCount(1);
   await expect(page.locator("[data-group-id]")).toHaveCount(0);
-  await expect(page.getByText(`${DISH} eingetragen`)).toBeVisible();
+  await expect(page.getByText(`${DISH} eingetragen · ${Math.round(entry.macros.kcal)} kcal`)).toBeVisible();
   expect(await taps(), "Kamera + Teller + Eintragen").toBe(3);
 });
 
