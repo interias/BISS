@@ -177,6 +177,7 @@ def combo(view: ComboView) -> schemas.Combo:
             for item in view.items
         ],
         totals=schemas.Macros.model_validate(view.totals),
+        last_used=view.last_used,
     )
 
 

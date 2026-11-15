@@ -60,7 +60,7 @@ async function loggedGroup(page: Page, comboId: number, action: () => Promise<vo
   return group;
 }
 
-test("+ Neu creates a combo from searched foods; its chip stands first after + Neu", async ({ page }) => {
+test("+ Neu creates a combo from searched foods and shows its chip", async ({ page }) => {
   const name = unique("Bananenpause");
   await page.goto("/");
   await page.getByRole("button", { name: "Neuer Schnellzugriff" }).click();
@@ -84,11 +84,30 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
 
   await expect(page.getByRole("status")).toContainText(`${name} als Schnellzugriff gespeichert`);
   await expect(chipOf(page, name)).toBeVisible();
-  // "+ Neu" stands first, the Schnellzugriff chips before the recent chips.
+  // "+ Neu" and the cookbook stand first.
   const chips = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button");
   await expect(chips.first()).toHaveAccessibleName("Neuer Schnellzugriff");
   await expect(chips.nth(1)).toHaveAccessibleName("Meine Rezepte");
-  await expect(chips.nth(2)).toHaveAccessibleName(/^Schnellzugriff /);
+});
+
+test("after + Neu and the cookbook the chip used last comes first, combo or food", async ({ page }) => {
+  await entries.create(bananaId, 120, "snack"); // makes the banana a recent food
+  const combo = await createCombo(page.request, unique("Reis mit Banane"));
+  await page.goto("/");
+  const chips = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button");
+
+  await loggedGroup(page, combo.id, () => chipOf(page, combo.name).click());
+  // Logged just now: before every recent food, its own banana and rice too.
+  await expect(chips.nth(2)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
+
+  const banana = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button", { name: /^Banane roh\s*120 g$/ });
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    banana.click(),
+  ]);
+  entries.track(((await response.json()) as { id: number }).id);
+  await expect(chips.nth(2)).toHaveAccessibleName(/^Banane roh\s*120 g$/);
+  await expect(chips.nth(3)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
 });
 
 test("tap budget: a Schnellzugriff is logged with 1 tap as one group", async ({ page, request }) => {
@@ -165,7 +184,8 @@ test("the context menu of a chip adjusts one entry, the template stays", async (
   expect(group.entries).toHaveLength(1);
   await expect(page.locator(`[data-group-id="${group.group_id}"]`)).toBeVisible();
   const saved: Combo[] = await (await request.get("/api/v1/combos")).json();
-  expect(saved.find((c) => c.id === combo.id)).toEqual(combo);
+  // The template is unchanged; only its last use moved.
+  expect({ ...saved.find((c) => c.id === combo.id), last_used: null }).toEqual(combo);
 });
 
 test("als Schnellzugriff merken makes a combo of a diary group", async ({ page, request }) => {

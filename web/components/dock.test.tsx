@@ -1,9 +1,13 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import type { Chip, Combo, FoodSummary } from "@/lib/api";
 import { banana, coffeeCombo } from "@/test/fixtures";
 import { Dock, HOLD_MS } from "./dock";
 
 afterEach(() => vi.useRealTimers());
+
+const comboChip = (combo: Combo): Chip => ({ food: null, combo });
+const foodChip = (food: FoodSummary): Chip => ({ food, combo: null });
 
 function renderDock() {
   const actions = {
@@ -15,21 +19,32 @@ function renderDock() {
     onSearch: vi.fn(),
     onCamera: vi.fn(),
   };
-  render(<Dock combos={[coffeeCombo()]} recent={[banana]} {...actions} />);
+  render(<Dock chips={[comboChip(coffeeCombo()), foodChip(banana)]} {...actions} />);
   return { ...actions, chip: screen.getByRole("button", { name: "Schnellzugriff Kaffee" }) };
 }
 
-test("+ Neu stands first, then the combo chips and the recent ones", () => {
-  const { onNewCombo } = renderDock();
+test("+ Neu and the cookbook stand first, then the chips mixed in the backend's order", () => {
+  const actions = {
+    onCombo: vi.fn(),
+    onComboHold: vi.fn(),
+    onNewCombo: vi.fn(),
+    onRecipes: vi.fn(),
+    onRecent: vi.fn(),
+    onSearch: vi.fn(),
+    onCamera: vi.fn(),
+  };
+  const rice = { ...banana, id: 8, name: "Reis gekocht" };
+  render(<Dock chips={[foodChip(rice), comboChip(coffeeCombo()), foodChip(banana)]} {...actions} />);
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
     "Neuer Schnellzugriff",
     "Meine Rezepte",
+    "Reis gekocht 120 g",
     "Schnellzugriff Kaffee",
     "Banane roh 120 g",
   ]);
   fireEvent.click(chips[0]);
-  expect(onNewCombo).toHaveBeenCalled();
+  expect(actions.onNewCombo).toHaveBeenCalled();
 });
 
 test("a chip shows the name above grams and kcal", () => {
@@ -45,8 +60,7 @@ test("long names are cut to about 14 characters, the full name stays in the labe
   const food = { ...banana, name: "Vollkornhaferflocken extra zart, roh" };
   render(
     <Dock
-      combos={[long]}
-      recent={[food]}
+      chips={[comboChip(long), foodChip(food)]}
       onCombo={vi.fn()}
       onComboHold={vi.fn()}
       onNewCombo={vi.fn()}
@@ -126,7 +140,7 @@ test("the cookbook opens the own recipes, and the chip of a recipe stands in the
     onCamera: vi.fn(),
   };
   const rolls = { ...banana, id: 71, name: "Skyrbrötchen", recipe: true };
-  render(<Dock combos={[]} recent={[rolls, banana]} {...actions} />);
+  render(<Dock chips={[rolls, banana].map(foodChip)} {...actions} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Meine Rezepte" }));
   expect(actions.onRecipes).toHaveBeenCalledOnce();
@@ -147,7 +161,7 @@ test("the chip of a scanned product stands in turquoise, a recipe wins over it",
   };
   const bar = { ...banana, id: 80, name: "Testriegel", scanned: true };
   const both = { ...banana, id: 81, name: "Eigenes Brot", scanned: true, recipe: true };
-  render(<Dock combos={[]} recent={[bar, both, banana]} {...actions} />);
+  render(<Dock chips={[bar, both, banana].map(foodChip)} {...actions} />);
   expect(screen.getByRole("button", { name: /^Testriegel/ })).toHaveClass("border-scan");
   expect(screen.getByText("Testriegel")).toHaveClass("text-scan");
   expect(screen.getByText("Eigenes Brot")).toHaveClass("text-primary");
@@ -165,7 +179,7 @@ test("a chip shows the photo of its food when it has one", () => {
     onCamera: vi.fn(),
   };
   const rolls = { ...banana, id: 71, name: "Skyrbrötchen", image_path: "rolls.webp" };
-  render(<Dock combos={[]} recent={[rolls, banana]} {...actions} />);
+  render(<Dock chips={[rolls, banana].map(foodChip)} {...actions} />);
   expect(screen.getByRole("button", { name: /^Skyrbrötchen/ }).querySelector("img")).toHaveAttribute(
     "src",
     "/api/v1/images/rolls.webp",
@@ -176,12 +190,12 @@ test("a chip shows the photo of its food when it has one", () => {
 test("the microphone stands before the camera only with onDictate", () => {
   const onDictate = vi.fn();
   const { rerender } = render(
-    <Dock combos={[]} recent={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
+    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
       onRecent={vi.fn()} onSearch={vi.fn()} onCamera={vi.fn()} />,
   );
   expect(screen.queryByRole("button", { name: "Mahlzeit diktieren" })).not.toBeInTheDocument();
   rerender(
-    <Dock combos={[]} recent={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
+    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
       onRecent={vi.fn()} onSearch={vi.fn()} onDictate={onDictate} onCamera={vi.fn()} />,
   );
   const mic = screen.getByRole("button", { name: "Mahlzeit diktieren" });

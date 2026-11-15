@@ -258,7 +258,7 @@ export const coffee: FoodSummary = {
 
 const comboOf = (id: number, name: string, items: { food: FoodSummary; grams: number }[]): Combo => {
   const full = items.map(({ food, grams }) => ({ food, grams, density: 1, macros: scale(food.per_100, grams) }));
-  return { id, name, items: full, totals: sum(full.map((item) => item.macros)) };
+  return { id, name, items: full, totals: sum(full.map((item) => item.macros)), last_used: null };
 };
 
 /** The Schnellzugriff "Kaffee": 200 ml coffee and 5 g sugar, 24 kcal. */
@@ -364,7 +364,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 /**
- * A fake backend for /api/v1: GET /days/today and /recent, POST and DELETE /entries, the
+ * A fake backend for /api/v1: GET /days/today, /recent and /chips, POST and DELETE /entries, the
  * banana for GET and PATCH /foods/7 and a search that finds only "banane" and the cached
  * pudding ("pudding"), with off_more below 5 hits; the Open Food Facts search finds the
  * muesli ("zippelmo") and fails for "offline"; POST /foods
@@ -444,6 +444,11 @@ export function fakeApi({
     calls.push({ method, url, body });
     if (url === "/api/v1/days/today") return json(makeDay(entries));
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
+    // As the backend: the recent foods, then the combos never logged (all of the fake's).
+    if (url === "/api/v1/chips") {
+      const foods = [banana, riceDetail].map((food) => ({ food, combo: null }));
+      return json([...foods, ...saved.map((combo) => ({ food: null, combo }))]);
+    }
     if (url === "/api/v1/foods/suggestions") {
       const food = (summary: FoodSummary) => ({ food: { ...summary, gtin: null }, combo: null });
       return json({
