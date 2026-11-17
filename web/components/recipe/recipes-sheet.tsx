@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getRecipes, imageUrl, type Recipe } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { addPill } from "@/lib/styles";
+import { AiMark } from "@/components/ai-mark";
 import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
@@ -11,9 +12,17 @@ import { SheetTitle } from "@/components/sheet";
 /**
  * "Meine Rezepte" (ADR-0012): all own recipes, the one saved last first. A tap opens the
  * amount sheet of the recipe's food to log portions, where "Bearbeiten" leads to the recipe;
- * "+ Neues Rezept" starts one.
+ * "+ Neues Rezept" starts one, "Aus Text oder Link" one read from a pasted recipe (ADR-0014).
  */
-export function RecipesSheet({ onPick, onNew }: { onPick: (recipe: Recipe) => void; onNew: () => void }) {
+export function RecipesSheet({
+  onPick,
+  onNew,
+  onImport,
+}: {
+  onPick: (recipe: Recipe) => void;
+  onNew: () => void;
+  onImport: () => void;
+}) {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   useEffect(() => {
     let live = true;
@@ -25,14 +34,14 @@ export function RecipesSheet({ onPick, onNew }: { onPick: (recipe: Recipe) => vo
 
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <SheetTitle className="font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</SheetTitle>
-        <button
-          type="button"
-          onClick={onNew}
-          className={addPill}
-        >
+      <SheetTitle className="mb-2.5 font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</SheetTitle>
+      <div className="mb-2 flex flex-wrap gap-2">
+        <button type="button" onClick={onNew} className={addPill}>
           + Neues Rezept
+        </button>
+        <button type="button" onClick={onImport} className={addPill}>
+          <AiMark />
+          Aus Text oder Link
         </button>
       </div>
       <ul aria-label="Rezepte">

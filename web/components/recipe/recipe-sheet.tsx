@@ -7,7 +7,6 @@ import {
   getRecipe,
   imageUrl,
   importRecipe,
-  kindColor,
   updateRecipe,
   uploadFoodImage,
   type Basis,
@@ -19,9 +18,10 @@ import {
   type SearchHit,
 } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { breakable, fmt, shortName } from "@/lib/format";
-import { addPill, hitArea, kicker, primaryOff, suggestChip } from "@/lib/styles";
+import { breakable, fmt } from "@/lib/format";
+import { hitArea, kicker, primaryOff } from "@/lib/styles";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ai-mark";
 import { DOTS } from "@/components/amount-sheet";
 import { PhotoPicker } from "@/components/photo-picker";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
@@ -147,12 +147,13 @@ const field =
  */
 export function RecipeSheet({
   recipeId,
-  recent,
+  importing = false,
   onSaved,
   onCancel,
 }: {
   recipeId?: number;
-  recent: FoodSummary[];
+  /** Opens with the field for a recipe text or link (ADR-0014), from "Meine Rezepte". */
+  importing?: boolean;
   /** The saved recipe and, when it was edited, the recipe as it was before. */
   onSaved: (recipe: Recipe, before?: Recipe) => void;
   onCancel: () => void;
@@ -168,17 +169,17 @@ export function RecipeSheet({
   }, [recipeId]);
 
   if (recipeId !== undefined && !loaded) return <SheetTitle className="sr-only">Rezept bearbeiten</SheetTitle>;
-  return <RecipeForm recipe={loaded ?? undefined} recent={recent} onSaved={onSaved} onCancel={onCancel} />;
+  return <RecipeForm recipe={loaded ?? undefined} importing={importing} onSaved={onSaved} onCancel={onCancel} />;
 }
 
 function RecipeForm({
   recipe,
-  recent,
+  importing,
   onSaved,
   onCancel,
 }: {
   recipe?: Recipe;
-  recent: FoodSummary[];
+  importing: boolean;
   onSaved: (recipe: Recipe, before?: Recipe) => void;
   onCancel: () => void;
 }) {
@@ -206,7 +207,7 @@ function RecipeForm({
   const [searching, setSearching] = useState<number | "new" | { open: number } | null>(null);
   const [open, setOpen] = useState<Open[]>(first.open);
   // Import from a text or a link (ADR-0014): null while closed, else the text being written.
-  const [source, setSource] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(importing ? "" : null);
   const [reading, setReading] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -252,8 +253,7 @@ function RecipeForm({
   const change = (key: number, patch: Partial<Row>) =>
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   const remove = (key: number) => setRows((current) => current.filter((row) => row.key !== key));
-  const add = (food: FoodSummary | SearchHit) =>
-    setRows((current) => [...current, rowOf(food, food.standard_serving.grams)]);
+  const add = (food: SearchHit) => setRows((current) => [...current, rowOf(food, food.standard_serving.grams)]);
 
   const pickFood = (hit: SearchHit) => {
     if (hit.id === null || searching === null) return;
@@ -325,10 +325,6 @@ function RecipeForm({
     fat: total.fat / portions,
   };
   const ready = name.trim() !== "" && rows.length > 0 && !cookedWrong;
-  // The recipe's own food is no ingredient of it.
-  const suggestions = recent.filter(
-    (food) => food.id !== base?.food_id && !rows.some((row) => row.food.id === food.id),
-  );
 
   const save = async () => {
     setBusy(true);
@@ -400,14 +396,10 @@ function RecipeForm({
           </button>
         </p>
       )}
-      {!recipe && source === null && (
-        <button type="button" onClick={() => setSource("")} className={cn(addPill, "mb-3")}>
-          + Aus Text oder Link
-        </button>
-      )}
       {source !== null && (
         <div className="mb-3 grid gap-2">
-          <label htmlFor="recipe-source" className={label}>
+          <label htmlFor="recipe-source" className={cn(label, "flex items-center gap-1")}>
+            <AiMark size={12} />
             Rezepttext oder Link
           </label>
           <textarea
@@ -433,7 +425,10 @@ function RecipeForm({
               onClick={() => read().catch(console.error)}
               className={cn("h-[42px] flex-1 rounded-xl bg-primary text-sm font-bold text-primary-foreground", primaryOff)}
             >
-              {reading ? "Lese Rezept …" : "Übernehmen"}
+              <span className="flex items-center justify-center gap-1.5">
+                <AiMark />
+                {reading ? "Lese Rezept …" : "Übernehmen"}
+              </span>
             </button>
           </div>
         </div>
@@ -534,25 +529,18 @@ function RecipeForm({
       )}
       {notes && <p className="pt-2 text-[12.5px] text-muted-foreground">{notes}</p>}
 
-      <div role="group" aria-label="Vorschläge" className="mt-3 mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setSearching("new")}
-          className={addPill}
-        >
-          + Zutat suchen
-        </button>
-        {suggestions.map((food) => (
-          <button
-            key={food.id}
-            type="button"
-            onClick={() => add(food)}
-            className={cn(suggestChip, kindColor(food))}
-          >
-            + {shortName(food.name)}
-          </button>
-        ))}
-      </div>
+      {/* One field, as in the dock: the recent foods are seldom ingredients of a recipe. */}
+      <button
+        type="button"
+        onClick={() => setSearching("new")}
+        className="mt-3 mb-4 flex h-[46px] w-full items-center gap-2.5 rounded-xl border bg-surface-2 px-3.5 text-left font-medium text-muted-foreground"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" className="flex-none">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        Zutat suchen
+      </button>
 
       <div className="mb-1 grid grid-cols-2 gap-3">
         <div className="grid gap-1">

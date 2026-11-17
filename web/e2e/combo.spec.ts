@@ -233,7 +233,7 @@ test("a recipe is created, logged in two portions and weighed afterwards", async
     ["banane", "Banane roh"],
     ["reis gekocht", "Reis gekocht"],
   ]) {
-    await sheet.getByRole("button", { name: "+ Zutat suchen" }).click();
+    await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
     await sheet.getByRole("textbox", { name: "Suchen" }).fill(query);
     await sheet.getByRole("button", { name: new RegExp(`^${food}`) }).first().click();
   }

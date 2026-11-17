@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { Sheet } from "@/components/sheet";
-import { banana, fakeApi, fakePlate, riceDetail, skyrRecipe } from "@/test/fixtures";
+import { fakeApi, fakePlate, skyrRecipe } from "@/test/fixtures";
 import { parseWeight, RecipeSheet } from "./recipe-sheet";
 
 afterEach(() => {
@@ -9,14 +9,21 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-function renderSheet(recipeId?: number) {
+function renderSheet(recipeId?: number, importing = false) {
   const actions = { onSaved: vi.fn(), onCancel: vi.fn() };
   render(
     <Sheet onClose={() => {}}>
-      <RecipeSheet recipeId={recipeId} recent={[banana, riceDetail]} {...actions} />
+      <RecipeSheet recipeId={recipeId} importing={importing} {...actions} />
     </Sheet>,
   );
   return actions;
+}
+
+/** The banana through the ingredient search, at its standard serving of 120 g. */
+async function addBanana() {
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
 }
 
 const preview = () => screen.getByTestId("preview");
@@ -28,7 +35,7 @@ test("a new recipe divides its ingredients into portions and saves them", async 
   expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
 
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: " Bananenbrot " } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  await addBanana();
   // One banana of 120 g: 111.6 kcal in the whole dish.
   expect(preview()).toHaveTextContent("112kcal");
   expect(screen.getByText("1 Portion · 120 g")).toBeInTheDocument();
@@ -71,8 +78,6 @@ test("an existing recipe opens with its values; an emptied weight goes back to t
   expect(screen.getByRole("status", { name: "Portionen" })).toHaveTextContent("5");
   expect(within(screen.getByRole("list", { name: "Zutaten" })).getAllByRole("listitem")).toHaveLength(2);
   expect(screen.getByText("1 Portion · 90 g")).toBeInTheDocument();
-  // The recipe's own food is no suggestion for its ingredients.
-  expect(screen.queryByRole("button", { name: "+ Skyrbrötchen" })).not.toBeInTheDocument();
 
   fireEvent.change(cooked(), { target: { value: "" } });
   fireEvent.click(screen.getByRole("button", { name: "weniger Portionen" }));
@@ -112,9 +117,8 @@ function withImport(status = 200) {
 
 test("a recipe from a text fills the sheet; an unmatched ingredient stays visible until searched", async () => {
   const { calls, sources } = withImport();
-  const { onSaved } = renderSheet();
+  const { onSaved } = renderSheet(undefined, true);
 
-  fireEvent.click(screen.getByRole("button", { name: "+ Aus Text oder Link" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Rezepttext oder Link" }), {
     target: { value: "  500 g Hähnchen, 300 g Reis, Brokkoli " },
   });
@@ -152,8 +156,7 @@ test("a recipe from a text fills the sheet; an unmatched ingredient stays visibl
 
 test("a link that does not load says to paste the text", async () => {
   withImport(502);
-  renderSheet();
-  fireEvent.click(screen.getByRole("button", { name: "+ Aus Text oder Link" }));
+  renderSheet(undefined, true);
   fireEvent.change(screen.getByRole("textbox", { name: "Rezepttext oder Link" }), {
     target: { value: "https://www.chefkoch.de/rezepte/1/x.html" },
   });
@@ -164,7 +167,7 @@ test("a link that does not load says to paste the text", async () => {
   );
 });
 
-test("the finished weight is read as typed in German, a wrong one blocks saving", () => {
+test("the finished weight is read as typed in German, a wrong one blocks saving", async () => {
   expect([parseWeight("1.200"), parseWeight("450,5"), parseWeight("450.5"), parseWeight(" 300 ")]).toEqual([
     1200, 450.5, 450.5, 300,
   ]);
@@ -173,7 +176,7 @@ test("the finished weight is read as typed in German, a wrong one blocks saving"
   fakeApi();
   renderSheet();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Brot" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  await addBanana();
   fireEvent.change(cooked(), { target: { value: "1.200" } });
   expect(screen.getByText("1 Portion · 1.200 g")).toBeInTheDocument();
   for (const wrong of ["60000", "-5", "abc"]) {
@@ -187,11 +190,11 @@ test("a sheet closed by accident opens again as it was, until saved, cancelled o
   fakeApi();
   const first = render(
     <Sheet onClose={() => {}}>
-      <RecipeSheet recent={[banana, riceDetail]} onSaved={vi.fn()} onCancel={vi.fn()} />
+      <RecipeSheet onSaved={vi.fn()} onCancel={vi.fn()} />
     </Sheet>,
   );
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Bananenbrot" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  await addBanana();
   fireEvent.click(screen.getByRole("button", { name: "mehr Portionen" }));
   first.unmount();
 
@@ -216,7 +219,7 @@ test("Escape in the ingredient search goes back to the recipe", () => {
   fakeApi();
   renderSheet();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Brot" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
   fireEvent.keyDown(screen.getByRole("textbox", { name: "Suchen" }), { key: "Escape" });
   expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Brot");
 });
@@ -225,7 +228,7 @@ test("a failed save says so and keeps the sheet", async () => {
   fakeApi();
   const { onSaved } = renderSheet();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "kaputt" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  await addBanana();
   fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Speichern fehlgeschlagen.");
   expect(onSaved).not.toHaveBeenCalled();

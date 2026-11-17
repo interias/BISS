@@ -96,7 +96,7 @@ type SheetState =
   // A Schnellzugriff to adjust for one entry, or a new one without `combo` (ADR-0010).
   | { kind: "combo"; combo?: Combo }
   // A new recipe, or the one of the amount sheet "Bearbeiten" came from (ADR-0012).
-  | { kind: "recipe"; recipeId?: number; back?: AmountState }
+  | { kind: "recipe"; recipeId?: number; back?: AmountState; importing?: boolean }
   // "Meine Rezepte": all recipes, to log one or to start a new one.
   | { kind: "recipes" };
 
@@ -551,13 +551,14 @@ export function Home() {
             <RecipesSheet
               onPick={(recipe) => setSheet({ kind: "amount", foodId: recipe.food_id })}
               onNew={() => setSheet({ kind: "recipe" })}
+              onImport={() => setSheet({ kind: "recipe", importing: true })}
             />
           )}
           {sheet.kind === "recipe" && (
             <RecipeSheet
               key={sheet.recipeId ?? "new"}
               recipeId={sheet.recipeId}
-              recent={recent}
+              importing={sheet.importing}
               onSaved={recipeSaved(sheet.back)}
               onCancel={() => setSheet(sheet.back ? { kind: "amount", ...sheet.back } : null)}
             />
