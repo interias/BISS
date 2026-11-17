@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { AiMark } from "@/components/ai-mark";
 import {
   ApiError,
   extractLabel,
@@ -92,13 +93,17 @@ const CORNERS = [
 ];
 
 /** A round shutter of the prototype with its subject below. */
+/** A shutter whose photo a language model reads, hence the sparkles at its name. */
 function Shutter({ name, onClick }: { name: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="grid justify-items-center gap-1.5 text-[13px] font-semibold">
       <span aria-hidden="true" className="grid size-[76px] place-items-center rounded-full border-4 border-cam-foreground">
         <span className="size-[58px] rounded-full bg-cam-foreground" />
       </span>
-      {name}
+      <span className="flex items-center gap-1">
+        <AiMark size={12} />
+        {name}
+      </span>
     </button>
   );
 }
@@ -362,7 +367,10 @@ export function Camera({
               onClick={shoot}
               className="h-[54px] rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground"
             >
-              Etikett fotografieren
+              <span className="flex items-center gap-1.5">
+                <AiMark />
+                Etikett fotografieren
+              </span>
             </button>
           ) : (
             // The shutters of the prototype: the label without a barcode before, and the plate (SPEC 3).

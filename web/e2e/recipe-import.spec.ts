@@ -5,13 +5,12 @@ import { countTaps } from "./helpers";
 // "Bananen-Porridge", 2 portions, Hafer Flocken, Vollmilch and Banane matched against the BLS,
 // "Zauberpulver" matching no food.
 
-test("tap budget: a recipe from a pasted text is saved with Kochbuch + 4", async ({ page }) => {
+test("tap budget: a recipe from a pasted text is saved with Kochbuch + 3", async ({ page }) => {
   const taps = await countTaps(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Meine Rezepte" }).click();
   const sheet = page.getByRole("dialog");
-  await sheet.getByRole("button", { name: "+ Neues Rezept" }).click();
-  await sheet.getByRole("button", { name: "+ Aus Text oder Link" }).click();
+  await sheet.getByRole("button", { name: "Aus Text oder Link" }).click();
   // Pasting is no tap.
   await sheet
     .getByRole("textbox", { name: "Rezepttext oder Link" })
@@ -32,7 +31,7 @@ test("tap budget: a recipe from a pasted text is saved with Kochbuch + 4", async
   expect(saved.status()).toBe(201);
   const recipe: { name: string; portions: number; items: { grams: number }[] } = await saved.json();
   expect([recipe.name, recipe.portions, recipe.items.length]).toEqual(["Bananen-Porridge", 2, 3]);
-  expect(await taps(), "Kochbuch + Neues Rezept + Aus Text oder Link + Übernehmen + Speichern").toBe(5);
+  expect(await taps(), "Kochbuch + Aus Text oder Link + Übernehmen + Speichern").toBe(4);
 });
 
 test("a new recipe closed by accident opens again as it was", async ({ page }) => {
@@ -41,7 +40,7 @@ test("a new recipe closed by accident opens again as it was", async ({ page }) =
   const sheet = page.getByRole("dialog");
   await sheet.getByRole("button", { name: "+ Neues Rezept" }).click();
   await sheet.getByRole("textbox", { name: "Name" }).fill("Entwurf vom Test");
-  await sheet.getByRole("button", { name: "+ Zutat suchen" }).click();
+  await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
   // Escape in the search goes back to the recipe.
   await page.keyboard.press("Escape");
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");

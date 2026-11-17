@@ -381,7 +381,9 @@ test("the cookbook leads on to a new recipe; saved, its food opens to log portio
 
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Skyrbrötchen" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Banane roh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
   fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
   // The amount sheet of the recipe's food, with its portion.
@@ -395,6 +397,15 @@ test("the cookbook leads on to a new recipe; saved, its food opens to log portio
   expect(screen.getByRole("heading", { name: "Rezept bearbeiten" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
   expect(await screen.findByRole("heading", { name: "Skyrbrötchen" })).toBeInTheDocument();
+});
+
+test("Aus Text oder Link in the cookbook opens the recipe sheet with the field for the text", async () => {
+  fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Aus Text oder Link" }));
+  expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Rezepttext oder Link" })).toHaveFocus();
 });
 
 test("the back button of the phone closes the open sheet", async () => {

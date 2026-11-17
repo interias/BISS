@@ -5,6 +5,7 @@ import { kindColor, photoOf, type Chip, type Combo, type FoodSummary } from "@/l
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ai-mark";
 import { FoodPic } from "@/components/food-pic";
 
 /** A press this long opens the Schnellzugriff instead of logging it (SPEC 3). */
@@ -205,8 +206,10 @@ export function Dock({
             type="button"
             aria-label="Mahlzeit diktieren"
             onClick={onDictate}
-            className="grid size-[52px] flex-none place-items-center rounded-2xl border border-primary text-primary active:scale-[.96]"
+            className="relative grid size-[52px] flex-none place-items-center rounded-2xl border border-primary text-primary active:scale-[.96]"
           >
+            {/* The sentence goes to a language model. */}
+            <AiMark size={12} className="absolute top-1.5 right-1.5" />
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="9" y="3" width="6" height="12" rx="3" />
               <path d="M5 11a7 7 0 0 0 14 0" />
