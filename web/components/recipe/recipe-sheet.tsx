@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import {
   ApiError,
   createRecipe,
@@ -26,7 +26,7 @@ import { DOTS } from "@/components/amount-sheet";
 import { PhotoPicker } from "@/components/photo-picker";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
 import { SearchSheet } from "@/components/search-sheet";
-import { SheetTitle } from "@/components/sheet";
+import { SheetTitle, useSheetBack } from "@/components/sheet";
 
 /** An ingredient of a whole pot (the API's limit). */
 const MAX_ITEM_GRAMS = 10_000;
@@ -69,7 +69,20 @@ const rowOf = (food: FoodSummary | SearchHit, grams: number): Row => ({
  */
 type Draft = { name: string; description: string; rows: Row[]; portions: number; cooked: string; open: Open[] };
 
-const draftKey = (recipe?: Recipe) => `biss.recipe-draft.${recipe?.id ?? "new"}`;
+const draftKey = (recipe?: { id: number }) => `biss.recipe-draft.${recipe?.id ?? "new"}`;
+
+/**
+ * The name of the draft kept for a recipe, or for a new one without id ("" when it has none
+ * yet); null without a draft. "Meine Rezepte" shows it, so an unsaved recipe is found again.
+ */
+export function draftName(recipeId?: number): string | null {
+  try {
+    const text = window.localStorage.getItem(draftKey(recipeId === undefined ? undefined : { id: recipeId }));
+    return text ? ((JSON.parse(text) as Draft).name ?? "") : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The draft without the row keys, to compare it with the saved recipe. */
 const content = (draft: Draft) =>
@@ -218,19 +231,10 @@ function RecipeForm({
     writeDraft(key, content(now) === content(saved) ? null : now);
   }, [key, saved, name, description, rows, portions, cooked, open]);
 
-  // Escape in the search goes back to the recipe, as "← Zurück zum Rezept" does, instead of
-  // closing the sheet; the window sees it before the dialog does.
-  useEffect(() => {
-    if (searching === null) return;
-    const back = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setSearching(null);
-    };
-    window.addEventListener("keydown", back, { capture: true });
-    return () => window.removeEventListener("keydown", back, { capture: true });
-  }, [searching]);
+  // Scrim, Escape and the back button in the search go back to the recipe, as
+  // "← Zurück zum Rezept" does, instead of closing the sheet.
+  const backToRecipe = useCallback(() => setSearching(null), []);
+  useSheetBack(searching !== null ? backToRecipe : null);
 
   const discard = () => {
     setName(saved.name);

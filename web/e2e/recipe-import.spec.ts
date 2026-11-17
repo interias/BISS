@@ -44,6 +44,20 @@ test("a new recipe closed by accident opens again as it was", async ({ page }) =
   // Escape in the search goes back to the recipe.
   await page.keyboard.press("Escape");
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
+  // So do the back button and a tap on the scrim.
+  await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
+  await page.goBack();
+  await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
+  await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
+  await page.mouse.click(180, 20);
+  await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
+
+  // Closed from the recipe, it waits in the cookbook.
+  await page.goBack();
+  await expect(sheet).toBeHidden();
+  await page.getByRole("button", { name: "Meine Rezepte" }).click();
+  await sheet.getByRole("button", { name: /Nicht gespeichert/ }).click();
+  await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
 
   await page.reload();
   await page.getByRole("button", { name: "Meine Rezepte" }).click();

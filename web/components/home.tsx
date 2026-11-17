@@ -163,10 +163,16 @@ export function Home() {
   // an open one stands on a history entry of its own. Closed by a tap, the entry stays and
   // is used again, so at most one is ever left over.
   const overlay = sheet !== null || camera;
+  // A step inside the sheet, such as the ingredient search of a recipe, goes back first.
+  const sheetBack = useRef<(() => boolean) | null>(null);
   useEffect(() => {
     if (!overlay) return;
     if (window.history.state?.biss !== "overlay") window.history.pushState({ biss: "overlay" }, "");
     const close = () => {
+      if (sheetBack.current?.()) {
+        window.history.pushState({ biss: "overlay" }, "");
+        return;
+      }
       setSheet(null);
       setCamera(false);
     };
@@ -480,7 +486,7 @@ export function Home() {
       )}
 
       {sheet && day && (
-        <Sheet onClose={() => setSheet(null)}>
+        <Sheet back={sheetBack} onClose={() => setSheet(null)}>
           {sheet.kind === "search" && (
             <SearchSheet
               key={sheet.groupId ?? "search"}
