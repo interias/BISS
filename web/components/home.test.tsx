@@ -399,6 +399,27 @@ test("the cookbook leads on to a new recipe; saved, its food opens to log portio
   expect(await screen.findByRole("heading", { name: "Skyrbrötchen" })).toBeInTheDocument();
 });
 
+test("the back button in the ingredient search goes back to the recipe; an unsaved one waits in the cookbook", async () => {
+  fakeApi();
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
+  fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), { target: { value: "Linsensuppe" } });
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  expect(screen.getByRole("textbox", { name: "Suchen" })).toBeInTheDocument();
+
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue("Linsensuppe");
+
+  // Closed from the recipe itself, it is not lost: the cookbook leads back to it.
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  await waitFor(() => expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: /Nicht gespeichert\s*Linsensuppe/ }));
+  expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue("Linsensuppe");
+  window.localStorage.clear();
+});
+
 test("Aus Text oder Link in the cookbook opens the recipe sheet with the field for the text", async () => {
   fakeApi();
   render(<Home />);

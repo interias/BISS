@@ -8,6 +8,7 @@ import { AiMark } from "@/components/ai-mark";
 import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { SheetTitle } from "@/components/sheet";
+import { draftName } from "@/components/recipe/recipe-sheet";
 
 /**
  * "Meine Rezepte" (ADR-0012): all own recipes, the one saved last first. A tap opens the
@@ -24,6 +25,8 @@ export function RecipesSheet({
   onImport: () => void;
 }) {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
+  // An unsaved new recipe stays until saved or discarded, and is found here again.
+  const [draft] = useState(() => draftName());
   useEffect(() => {
     let live = true;
     getRecipes().then((found) => live && setRecipes(found), console.error);
@@ -44,6 +47,19 @@ export function RecipesSheet({
           Aus Text oder Link
         </button>
       </div>
+      {draft !== null && (
+        <button
+          type="button"
+          onClick={onNew}
+          className="mb-1 grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-xl border border-dashed border-primary px-3.5 py-2.5 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-xs font-bold text-muted-foreground">Nicht gespeichert</span>
+            <span className="block truncate font-semibold text-primary">{draft.trim() || "Neues Rezept"}</span>
+          </span>
+          <span className="text-sm font-bold text-primary">Weiter</span>
+        </button>
+      )}
       <ul aria-label="Rezepte">
         {recipes?.map((recipe) => (
           <li key={recipe.id}>
@@ -59,6 +75,7 @@ export function RecipesSheet({
               <span className="self-end text-right font-bold tabular-nums">{fmt(recipe.per_portion.kcal)}</span>
               <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
                 {`${recipe.portions} ${recipe.portions === 1 ? "Portion" : "Portionen"} · je ${fmt(recipe.portion_grams)} g`}
+                {draftName(recipe.id) !== null && " · Entwurf offen"}
               </span>
               {/* Like the kcal above: of one portion. */}
               <MacroLine macros={recipe.per_portion} className="self-start" />
