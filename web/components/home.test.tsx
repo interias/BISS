@@ -588,7 +588,7 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   fireEvent.click(await screen.findByRole("button", { name: "Neuer Schnellzugriff" }));
   expect(await screen.findByRole("dialog", { name: "Neuer Schnellzugriff" })).toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Bananenpause" } });
-  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
   fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
   fireEvent.click(screen.getByRole("button", { name: "Speichern" }));

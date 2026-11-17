@@ -68,7 +68,7 @@ test("+ Neu creates a combo from searched foods and shows its chip", async ({ pa
   const sheet = page.getByRole("dialog");
   await expect(sheet).toHaveAccessibleName("Neuer Schnellzugriff");
   await sheet.getByRole("textbox", { name: "Name" }).fill(name);
-  await sheet.getByRole("button", { name: "+ Zutat suchen" }).click();
+  await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
   await sheet.getByRole("textbox", { name: "Suchen" }).fill("banane");
   await sheet.getByRole("button", { name: /^Banane roh/ }).first().click();
   await expect(sheet.getByRole("spinbutton", { name: "Banane roh Gramm" })).toHaveValue("120");

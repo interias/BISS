@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Combo } from "@/lib/api";
 import { Sheet } from "@/components/sheet";
-import { banana, coffeeCombo, fakeApi, riceDetail, sugar } from "@/test/fixtures";
+import { coffeeCombo, fakeApi } from "@/test/fixtures";
 import { ComboSheet } from "./combo-sheet";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -10,13 +10,12 @@ afterEach(() => vi.unstubAllGlobals());
 const grams = (name: string) => screen.getByRole("spinbutton", { name: `${name} Gramm` });
 const rows = () => within(screen.getByRole("list", { name: "Zutaten" })).getAllByRole("listitem");
 
-function renderSheet(combo?: Combo, recent = [banana, riceDetail]) {
+function renderSheet(combo?: Combo) {
   const actions = { onLog: vi.fn(), onSave: vi.fn(), onDelete: vi.fn(), onCancel: vi.fn() };
   render(
     <Sheet onClose={() => {}}>
       <ComboSheet
         combo={combo}
-        recent={recent}
         {...actions}
         onLog={combo && actions.onLog}
         onDelete={combo && actions.onDelete}
@@ -61,7 +60,7 @@ test("typed grams stay within 1 to 1500 g, ✕ removes an item", () => {
   expect(onLog).toHaveBeenCalledWith([{ food_id: 11, grams: 1500 }]);
 });
 
-test("tauschen and + Zutat suchen pick a food from the search", async () => {
+test("tauschen and Zutat suchen pick a food from the search", async () => {
   fakeApi();
   renderSheet(coffeeCombo());
   fireEvent.click(screen.getByRole("button", { name: "Zucker tauschen" }));
@@ -70,7 +69,7 @@ test("tauschen and + Zutat suchen pick a food from the search", async () => {
   expect(within(rows()[1]).getByText("Banane roh")).toBeInTheDocument();
   expect(grams("Banane roh")).toHaveValue(5); // the amount stays, only the food changes
 
-  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
   fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
   expect(rows()).toHaveLength(3);
@@ -103,8 +102,9 @@ test("Löschen asks inline first; Behalten keeps the combo", () => {
   expect(onDelete).toHaveBeenCalledTimes(1);
 });
 
-test("create needs a name and an item; suggestions add a recent food with its serving", () => {
-  const { onSave, onCancel } = renderSheet(undefined, [banana, sugar]);
+test("create needs a name and an item from the search, with its serving", async () => {
+  fakeApi();
+  const { onSave, onCancel } = renderSheet();
   expect(screen.getByRole("dialog", { name: "Neuer Schnellzugriff" })).toBeInTheDocument();
   expect(screen.getByText("Noch keine Zutat.")).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Mahlzeit" })).not.toBeInTheDocument();
@@ -112,13 +112,15 @@ test("create needs a name and an item; suggestions add a recent food with its se
   const save = screen.getByRole("button", { name: "Speichern" });
   expect(save).toBeDisabled();
 
-  const suggestions = screen.getByRole("group", { name: "Vorschläge" });
-  fireEvent.click(within(suggestions).getByRole("button", { name: "+ Zucker" }));
-  expect(within(suggestions).queryByRole("button", { name: "+ Zucker" })).not.toBeInTheDocument();
-  expect(save).toBeDisabled(); // still without a name
-  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Süßes" } });
-  fireEvent.click(save);
-  expect(onSave).toHaveBeenCalledWith("Süßes", [{ food_id: 11, grams: 5 }]);
+  // No chips of recent foods: one search field, as in the recipe sheet.
+  expect(screen.queryByRole("group", { name: "Vorschläge" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
+  expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled(); // still without a name
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Bananenpause" } });
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+  expect(onSave).toHaveBeenCalledWith("Bananenpause", [{ food_id: 7, grams: 120 }]);
 
   fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
   expect(onCancel).toHaveBeenCalled();

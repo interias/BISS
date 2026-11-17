@@ -204,13 +204,13 @@ test("a sheet closed by accident opens again as it was, until saved, cancelled o
   expect(within(screen.getByRole("list", { name: "Zutaten" })).getAllByRole("listitem")).toHaveLength(1);
   expect(screen.getByText(/Entwurf von vorhin/)).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Verwerfen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Neu anfangen" }));
   expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
   expect(window.localStorage.length).toBe(0);
 
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Neu" } });
   expect(window.localStorage.length).toBe(1);
-  fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Verwerfen" }));
   expect(onCancel).toHaveBeenCalledOnce();
   expect(window.localStorage.length).toBe(0);
 });
