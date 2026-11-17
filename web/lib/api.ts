@@ -403,6 +403,22 @@ export function extractPlate(photo: Blob) {
 export const dictatePlate = (text: string) =>
   request<PlateExtraction>("/plates/dictate", { method: "POST", body: JSON.stringify({ text }) });
 
+/** A recipe read from a text or a link (ADR-0014); not saved, it fills the recipe sheet. */
+export type RecipeImport = {
+  name: string;
+  portions: number;
+  description: string;
+  items: PlateItem[];
+  notes: string;
+  /** The page that was read; null for a text. */
+  link: string | null;
+  model: string;
+  attempts: number;
+};
+
+export const importRecipe = (source: string) =>
+  request<RecipeImport>("/recipes/import", { method: "POST", body: JSON.stringify({ source }) });
+
 /** One entry per item with a shared group; without meal and time the backend takes its defaults. */
 export const createEntryGroup = (body: {
   group_name: string;

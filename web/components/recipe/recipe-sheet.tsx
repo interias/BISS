@@ -2,16 +2,20 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 import {
+  ApiError,
   createRecipe,
   getRecipe,
   imageUrl,
+  importRecipe,
   kindColor,
   updateRecipe,
   uploadFoodImage,
   type Basis,
   type FoodSummary,
   type Macros,
+  type PlateItem,
   type Recipe,
+  type RecipeImport,
   type SearchHit,
 } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
@@ -27,6 +31,17 @@ import { SheetTitle } from "@/components/sheet";
 /** An ingredient of a whole pot (the API's limit). */
 const MAX_ITEM_GRAMS = 10_000;
 const MAX_PORTIONS = 100;
+const MAX_COOKED_GRAMS = 50_000;
+
+/**
+ * A weight as typed in German: "450,5" and "1.200" (thousands) as well as "450.5". NaN for
+ * what is no number.
+ */
+export function parseWeight(text: string) {
+  const t = text.replace(/\s/g, "");
+  const german = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t);
+  return Number(german ? t.replace(/\./g, "").replace(",", ".") : t.replace(",", "."));
+}
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // the API's limit, checked early for a clear message
 
 type Row = {
@@ -36,6 +51,9 @@ type Row = {
   grams: number;
 };
 
+/** An imported ingredient no food matched (ADR-0014): shown, searched, never dropped silently. */
+type Open = { key: number; name: string; grams: number };
+
 let rowKeys = 0;
 
 const rowOf = (food: FoodSummary | SearchHit, grams: number): Row => ({
@@ -44,6 +62,63 @@ const rowOf = (food: FoodSummary | SearchHit, grams: number): Row => ({
   density: food.density,
   grams,
 });
+
+/**
+ * What the sheet holds, kept in the browser while it differs from the saved recipe: closed by
+ * accident (scrim, Escape, back button, reload), it opens again as it was. Not the photo.
+ */
+type Draft = { name: string; description: string; rows: Row[]; portions: number; cooked: string; open: Open[] };
+
+const draftKey = (recipe?: Recipe) => `biss.recipe-draft.${recipe?.id ?? "new"}`;
+
+/** The draft without the row keys, to compare it with the saved recipe. */
+const content = (draft: Draft) =>
+  JSON.stringify({
+    ...draft,
+    rows: draft.rows.map(({ food, grams }) => [food.id, grams]),
+    open: draft.open.map(({ name, grams }) => [name, grams]),
+  });
+
+function readDraft(key: string): Draft | null {
+  try {
+    const text = window.localStorage.getItem(key);
+    if (!text) return null;
+    const draft = JSON.parse(text) as Draft;
+    // New keys, so rows added later do not take the key of a restored one.
+    return {
+      ...draft,
+      rows: draft.rows.map((row) => ({ ...row, key: rowKeys++ })),
+      open: draft.open.map((item) => ({ ...item, key: rowKeys++ })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(key: string, draft: Draft | null) {
+  try {
+    if (draft) window.localStorage.setItem(key, JSON.stringify(draft));
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Without storage the sheet works as before, only without the draft.
+  }
+}
+
+const importedRow = (item: PlateItem): Row => ({
+  key: rowKeys++,
+  food: { id: item.food_id!, name: item.food!.name, basis: item.basis!, per_100: item.per_100! },
+  density: item.density ?? 1,
+  grams: item.grams,
+});
+
+/** What went wrong with an import, in words for the sheet. */
+function importFailure(failure: unknown, link: boolean) {
+  if (failure instanceof ApiError && link && failure.status === 422)
+    return "Dieser Link geht nicht. Füge den Rezepttext ein.";
+  if (failure instanceof ApiError && link && failure.status === 502)
+    return "Die Seite ließ sich nicht lesen. Füge den Rezepttext ein.";
+  return "Rezept nicht erkannt. Versuch es noch einmal.";
+}
 
 const ZERO: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
@@ -107,18 +182,65 @@ function RecipeForm({
   onSaved: (recipe: Recipe, before?: Recipe) => void;
   onCancel: () => void;
 }) {
+  const key = draftKey(recipe);
+  const [saved] = useState<Draft>(() => ({
+    name: recipe?.name ?? "",
+    description: recipe?.description ?? "",
+    rows: recipe?.items.map((item) => rowOf(item.food, item.grams)) ?? [],
+    portions: recipe?.portions ?? 1,
+    // Empty: not weighed.
+    cooked: recipe?.cooked_grams ? String(recipe.cooked_grams) : "",
+    open: [],
+  }));
+  const [start] = useState(() => readDraft(key));
+  const [restored, setRestored] = useState(start !== null);
+  const first = start ?? saved;
   // The last saved state: after a save whose photo upload failed, a retry must update.
   const [base, setBase] = useState(recipe);
-  const [name, setName] = useState(recipe?.name ?? "");
-  const [description, setDescription] = useState(recipe?.description ?? "");
-  const [rows, setRows] = useState<Row[]>(() => recipe?.items.map((item) => rowOf(item.food, item.grams)) ?? []);
-  const [portions, setPortions] = useState(recipe?.portions ?? 1);
-  // Empty: not weighed.
-  const [cooked, setCooked] = useState(recipe?.cooked_grams ? String(recipe.cooked_grams) : "");
+  const [name, setName] = useState(first.name);
+  const [description, setDescription] = useState(first.description);
+  const [rows, setRows] = useState<Row[]>(first.rows);
+  const [portions, setPortions] = useState(first.portions);
+  const [cooked, setCooked] = useState(first.cooked);
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
-  const [searching, setSearching] = useState<number | "new" | null>(null);
+  const [searching, setSearching] = useState<number | "new" | { open: number } | null>(null);
+  const [open, setOpen] = useState<Open[]>(first.open);
+  // Import from a text or a link (ADR-0014): null while closed, else the text being written.
+  const [source, setSource] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const now = { name, description, rows, portions, cooked, open };
+    writeDraft(key, content(now) === content(saved) ? null : now);
+  }, [key, saved, name, description, rows, portions, cooked, open]);
+
+  // Escape in the search goes back to the recipe, as "← Zurück zum Rezept" does, instead of
+  // closing the sheet; the window sees it before the dialog does.
+  useEffect(() => {
+    if (searching === null) return;
+    const back = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSearching(null);
+    };
+    window.addEventListener("keydown", back, { capture: true });
+    return () => window.removeEventListener("keydown", back, { capture: true });
+  }, [searching]);
+
+  const discard = () => {
+    setName(saved.name);
+    setDescription(saved.description);
+    setRows(saved.rows);
+    setPortions(saved.portions);
+    setCooked(saved.cooked);
+    setOpen([]);
+    setNotes("");
+    setRestored(false);
+  };
 
   useEffect(() => {
     const url = photo?.url;
@@ -136,8 +258,48 @@ function RecipeForm({
   const pickFood = (hit: SearchHit) => {
     if (hit.id === null || searching === null) return;
     if (searching === "new") add(hit);
-    else change(searching, { food: rowOf(hit, 0).food, density: hit.density });
+    else if (typeof searching === "object") {
+      const item = open.find((o) => o.key === searching.open);
+      if (item) setRows((current) => [...current, rowOf(hit, item.grams)]);
+      setOpen((current) => current.filter((o) => o.key !== searching.open));
+    } else change(searching, { food: rowOf(hit, 0).food, density: hit.density });
     setSearching(null);
+  };
+
+  /** Fills what is still empty and adds the ingredients; nothing is saved yet. */
+  const apply = (found: RecipeImport) => {
+    if (!name.trim()) setName(found.name);
+    if (!description.trim()) setDescription(found.description);
+    if (rows.length === 0) setPortions(Math.min(MAX_PORTIONS, Math.max(1, found.portions)));
+    const matched = found.items.filter((item) => item.food_id !== null && item.food && item.per_100);
+    setRows((current) => [...current, ...matched.map(importedRow)]);
+    setOpen((current) => [
+      ...current,
+      ...found.items
+        .filter((item) => !matched.includes(item))
+        .map((item) => ({ key: rowKeys++, name: item.name, grams: item.grams })),
+    ]);
+    setNotes(found.notes);
+  };
+
+  const read = async () => {
+    const text = (source ?? "").trim();
+    if (!text) return;
+    setReading(true);
+    setError(null);
+    try {
+      const found = await importRecipe(text);
+      if (found.items.length === 0) setError(found.notes || "Kein Rezept erkannt.");
+      else {
+        apply(found);
+        setSource(null);
+      }
+    } catch (failure) {
+      console.error(failure);
+      setError(importFailure(failure, /^https?:\/\/\S+$/i.test(text)));
+    } finally {
+      setReading(false);
+    }
   };
 
   const pickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
@@ -150,7 +312,10 @@ function RecipeForm({
   };
 
   const raw = rows.reduce((grams, row) => grams + row.grams, 0);
-  const cookedGrams = Number(cooked.replace(",", ".")) || 0;
+  const typed = parseWeight(cooked);
+  // A typed weight that is no weight is said under the field and blocks saving.
+  const cookedWrong = cooked.trim() !== "" && !(typed > 0 && typed <= MAX_COOKED_GRAMS);
+  const cookedGrams = cookedWrong ? 0 : typed || 0;
   const finished = cookedGrams > 0 ? cookedGrams : raw;
   const total = sum(rows);
   const perPortion = {
@@ -159,7 +324,7 @@ function RecipeForm({
     carbs: total.carbs / portions,
     fat: total.fat / portions,
   };
-  const ready = name.trim() !== "" && rows.length > 0;
+  const ready = name.trim() !== "" && rows.length > 0 && !cookedWrong;
   // The recipe's own food is no ingredient of it.
   const suggestions = recent.filter(
     (food) => food.id !== base?.food_id && !rows.some((row) => row.food.id === food.id),
@@ -196,6 +361,7 @@ function RecipeForm({
         return;
       }
     }
+    writeDraft(key, null);
     onSaved(saved, recipe);
   };
 
@@ -209,7 +375,11 @@ function RecipeForm({
         >
           ← Zurück zum Rezept
         </button>
-        <SearchSheet foodsOnly onPick={pickFood} />
+        <SearchSheet
+          foodsOnly
+          onPick={pickFood}
+          initialQuery={typeof searching === "object" ? open.find((o) => o.key === searching.open)?.name : undefined}
+        />
       </>
     );
   }
@@ -221,6 +391,53 @@ function RecipeForm({
       <SheetTitle className={cn(kicker, "mb-2")}>
         {recipe ? "Rezept bearbeiten" : "Neues Rezept"}
       </SheetTitle>
+
+      {restored && (
+        <p role="status" className="mb-2.5 text-[12.5px] font-semibold text-muted-foreground">
+          Entwurf von vorhin ·{" "}
+          <button type="button" onClick={discard} className="font-bold text-primary">
+            Verwerfen
+          </button>
+        </p>
+      )}
+      {!recipe && source === null && (
+        <button type="button" onClick={() => setSource("")} className={cn(addPill, "mb-3")}>
+          + Aus Text oder Link
+        </button>
+      )}
+      {source !== null && (
+        <div className="mb-3 grid gap-2">
+          <label htmlFor="recipe-source" className={label}>
+            Rezepttext oder Link
+          </label>
+          <textarea
+            id="recipe-source"
+            autoFocus
+            value={source}
+            onChange={(event) => setSource(event.target.value)}
+            rows={4}
+            placeholder="Rezept einfügen oder Link, z. B. von Chefkoch"
+            className={`${field} h-auto min-h-[96px] py-2`}
+          />
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={() => setSource(null)}
+              className="h-[42px] rounded-xl border px-4 text-sm font-semibold text-muted-foreground"
+            >
+              Schließen
+            </button>
+            <button
+              type="button"
+              disabled={reading || !source.trim()}
+              onClick={() => read().catch(console.error)}
+              className={cn("h-[42px] flex-1 rounded-xl bg-primary text-sm font-bold text-primary-foreground", primaryOff)}
+            >
+              {reading ? "Lese Rezept …" : "Übernehmen"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-2.5 grid grid-cols-[auto_1fr] items-start gap-3.5">
         <PhotoPicker src={photoSrc} category="dishes" onPick={pickPhoto} />
@@ -276,8 +493,46 @@ function RecipeForm({
             </li>
           );
         })}
+        {open.map((item) => (
+          <li key={item.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 border-b border-dashed py-2">
+            <span className="min-w-0 leading-snug font-semibold [overflow-wrap:anywhere]">
+              {breakable(item.name)}
+              <small className="block text-xs font-medium text-muted-foreground">
+                <span className="font-bold text-destructive">nicht zugeordnet</span>
+                {" · "}
+                <button
+                  type="button"
+                  aria-label={`${item.name} suchen`}
+                  onClick={() => setSearching({ open: item.key })}
+                  className="relative font-bold text-primary after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']"
+                >
+                  suchen
+                </button>
+              </small>
+            </span>
+            <span className="font-bold tabular-nums">
+              {fmt(item.grams)} <small className="text-xs font-semibold text-muted-foreground">g</small>
+            </span>
+            <button
+              type="button"
+              aria-label={`${item.name} entfernen`}
+              onClick={() => setOpen((current) => current.filter((o) => o.key !== item.key))}
+              className={cn("size-[30px] text-muted-foreground", hitArea)}
+            >
+              ✕
+            </button>
+          </li>
+        ))}
       </ul>
-      {rows.length === 0 && <p className="py-2 text-[13px] text-muted-foreground">Noch keine Zutat.</p>}
+      {rows.length === 0 && open.length === 0 && (
+        <p className="py-2 text-[13px] text-muted-foreground">Noch keine Zutat.</p>
+      )}
+      {open.length > 0 && (
+        <p role="status" className="pt-2 text-[12.5px] font-semibold text-destructive">
+          Nicht zugeordnete Zutaten zählen nicht mit.
+        </p>
+      )}
+      {notes && <p className="pt-2 text-[12.5px] text-muted-foreground">{notes}</p>}
 
       <div role="group" aria-label="Vorschläge" className="mt-3 mb-4 flex flex-wrap gap-2">
         <button
@@ -340,9 +595,15 @@ function RecipeForm({
           />
         </div>
       </div>
-      <p className="mb-3 text-[12.5px] text-muted-foreground">
-        Nach dem Backen oder Braten wiegen und hier eintragen. Leer gilt das Gewicht der Zutaten, etwa bei Suppe.
-      </p>
+      {cookedWrong ? (
+        <p role="alert" className="mb-3 text-[12.5px] font-semibold text-destructive">
+          Fertiggewicht in Gramm, über 0 bis 50.000.
+        </p>
+      ) : (
+        <p className="mb-3 text-[12.5px] text-muted-foreground">
+          Nach dem Backen oder Braten wiegen und hier eintragen. Leer gilt das Gewicht der Zutaten, etwa bei Suppe.
+        </p>
+      )}
 
       <div className="mb-3 grid gap-1">
         <label htmlFor="recipe-description" className={label}>
@@ -385,7 +646,10 @@ function RecipeForm({
       <div className="flex gap-2.5">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            writeDraft(key, null);
+            onCancel();
+          }}
           className="h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
         >
           Abbrechen

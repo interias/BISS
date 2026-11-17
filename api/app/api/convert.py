@@ -184,23 +184,27 @@ def combo(view: ComboView) -> schemas.Combo:
 def plate(found: Plate, model: str, attempts: int) -> schemas.PlateExtraction:
     return schemas.PlateExtraction(
         dish=found.dish,
-        items=[
-            schemas.PlateItem(
-                food_id=None if item.food is None else item.food.id,
-                name=item.name,
-                grams=item.grams,
-                confidence=item.confidence,
-                certainty=item.certainty,
-                food=None if item.food is None else food_ref(item.food),
-                basis=None if item.food is None else item.food.basis,
-                density=None if item.food is None else item.food.density,
-                per_100=None if item.food is None else schemas.Macros.model_validate(item.food),
-                macros=None if item.macros is None else schemas.Macros.model_validate(item.macros),
-            )
-            for item in found.items
-        ],
+        items=plate_items(found),
         totals=schemas.Macros.model_validate(found.totals),
         notes=found.notes,
         model=model,
         attempts=attempts,
     )
+
+
+def plate_items(found: Plate) -> list[schemas.PlateItem]:
+    return [
+        schemas.PlateItem(
+            food_id=None if item.food is None else item.food.id,
+            name=item.name,
+            grams=item.grams,
+            confidence=item.confidence,
+            certainty=item.certainty,
+            food=None if item.food is None else food_ref(item.food),
+            basis=None if item.food is None else item.food.basis,
+            density=None if item.food is None else item.food.density,
+            per_100=None if item.food is None else schemas.Macros.model_validate(item.food),
+            macros=None if item.macros is None else schemas.Macros.model_validate(item.macros),
+        )
+        for item in found.items
+    ]

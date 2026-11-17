@@ -9,13 +9,17 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from app.models import Food
-from app.plates.draft import PlateDraft
+from app.plates.draft import PlateDraft, RecipeDraft
 from app.plates.extractor import ExtractionFailed, PlateExtractor
 from app.plates.match import Ask
 
 # More than a person eats of one food or of one plate; the model misjudged the scale.
 MAX_GRAMS = 1500.0
 MAX_PLATE_GRAMS = 3000.0
+# A recipe is a whole pot (ADR-0014), with the limits of POST /recipes.
+MAX_RECIPE_ITEM_GRAMS = 10_000.0
+MAX_RECIPE_GRAMS = 50_000.0
+MAX_PORTIONS = 100
 
 
 def violations(draft: PlateDraft) -> list[str]:
@@ -68,15 +72,66 @@ async def dictate_plate(
 async def _with_fallback(
     read: Callable[[str], Awaitable[PlateDraft]], fast: str, strong: str
 ) -> PlateExtraction:
+    draft, found, model, attempts = await _fallback(read, violations, fast, strong)
+    return PlateExtraction(draft, found, model, attempts)
+
+
+async def _fallback[D](
+    read: Callable[[str], Awaitable[D]], rules: Callable[[D], list[str]], fast: str, strong: str
+) -> tuple[D, list[str], str, int]:
     draft = await read(fast)
-    found = violations(draft)
+    found = rules(draft)
     if not found:
-        return PlateExtraction(draft, found, fast, 1)
+        return draft, found, fast, 1
     try:
         strong_draft = await read(strong)
     except ExtractionFailed:
-        return PlateExtraction(draft, found, fast, 2)
-    return PlateExtraction(strong_draft, violations(strong_draft), strong, 2)
+        return draft, found, fast, 2
+    return strong_draft, rules(strong_draft), strong, 2
+
+
+def recipe_violations(draft: RecipeDraft) -> list[str]:
+    """The rules of a whole pot (ADR-0014): an ingredient, its name and amount, the portions."""
+    found = []
+    if not draft.ingredients:
+        found.append("no ingredient")
+    if not draft.name.strip():
+        found.append("recipe without name")
+    if not 1 <= draft.portions <= MAX_PORTIONS:
+        found.append(f"{draft.portions} portions are not within 1 to {MAX_PORTIONS}")
+    for item in draft.ingredients:
+        name = item.name.strip()
+        if not name:
+            found.append("ingredient without name")
+        label = name or "ingredient"
+        if not 0 < item.grams <= MAX_RECIPE_ITEM_GRAMS:
+            found.append(
+                f"{label}: {item.grams:g} g is not within 0 to {MAX_RECIPE_ITEM_GRAMS:g} g"
+            )
+        if not 0 <= item.confidence <= 1:
+            found.append(f"{label}: confidence {item.confidence:g} is not within 0 to 1")
+    total = sum(item.grams for item in draft.ingredients)
+    if total > MAX_RECIPE_GRAMS:
+        found.append(f"recipe of {total:g} g is above {MAX_RECIPE_GRAMS:g} g")
+    return found
+
+
+@dataclass(frozen=True)
+class RecipeExtraction:
+    draft: RecipeDraft
+    violations: list[str]
+    model: str
+    attempts: int
+
+
+async def import_recipe(
+    extractor: PlateExtractor, text: str, fast: str, strong: str
+) -> RecipeExtraction:
+    """A recipe text (ADR-0014) with the fallback of a plate and the rules of a pot."""
+    draft, found, model, attempts = await _fallback(
+        lambda model: extractor.recipe(text, model), recipe_violations, fast, strong
+    )
+    return RecipeExtraction(draft, found, model, attempts)
 
 
 async def pick_foods(

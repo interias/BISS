@@ -1,6 +1,6 @@
 # BISS – Spezifikation
 
-Stand: 15.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+Stand: 17.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
 
 ## 1. Ziel und Leitprinzipien
 
@@ -15,6 +15,7 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | Suche | + 2 |
 | Schnellzugriff aus der leeren Suche | Suche + 1 |
 | Rezept aus „Meine Rezepte“ | Kochbuch + 2 |
+| Rezept aus Text oder Link anlegen | Kochbuch + 4 |
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
@@ -40,7 +41,7 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
-Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen, und das **Diktat** ([ADR-0013](adr/0013-dictation.md)): eine gesprochene Mahlzeit wird ein Gericht wie ein Teller.
+Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen, das **Diktat** ([ADR-0013](adr/0013-dictation.md)): eine gesprochene Mahlzeit wird ein Gericht wie ein Teller, und der **Rezept-Import** ([ADR-0014](adr/0014-recipe-import.md)): ein eingefügter Rezepttext oder Link füllt das Rezept-Blatt.
 
 **Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Statistiken jeder Art.
 
@@ -89,6 +90,9 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Lange Namen brechen um, bevorzugt nach einem Schrägstrich, und überdecken nichts. Ein Hauptknopf, der noch nicht geht, ist grau.
   - Rezept-Blatt: Foto, Name, Zutaten roh gewogen (wie beim Schnellzugriff, je Zutat bis 10.000 g), Portionen mit −/+, optionales Fertiggewicht in g und Zubereitung als freier Text. Darunter stehen Gewicht und Kennzahlen einer Portion live.
   - Ohne Fertiggewicht gilt das Gewicht der Zutaten, etwa bei Suppe. Nach dem Backen oder Braten wird gewogen und nachgetragen.
+  - Ein neues Rezept zeigt oben „+ Aus Text oder Link“ ([ADR-0014](adr/0014-recipe-import.md)). Die Pille klappt ein Textfeld mit „Übernehmen“ auf. Das Ergebnis füllt leere Felder (Name, Zubereitung, Portionen) und fügt die Zutaten an. Eine Zutat ohne passendes Lebensmittel steht rot als „nicht zugeordnet“ mit „suchen“ und ✕ in der Liste; „suchen“ öffnet die Suche mit ihrem Namen, die Gramm bleiben. Solange eine offen ist, sagt das Blatt „Nicht zugeordnete Zutaten zählen nicht mit.“ Ein Link, der nicht lädt, sagt, den Text einzufügen.
+  - Fertiggewicht liest deutsch geschriebene Zahlen („1.200“ = 1200 g, „450,5“). Ein Wert, der kein Gewicht über 0 bis 50.000 g ist, steht rot unter dem Feld, und „Speichern“ bleibt grau.
+  - **Entwurf:** Was im Blatt steht, merkt sich der Browser, solange es vom gespeicherten Rezept abweicht (ohne Foto). Geht das Blatt aus Versehen zu (Scrim, Escape, Zurück-Taste, Neuladen), öffnet es wieder so, mit „Entwurf von vorhin · Verwerfen“. „Speichern“ und „Abbrechen“ löschen den Entwurf. Escape in der Zutatensuche führt zurück zum Rezept.
   - „Speichern“ legt das Rezept an und öffnet das Mengen-Sheet seines Lebensmittels. Dort zählt der Chip „1 Portion“ wie jede Portion („2 × 1 Portion“).
   - Ein Rezept steht in Suche und leerer Suche wie jedes Lebensmittel, abgesetzt in der Akzentfarbe mit der Marke „Rezept“ (`recipe` am Treffer). „Bearbeiten“ im Mengen-Sheet öffnet bei einem Rezept das Rezept-Blatt.
 - **Mengen-Sheet:**
@@ -192,6 +196,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/combos` | Schnellzugriff anlegen: `name` und `items` oder `group_id` einer Gruppe im Tagebuch (E8) |
 | PATCH / DELETE | `/combos/{id}` | Name ändern oder alle Zutaten ersetzen, entfernen (E8) |
 | POST | `/recipes` | Rezept anlegen: `name`, `items`, `portions`, optional `cooked_grams` und `description`; legt sein Lebensmittel an ([ADR-0012](adr/0012-recipe-as-food.md)) |
+| POST | `/recipes/import` | Rezepttext oder genau ein http(s)-Link (`source`, bis 20.000 Zeichen) → Name, Portionen, Zubereitung und zugeordnete Zutaten wie beim Teller; speichert nichts ([ADR-0014](adr/0014-recipe-import.md)) |
 | GET | `/recipes` | alle Rezepte, das zuletzt gespeicherte zuerst („Meine Rezepte“) |
 | GET / PATCH | `/recipes/{id}` | Rezept lesen oder ändern; Ändern berechnet das Lebensmittel neu, `cooked_grams: null` nimmt das Fertiggewicht zurück |
 | POST | `/combos/{id}/log` | Als Gruppe eintragen, optional mit `meal`, `eaten_at` und angepassten `items` nur für diesen Eintrag (E8) |
@@ -341,7 +346,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, das zuletzt verwendete vorn in der Chip-Reihe, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, das zuletzt verwendete vorn in der Chip-Reihe, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012), Rezept aus Text → Speichern und ein Entwurf, der Escape und Neuladen übersteht (ADR-0014, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2, Rezept aus Text = Kochbuch + 4.
 
 ## 9. Betrieb
 
