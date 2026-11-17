@@ -545,7 +545,6 @@ export function Home() {
             <ComboSheet
               key={sheet.combo?.id ?? "new"}
               combo={sheet.combo}
-              recent={recent}
               busy={busy}
               onLog={sheet.combo && logAdjusted(sheet.combo)}
               onSave={saveCombo(sheet.combo)}

@@ -25,6 +25,7 @@ import { AiMark } from "@/components/ai-mark";
 import { DOTS } from "@/components/amount-sheet";
 import { PhotoPicker } from "@/components/photo-picker";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
+import { IngredientSearchField } from "@/components/ingredient-search-field";
 import { SearchSheet } from "@/components/search-sheet";
 import { SheetTitle, useSheetBack } from "@/components/sheet";
 
@@ -395,8 +396,9 @@ function RecipeForm({
       {restored && (
         <p role="status" className="mb-2.5 text-[12.5px] font-semibold text-muted-foreground">
           Entwurf von vorhin ·{" "}
+          {/* A new recipe starts empty again; "Verwerfen" below closes it. */}
           <button type="button" onClick={discard} className="font-bold text-primary">
-            Verwerfen
+            {recipe ? "Verwerfen" : "Neu anfangen"}
           </button>
         </p>
       )}
@@ -533,18 +535,7 @@ function RecipeForm({
       )}
       {notes && <p className="pt-2 text-[12.5px] text-muted-foreground">{notes}</p>}
 
-      {/* One field, as in the dock: the recent foods are seldom ingredients of a recipe. */}
-      <button
-        type="button"
-        onClick={() => setSearching("new")}
-        className="mt-3 mb-4 flex h-[46px] w-full items-center gap-2.5 rounded-xl border bg-surface-2 px-3.5 text-left font-medium text-muted-foreground"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" className="flex-none">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-        Zutat suchen
-      </button>
+      <IngredientSearchField onClick={() => setSearching("new")} />
 
       <div className="mb-1 grid grid-cols-2 gap-3">
         <div className="grid gap-1">
@@ -644,7 +635,8 @@ function RecipeForm({
           }}
           className="h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
         >
-          Abbrechen
+          {/* A new recipe is thrown away with its draft; an edit only goes back. */}
+          {recipe ? "Abbrechen" : "Verwerfen"}
         </button>
         <button
           type="button"

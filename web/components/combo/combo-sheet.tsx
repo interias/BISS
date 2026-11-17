@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { kindColor, type Basis, type Combo, type ComboItemWrite, type FoodSummary, type Macros, type SearchHit, type Source } from "@/lib/api";
+import { useCallback, useState } from "react";
+import { type Basis, type Combo, type ComboItemWrite, type FoodSummary, type Macros, type SearchHit, type Source } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { breakable, fmt, shortName } from "@/lib/format";
-import { addPill, hitArea, kicker, suggestChip } from "@/lib/styles";
+import { breakable, fmt } from "@/lib/format";
+import { hitArea, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { DOTS } from "@/components/amount-sheet";
 import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
+import { IngredientSearchField } from "@/components/ingredient-search-field";
 import { SearchSheet } from "@/components/search-sheet";
-import { SheetTitle } from "@/components/sheet";
+import { SheetTitle, useSheetBack } from "@/components/sheet";
 
 /** An item of the sheet: the food with what the local preview needs. */
 type Row = {
@@ -58,13 +59,12 @@ const written = (rows: Row[]): ComboItemWrite[] =>
 
 /**
  * Schnellzugriff sheet (ADR-0010). With a combo it adjusts one entry: items with ± and typed
- * grams, tauschen, ✕, "+ Zutat suchen" and "Eintragen · X kcal"; the template only
+ * grams, tauschen, ✕, "Zutat suchen" and "Eintragen · X kcal"; the template only
  * changes with "Als Vorlage speichern". "Löschen" asks inline before it deletes. Without a combo
  * it creates one: name and items, "Speichern".
  */
 export function ComboSheet({
   combo,
-  recent,
   busy,
   onLog,
   onSave,
@@ -72,7 +72,6 @@ export function ComboSheet({
   onCancel,
 }: {
   combo?: Combo;
-  recent: FoodSummary[];
   busy?: boolean;
   onLog?: (items: ComboItemWrite[]) => void;
   onSave: (name: string, items: ComboItemWrite[]) => void;
@@ -95,7 +94,9 @@ export function ComboSheet({
 
   const total = sum(rows);
   const ready = name.trim() !== "" && rows.length > 0;
-  const suggestions = recent.filter((food) => !rows.some((row) => row.food.id === food.id));
+  // Scrim, Escape and the back button in the search go back to the Schnellzugriff.
+  const backToCombo = useCallback(() => setSearching(null), []);
+  useSheetBack(searching !== null ? backToCombo : null);
 
   const pick = (hit: SearchHit) => {
     if (hit.id === null || searching === null) return;
@@ -180,25 +181,7 @@ export function ComboSheet({
       </ul>
       {rows.length === 0 && <p className="py-2 text-[13px] text-muted-foreground">Noch keine Zutat.</p>}
 
-      <div role="group" aria-label="Vorschläge" className="mt-3 mb-[18px] flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setSearching("new")}
-          className={addPill}
-        >
-          + Zutat suchen
-        </button>
-        {suggestions.map((food) => (
-          <button
-            key={food.id}
-            type="button"
-            onClick={() => add(food)}
-            className={cn(suggestChip, kindColor(food))}
-          >
-            + {shortName(food.name)}
-          </button>
-        ))}
-      </div>
+      <IngredientSearchField onClick={() => setSearching("new")} />
 
       <div data-testid="preview" className="mb-[18px] grid grid-cols-4 rounded-[14px] border tabular-nums">
         <div className="px-1.5 py-2.5 text-center">
