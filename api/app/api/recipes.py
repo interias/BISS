@@ -1,7 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api import convert, schemas
-from app.api.deps import SessionDep
+from app.api.deps import PlateExtractorDep, SessionDep
+from app.api.plates import matched
+from app.config import get_settings
+from app.plates import page
+from app.plates.extract import import_recipe
+from app.plates.extractor import ExtractionFailed
 from app.services import recipes
 from app.services.recipes import KEEP, InvalidRecipe, NotFound
 
@@ -33,6 +38,57 @@ def create_recipe(body: schemas.RecipeCreate, session: SessionDep) -> schemas.Re
     except InvalidRecipe as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return convert.recipe(view)
+
+
+@router.post(
+    "/import",
+    responses={
+        422: {
+            "description": "no text, more than 20,000 characters, or a link that is not "
+            "http(s) to a public address"
+        },
+        502: {"description": "the page did not load, or the fast model gave no usable draft"},
+    },
+)
+async def import_from(
+    body: schemas.RecipeImportIn, extractor: PlateExtractorDep, session: SessionDep
+) -> schemas.RecipeImport:
+    """Recipe text or link → name, portions, preparation and matched ingredients (ADR-0014).
+
+    A source that is exactly one http(s) link loads the page: its schema.org Recipe, else its
+    visible text. The models, the fallback and the matching are those of a plate, the rules
+    those of a pot. Nothing is saved: POST /recipes does that after the confirmation.
+    """
+    source = body.source.strip()
+    if not source:
+        raise HTTPException(status_code=422, detail="no text")
+    link = source if page.is_link(source) else None
+    if link is not None:
+        try:
+            source = await page.load(link)
+        except page.UnsafeLink as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except page.PageUnreadable as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+    settings = get_settings()
+    try:
+        result = await import_recipe(
+            extractor, source, settings.llm_model_fast, settings.llm_model_strong
+        )
+    except ExtractionFailed as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    draft = result.draft
+    found = await matched(extractor, session, draft.as_plate())
+    return schemas.RecipeImport(
+        name=draft.name.strip(),
+        portions=min(max(draft.portions, 1), 100),
+        description=draft.description.strip(),
+        items=convert.plate_items(found),
+        notes=draft.notes,
+        link=link,
+        model=result.model,
+        attempts=result.attempts,
+    )
 
 
 @router.get("")

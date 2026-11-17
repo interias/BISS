@@ -110,13 +110,16 @@ export function SearchSheet({
   onCreate,
   onCombo,
   foodsOnly,
+  initialQuery = "",
 }: {
   onPick: (food: SearchHit) => void;
   onCreate?: () => void;
   onCombo?: (combo: Combo) => void;
   foodsOnly?: boolean;
+  /** Searched right away, e.g. the name of an ingredient no food matched. */
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [result, setResult] = useState<{ query: string; hits: SearchHit[]; offMore: boolean } | null>(null);
   const [off, setOff] = useState<Off | null>(null);
   const [suggested, setSuggested] = useState<{ likely: Suggestion[]; recent: Suggestion[] } | null>(null);

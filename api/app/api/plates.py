@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app import images
@@ -8,9 +9,10 @@ from app.api import convert, schemas
 from app.api.deps import PlateExtractorDep, SessionDep
 from app.config import get_settings
 from app.labels import photo
+from app.plates.draft import PlateDraft
 from app.plates.extract import PlateExtraction, dictate_plate, extract_plate, pick_foods
 from app.plates.extractor import ExtractionFailed, PlateExtractor
-from app.plates.match import match_plate, plate_asks
+from app.plates.match import Plate, match_plate, plate_asks
 
 router = APIRouter(prefix="/plates", tags=["plates"])
 
@@ -84,9 +86,14 @@ async def dictate(
 async def _matched(
     extractor: PlateExtractor, session: SessionDep, result: PlateExtraction
 ) -> schemas.PlateExtraction:
-    # Where the search is not sure of the food, the model chooses among its candidates.
-    settings = get_settings()
-    asks = await run_in_threadpool(plate_asks, session, result.draft)
-    picked = await pick_foods(extractor, asks, settings.llm_model_fast)
-    found = await run_in_threadpool(match_plate, session, result.draft, picked)
+    found = await matched(extractor, session, result.draft)
     return convert.plate(found, result.model, result.attempts)
+
+
+async def matched(extractor: PlateExtractor, session: Session, draft: PlateDraft) -> Plate:
+    """The ingredients matched by the search; where it is not sure of the food, the model
+    chooses among its candidates. Also for a recipe (ADR-0014)."""
+    settings = get_settings()
+    asks = await run_in_threadpool(plate_asks, session, draft)
+    picked = await pick_foods(extractor, asks, settings.llm_model_fast)
+    return await run_in_threadpool(match_plate, session, draft, picked)

@@ -10,7 +10,7 @@ from app.domain.category import Category
 from app.domain.meal import Meal
 from app.labels.draft import LabelDraft
 from app.labels.validation import Rule
-from app.plates.draft import MAX_DICTATION
+from app.plates.draft import MAX_DICTATION, MAX_RECIPE_SOURCE
 
 Source = Literal["own", "bls", "off"]
 Basis = Literal["g", "ml"]
@@ -630,5 +630,26 @@ class PlateExtraction(BaseModel):
     items: list[PlateItem]
     totals: Macros = Field(description="sum over the matched items")
     notes: str
+    model: str = Field(description="the model whose draft is returned")
+    attempts: int = Field(description="1, or 2 after a rule violation in the fast model's draft")
+
+
+class RecipeImportIn(BaseModel):
+    source: str = Field(
+        min_length=1,
+        max_length=MAX_RECIPE_SOURCE,
+        description="a recipe as text, or exactly one http(s) link to a recipe page (ADR-0014)",
+    )
+
+
+class RecipeImport(BaseModel):
+    """A recipe read from a text or page, not saved: it fills the recipe sheet (ADR-0014)."""
+
+    name: str
+    portions: int
+    description: str = Field(description="the preparation in short steps, empty when none")
+    items: list[PlateItem] = Field(description="the raw ingredients, matched as for a plate")
+    notes: str
+    link: str | None = Field(description="the page that was read, null for a text")
     model: str = Field(description="the model whose draft is returned")
     attempts: int = Field(description="1, or 2 after a rule violation in the fast model's draft")
