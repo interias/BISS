@@ -63,6 +63,6 @@ test("a new recipe closed by accident opens again as it was", async ({ page }) =
   await page.getByRole("button", { name: "Meine Rezepte" }).click();
   await sheet.getByRole("button", { name: "+ Neues Rezept" }).click();
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
-  await sheet.getByRole("button", { name: "Verwerfen" }).click();
+  await sheet.getByRole("button", { name: "Neu anfangen" }).click();
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("");
 });
