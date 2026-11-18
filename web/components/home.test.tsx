@@ -243,10 +243,6 @@ test("the plate photo opens the result sheet; Eintragen stores the dish with its
   expect(await screen.findByText("Erkannt · bitte prüfen")).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Kamera" })).not.toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Gericht" })).toHaveValue("Hähnchen mit Reis und Brokkoli");
-  // Banane is a recent chip and not on the plate: a suggestion (rice is on it).
-  const suggestions = screen.getByRole("group", { name: "Vorschläge" });
-  expect(within(suggestions).getByRole("button", { name: "+ Banane roh" })).toBeInTheDocument();
-  expect(within(suggestions).queryByRole("button", { name: "+ Reis gekocht" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Eintragen · 399 kcal" }));
   await screen.findByText("Hähnchen mit Reis und Brokkoli eingetragen · 399 kcal");

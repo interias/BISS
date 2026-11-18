@@ -1,6 +1,6 @@
 /**
- * "Zutat suchen" as one field, like the search in the dock: the recipe and Schnellzugriff
- * sheets add ingredients through it; recent foods as chips were seldom ingredients there.
+ * "Zutat suchen" as one field, like the search in the dock: the recipe, Schnellzugriff and
+ * plate sheets add ingredients through it; recent foods as chips only crowded them.
  */
 export function IngredientSearchField({ onClick }: { onClick: () => void }) {
   return (

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { Sheet } from "@/components/sheet";
-import { banana, broccoli, fakeApi, fakePlate, riceDetail } from "@/test/fixtures";
+import { banana, broccoli, fakeApi, fakePlate } from "@/test/fixtures";
+import { scaleGrams } from "@/components/ingredient-grams";
 import { PlateSheet } from "./plate-sheet";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -11,12 +12,12 @@ afterEach(() => vi.unstubAllGlobals());
 /** The grams field of an ingredient, labelled by its name from the backend. */
 const grams = (name: string) => screen.getByRole("spinbutton", { name: `${name} Gramm` });
 
-function renderSheet(plate = fakePlate(), recent = [banana, riceDetail]) {
+function renderSheet(plate = fakePlate()) {
   const onSubmit = vi.fn();
   const onDiscard = vi.fn();
   render(
     <Sheet onClose={() => {}}>
-      <PlateSheet plate={plate} recent={recent} onSubmit={onSubmit} onDiscard={onDiscard} />
+      <PlateSheet plate={plate} onSubmit={onSubmit} onDiscard={onDiscard} />
     </Sheet>,
   );
   return { onSubmit, onDiscard };
@@ -53,7 +54,7 @@ test("an ml ingredient previews through its density, as the backend computes it"
       macros: { kcal: 128, protein: 6.6, carbs: 9.6, fat: 7 },
     },
   ];
-  renderSheet(plate, []);
+  renderSheet(plate);
   expect(screen.getByRole("button", { name: "Eintragen · 128 kcal" })).toBeInTheDocument();
 });
 
@@ -94,19 +95,58 @@ test("the name is editable and an ingredient can be removed", () => {
   ]);
 });
 
-test("suggestions are the recent foods not yet on the plate; a tap adds one with its standard serving", () => {
-  renderSheet();
-  const suggestions = screen.getByRole("group", { name: "Vorschläge" });
-  // Rice is on the plate already.
-  expect(within(suggestions).queryByText("+ Reis gekocht")).not.toBeInTheDocument();
-  fireEvent.click(within(suggestions).getByRole("button", { name: "+ Banane roh" }));
+test("a weighed total spreads over the ingredients in their proportions, sum and button follow", () => {
+  const { onSubmit } = renderSheet();
+  const amounts = () =>
+    within(screen.getByRole("list", { name: "Zutaten" }))
+      .getAllByRole("spinbutton")
+      .map((field) => Number((field as HTMLInputElement).value));
+  const estimate = amounts();
+  const total = screen.getByRole("spinbutton", { name: "Gesamtgewicht" });
+  const sum = estimate.reduce((all, value) => all + value, 0);
+  expect(total).toHaveValue(sum);
+  const kcal = () => Number(screen.getByRole("button", { name: /^Eintragen/ }).textContent!.replace(/\D/g, ""));
+  const before = kcal();
 
-  const added = screen.getByRole("button", { name: "Banane roh entfernen" }).closest("li")!;
-  expect(within(added).getByRole("spinbutton")).toHaveValue(120);
-  expect(within(added).getByText("manuell")).toBeInTheDocument();
-  // No recent food is left, the search stays.
-  expect(within(suggestions).getAllByRole("button").map((button) => button.textContent)).toEqual(["+ Zutat suchen"]);
-  expect(screen.getByRole("button", { name: "Eintragen · 511 kcal" })).toBeInTheDocument(); // + 93 · 1.2
+  fireEvent.focus(total);
+  // Typed digit by digit: the way through the first digit costs no proportions.
+  fireEvent.change(total, { target: { value: "2" } });
+  fireEvent.change(total, { target: { value: String(sum * 2) } });
+  fireEvent.blur(total);
+
+  const doubled = estimate.map((value) => value * 2);
+  expect(amounts()).toEqual(doubled);
+  expect(total).toHaveValue(sum * 2);
+  expect(Math.abs(kcal() - before * 2)).toBeLessThanOrEqual(1);
+  fireEvent.click(screen.getByRole("button", { name: /^Eintragen/ }));
+  expect(onSubmit.mock.calls[0][1].map((item: { grams: number }) => item.grams)).toEqual(doubled);
+});
+
+test("an emptied total leaves the ingredients as they were", () => {
+  renderSheet();
+  const total = screen.getByRole("spinbutton", { name: "Gesamtgewicht" });
+  const sum = Number((total as HTMLInputElement).value);
+  fireEvent.focus(total);
+  fireEvent.change(total, { target: { value: String(sum * 2) } });
+  fireEvent.change(total, { target: { value: "" } });
+  fireEvent.blur(total);
+  expect(total).toHaveValue(sum);
+});
+
+test("scaleGrams hits the total exactly in whole grams", () => {
+  expect(scaleGrams([100, 100, 100], 425)).toEqual([142, 142, 141]);
+  // The smallest amounts stay at 1 g, the largest makes up for them.
+  expect(scaleGrams([100, 1, 1], 51)).toEqual([49, 1, 1]);
+  // A single amount keeps its limit.
+  expect(scaleGrams([100], 2000)).toEqual([1500]);
+});
+
+test("Escape in the ingredient search returns to the dish", () => {
+  fakeApi();
+  renderSheet();
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Suchen" }), { key: "Escape" });
+  expect(screen.getByRole("list", { name: "Zutaten" })).toBeInTheDocument();
 });
 
 test("Verwerfen discards", () => {
@@ -203,8 +243,8 @@ test("tauschen replaces a recognised ingredient with a search hit, the grams sta
 
 test("Zutat suchen adds a search hit with its standard serving", async () => {
   fakeApi();
-  renderSheet(fakePlate(), []);
-  fireEvent.click(screen.getByRole("button", { name: "+ Zutat suchen" }));
+  renderSheet();
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
   fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
 

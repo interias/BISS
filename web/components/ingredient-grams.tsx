@@ -10,6 +10,30 @@ export const clampGrams = (grams: number, max = MAX_GRAMS) =>
   Math.min(max, Math.max(MIN_GRAMS, Math.round(grams) || MIN_GRAMS));
 
 /**
+ * Whole grams in the same proportions that add up to `total`: what rounding leaves over goes
+ * to the amounts it cut most. Only the limits of a single amount can make the sum differ.
+ */
+export function scaleGrams(grams: number[], total: number, max = MAX_GRAMS) {
+  const before = grams.reduce((sum, value) => sum + value, 0);
+  if (before <= 0) return grams;
+  const exact = grams.map((value) => (value * total) / before);
+  const scaled = exact.map((value) => clampGrams(Math.floor(value), max));
+  let rest = total - scaled.reduce((sum, value) => sum + value, 0);
+  const cut = (index: number) => exact[index] - scaled[index];
+  const order = grams.map((_, index) => index).sort((a, b) => (cut(b) - cut(a)) * Math.sign(rest));
+  for (const index of order) {
+    if (rest > 0 && scaled[index] < max) {
+      scaled[index] += 1;
+      rest -= 1;
+    } else if (rest < 0 && scaled[index] > MIN_GRAMS) {
+      scaled[index] -= 1;
+      rest += 1;
+    }
+  }
+  return scaled;
+}
+
+/**
  * Grams with − and + on the step grid (lib/amount) and a typed value, clamped to 1 g up to
  * `max` when the field is left. `name` labels the controls of an ingredient ("Reis weniger",
  * "Reis Gramm"); without it they are "weniger", "mehr" and "Menge". `large` is the big

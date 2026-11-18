@@ -198,3 +198,17 @@ test("an ingredient the backend could not match is marked and left out of the di
   expect(dish.items).toHaveLength(2);
   await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toContainText(DISH);
 });
+
+test("a weighed total spreads over the ingredients and is what gets logged", async ({ page }) => {
+  await page.goto("/");
+  const sheet = await photographPlate(page);
+  const total = sheet.getByRole("spinbutton", { name: "Gesamtgewicht" });
+  const estimate = Number(await total.inputValue());
+  const first = sheet.getByRole("list", { name: "Zutaten" }).getByRole("spinbutton").first();
+  const share = Number(await first.inputValue()) / estimate;
+
+  await total.fill("425");
+  await expect(first).toHaveValue(String(Math.round(share * 425)));
+  const { dish } = await logPlate(page);
+  expect(dish.portion_grams).toBe(425);
+});
