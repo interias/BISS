@@ -105,7 +105,6 @@ export function Home() {
   const [day, setDay] = useState<Day | null>(null);
   // The dock's row: Schnellzugriffe and recent foods, the latest used first.
   const [chips, setChips] = useState<Chip[]>([]);
-  const recent = chips.flatMap((chip) => (chip.food ? [chip.food] : []));
   const combos = chips.flatMap((chip) => (chip.combo ? [chip.combo] : []));
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [camera, setCamera] = useState(false);
@@ -535,7 +534,6 @@ export function Home() {
             <PlateSheet
               plate={sheet.plate}
               photo={sheet.photo}
-              recent={recent}
               busy={busy}
               onSubmit={(name, items) => submitPlate(sheet.plate, sheet.photo, name, items)}
               onDiscard={() => setSheet(null)}

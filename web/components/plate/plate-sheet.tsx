@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import Image from "next/image";
-import { kindColor, type Basis, type FoodRef, type FoodSummary, type Macros, type PlateExtraction, type SearchHit } from "@/lib/api";
+import type { Basis, FoodRef, Macros, PlateExtraction, SearchHit } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { breakable, fmt, shortName } from "@/lib/format";
-import { addPill, hitArea, kicker, suggestChip } from "@/lib/styles";
+import { breakable, fmt } from "@/lib/format";
+import { hitArea, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { DOTS } from "@/components/amount-sheet";
-import { clampGrams, IngredientGrams } from "@/components/ingredient-grams";
+import { clampGrams, IngredientGrams, scaleGrams } from "@/components/ingredient-grams";
+import { IngredientSearchField } from "@/components/ingredient-search-field";
 import { SearchSheet } from "@/components/search-sheet";
-import { SheetTitle } from "@/components/sheet";
+import { SheetTitle, useSheetBack } from "@/components/sheet";
 
-/** "manual": added from the suggestions or matched by hand; the others come from the backend. */
+/** "manual": added or matched by hand; the others come from the backend. */
 type Tag = "recognized" | "guessed" | "manual";
 const TAGS: Record<Tag, string> = { recognized: "erkannt", guessed: "vermutet", manual: "manuell" };
 
@@ -51,21 +52,20 @@ function sum(rows: Row[]) {
  * Result sheet of the plate (prototype openPlate) and of a dictated meal, which has no photo
  * (ADR-0013): photo, name, ingredients with "erkannt" or
  * "vermutet" (from the backend), grams by − and + or typed, remove, a search that matches an
- * unmatched ingredient, swaps a wrong one or adds a new one, suggestions from the recent
- * foods and the local preview of the sum (ADR-0003). An unmatched ingredient has no food and
- * is left out; "Eintragen" hands on the matched ones, which become a dish of their own.
+ * unmatched ingredient, swaps a wrong one or adds a new one, the total weight, which spreads
+ * a weighed value over the ingredients, and the local preview of the sum (ADR-0003). An
+ * unmatched ingredient has no food and is left out; "Eintragen" hands on the matched ones,
+ * which become a dish of their own.
  */
 export function PlateSheet({
   plate,
   photo,
-  recent,
   busy,
   onSubmit,
   onDiscard,
 }: {
   plate: PlateExtraction;
   photo?: Blob;
-  recent: FoodSummary[];
   busy?: boolean;
   onSubmit: (name: string, items: { food_id: number; grams: number }[]) => void;
   onDiscard: () => void;
@@ -85,6 +85,9 @@ export function PlateSheet({
   );
   // The row whose food is being searched for, or "new" for an ingredient to add.
   const [matching, setMatching] = useState<number | "new" | null>(null);
+  // While the total is typed: its text and the rows it started from, so that passing through
+  // "4" on the way to "425" does not wear the proportions down.
+  const [weighing, setWeighing] = useState<{ text: string; from: Row[] } | null>(null);
   // The photo is only shown here; the URL is released once the picture is loaded.
   const [photoUrl] = useState(() =>
     photo && typeof URL.createObjectURL === "function" ? URL.createObjectURL(photo) : null,
@@ -97,10 +100,18 @@ export function PlateSheet({
   const total = sum(rows);
   const logged = rows.filter((row) => row.food);
   const unmatched = rows.length - logged.length;
-  const suggestions = recent.filter((food) => !rows.some((row) => row.food?.id === food.id));
+  const totalGrams = rows.reduce((grams, row) => grams + row.grams, 0);
   const ready = name.trim() !== "" && logged.length > 0;
 
-  const add = (food: FoodSummary | SearchHit, grams: number) =>
+  const weigh = (text: string, from: Row[]) => {
+    setWeighing({ text, from });
+    const weighed = Math.round(Number(text));
+    const grams = from.map((row) => row.grams);
+    const scaled = weighed >= 1 ? scaleGrams(grams, weighed) : grams;
+    setRows(from.map((row, index) => ({ ...row, grams: scaled[index] })));
+  };
+
+  const add = (food: SearchHit, grams: number) =>
     setRows((current) => [
       ...current,
       {
@@ -114,7 +125,6 @@ export function PlateSheet({
         density: food.density,
       },
     ]);
-  const suggest = (food: FoodSummary) => add(food, food.standard_serving.grams);
 
   const match = (hit: SearchHit) => {
     if (hit.id === null || matching === null) return;
@@ -132,6 +142,10 @@ export function PlateSheet({
     });
     setMatching(null);
   };
+
+  // Scrim, Escape and the back button in the search go back to the dish.
+  const backToDish = useCallback(() => setMatching(null), []);
+  useSheetBack(matching !== null ? backToDish : null);
 
   if (matching !== null) {
     return (
@@ -234,6 +248,35 @@ export function PlateSheet({
         ))}
       </ul>
 
+      {rows.length > 0 && (
+        <label className="flex items-center justify-between gap-2.5 py-2 pr-[68px]">
+          <span className="min-w-0 leading-snug font-semibold">
+            Gesamtgewicht
+            <small className="block text-xs font-medium text-muted-foreground">
+              Gewogen? Hier eintragen.
+            </small>
+          </span>
+          <span className="flex h-[34px] items-center rounded-[9px] border bg-surface-2 px-2 font-bold tabular-nums">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              aria-label="Gesamtgewicht"
+              value={weighing ? weighing.text : totalGrams}
+              onFocus={(event) => {
+                event.target.select();
+                setWeighing({ text: String(totalGrams), from: rows });
+              }}
+              onChange={(event) => weighing && weigh(event.target.value, weighing.from)}
+              onBlur={() => setWeighing(null)}
+              onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+              className="w-[5ch] [appearance:textfield] border-0 bg-transparent p-0 text-right font-bold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <small className="ml-0.5 text-xs font-semibold text-muted-foreground">g</small>
+          </span>
+        </label>
+      )}
+
       <p className="mt-2 mb-3 text-[12.5px] text-muted-foreground">Mengen sind geschätzt. Fehlt etwas?</p>
       {plate.notes && (
         <p data-testid="plate-notes" className="-mt-1 mb-3 text-[12.5px] text-muted-foreground">
@@ -246,25 +289,7 @@ export function PlateSheet({
         </p>
       )}
 
-      <div role="group" aria-label="Vorschläge" className="mb-[18px] flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setMatching("new")}
-          className={addPill}
-        >
-          + Zutat suchen
-        </button>
-        {suggestions.map((food) => (
-          <button
-            key={food.id}
-            type="button"
-            onClick={() => suggest(food)}
-            className={cn(suggestChip, kindColor(food))}
-          >
-            + {shortName(food.name)}
-          </button>
-        ))}
-      </div>
+      <IngredientSearchField onClick={() => setMatching("new")} />
 
       <div data-testid="preview" className="mb-[18px] grid grid-cols-4 rounded-[14px] border tabular-nums">
         <div className="px-1.5 py-2.5 text-center">
