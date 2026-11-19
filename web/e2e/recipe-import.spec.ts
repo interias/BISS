@@ -9,7 +9,7 @@ test("tap budget: a recipe from a pasted text is saved with Reiter Rezepte + 3",
   const taps = await countTaps(page);
   await page.goto("/");
   await recipesTab(page).click();
-  await page.getByRole("button", { name: "Aus Text oder Link" }).click();
+  await page.getByRole("button", { name: "Import aus Text oder Link" }).click();
   const sheet = page.getByRole("dialog");
   // Pasting is no tap.
   await sheet
