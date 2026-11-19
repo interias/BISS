@@ -175,6 +175,7 @@ h1,h2,h3{font-family:var(--head);text-wrap:balance;margin:0;line-height:1.1}
 .seg4{display:grid;grid-template-columns:repeat(4,1fr);padding:3px;border-radius:12px;background:var(--tile)}
 .seg4 button{height:34px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
 .seg4 button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px var(--shadow)}
+.split{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden}.split i{display:block;min-width:0}
 .btn.pri{background:var(--accent);color:var(--accent-ink);border:0}
 .btn.pri:disabled{background:var(--tile);color:var(--muted)}
 .warn{font-size:13px;color:var(--warn);font-weight:600}
@@ -189,7 +190,7 @@ h1,h2,h3{font-family:var(--head);text-wrap:balance;margin:0;line-height:1.1}
   <header class="intro">
     <span class="kick">Konzept · Prototyp mit Beispieldaten</span>
     <h1>Zurückblicken, ohne das Eintragen zu stören</h1>
-    <p>Das Handy funktioniert wirklich. Deine Wahl ist eingebaut: Pfeil am Datum, Kamera in der Mitte, Statistik als Überblick. Neu sind die Einstellungen. Offen ist nur noch, wo sie in der Leiste sitzen.</p>
+    <p>Das Handy funktioniert wirklich. Deine Wahl ist eingebaut: Pfeil am Datum, Kamera in der Mitte, Statistik als Überblick. Dazu kommen die Einstellungen als eigener Reiter.</p>
   </header>
 
   <div class="lab">
@@ -210,7 +211,7 @@ h1,h2,h3{font-family:var(--head);text-wrap:balance;margin:0;line-height:1.1}
         </div>
         <div class="rule">
           <h3>Was wofür gilt</h3>
-          <p>Die Ziele gelten ab dem Tag, an dem du sie änderst. Ein Tagesziel, das die Fitness-App für einen einzelnen Tag setzt, geht weiter vor. Die Toleranz ist dagegen nur die Brille der Statistik. Sie gilt für alle Tage, auch für frühere. Passen kcal und Nährwerte nicht zusammen, sagt ein Hinweis, was die Nährwerte ergeben würden.</p>
+          <p>Die Ziele gelten ab dem Tag, an dem du sie änderst. Ein Tagesziel, das die Fitness-App für einen einzelnen Tag setzt, geht weiter vor. Die Toleranz ist dagegen nur die Brille der Statistik. Sie gilt für alle Tage, auch für frühere. Du gibst Kalorien, Eiweiß und Fett vor, die Kohlenhydrate sind der Rest. So ergeben die Nährwerte immer genau das Kalorienziel.</p>
         </div>
       </section>
 
@@ -229,9 +230,9 @@ h1,h2,h3{font-family:var(--head);text-wrap:balance;margin:0;line-height:1.1}
       </section>
 
       <section class="part">
-        <span class="kick">Noch offen</span>
+        <span class="kick">Navigation</span>
         <h2>Wo die Einstellungen in der Leiste sitzen</h2>
-        <p>Mit Heute, Statistik und Einstellungen gibt es drei Bereiche. Die Kamera in der Mitte hätte dann zwei Reiter auf der einen und einen auf der anderen Seite. Die Zeilenzahl in jeder Karte ist am Prototyp gemessen.</p>
+        <p>Umgesetzt wird N3. Die anderen Varianten bleiben zum Vergleich. Die Zeilenzahl in jeder Karte ist am Prototyp gemessen.</p>
         <div class="opts" id="opts-n"></div>
       </section>
 
@@ -303,7 +304,7 @@ for(let s=START;s<TODAY;s=add(s,1)){
 }
 DAYS[TODAY]=[entry(LU[0],765),entry(SN[0],615),entry(COFFEE,460),entry(BF[0],455)];
 /* Goals carry the day they apply from; a day uses the newest one up to it. */
-let GOALS=[{from:START,kcal:2600,p:150,c:290,f:85},{from:"2026-10-01",kcal:2400,p:160,c:260,f:75}];
+let GOALS=[{from:START,kcal:2600,p:150,c:308.75,f:85},{from:"2026-10-01",kcal:2400,p:160,c:271.25,f:75}];
 const goalOf=s=>GOALS.filter(g=>g.from<=s).at(-1)||GOALS[0];
 const MAC=[["p","Eiweiß","--prot"],["c","Kohlenhydrate","--carb"],["f","Fett","--fat"]];
 const tot=s=>(DAYS[s]||[]).reduce((a,e)=>(a.kcal+=e.kcal,a.p+=e.p,a.c+=e.c,a.f+=e.f,a),{kcal:0,p:0,c:0,f:0});
@@ -427,13 +428,17 @@ function overview(s){
   <section class="sec"><span class="kick">Am häufigsten</span>${st.top.map(([n,v])=>`<div class="li"><span>${n}</span><span>${v.n}×</span><span>${fmt(v.k)} kcal</span></div>`).join("")}</section>`;
 }
 /* ---------- settings ---------- */
-const FIELDS=[["kcal","Kalorien","kcal",null],["p","Eiweiß","g","--prot"],["c","Kohlenhydrate","g","--carb"],["f","Fett","g","--fat"]];
-const goalLine=g=>`${fmt(g.kcal)} kcal · E ${g.p} K ${g.c} F ${g.f}`;
+/* kcal, protein and fat are set; carbs are the remainder, so the macros always add up to the kcal. */
+const FIELDS=[["kcal","Kalorien","kcal",null],["p","Eiweiß","g","--prot"],["f","Fett","g","--fat"]];
+const carbsOf=d=>(d.kcal-4*d.p-9*d.f)/4;
+const goalLine=g=>`${fmt(g.kcal)} kcal · E ${fmt(g.p)} K ${fmt(g.c)} F ${fmt(g.f)}`;
 function setFoot(s){
-  const g=goalOf(TODAY),d=s.draft||g,changed=!!s.draft&&FIELDS.some(([k])=>s.draft[k]!==g[k]),bad=FIELDS.some(([k])=>!(d[k]>0)),atw=4*d.p+4*d.c+9*d.f;
-  const hint=!bad&&Math.abs(atw-d.kcal)>.1*d.kcal?`<p class="warn">Deine Nährwerte ergeben ${fmt(atw)} kcal, nicht ${fmt(d.kcal)}.</p>`:"";
-  if(!changed)return hint+`<p class="m">Gilt seit ${g.from===TODAY?"heute":short(g.from)}.</p>`;
-  return hint+`<p class="m">Gilt ab heute, ${short(TODAY)}. Frühere Tage behalten ihre Ziele.</p><div class="qk" style="margin-top:2px"><button class="btn" data-a="discard">Verwerfen</button><button class="btn pri" data-a="save" ${bad?"disabled":""}>Ab heute übernehmen</button></div>`;
+  const g=goalOf(TODAY),d=s.draft||g,c=carbsOf(d),changed=!!s.draft&&FIELDS.some(([k])=>s.draft[k]!==g[k]),bad=!(d.kcal>0)||c<0;
+  const pk=4*d.p,ck=Math.max(0,4*c),fk=9*d.f,all=pk+ck+fk||1,pc=v=>Math.round(v/all*100);
+  const split=`<div class="fld"><span><i class="dot" style="background:var(--carb)"></i>Kohlenhydrate</span><span class="m" style="text-align:right;padding-right:12px;font-variant-numeric:tabular-nums">${c<0?"–":fmt(c)} g · Rest</span></div><div class="split" aria-hidden="true"><i style="flex:${pk};background:var(--prot)"></i><i style="flex:${ck};background:var(--carb)"></i><i style="flex:${fk};background:var(--fat)"></i></div><p class="m" style="font-variant-numeric:tabular-nums">E ${pc(pk)} % · K ${pc(ck)} % · F ${pc(fk)} % der Kalorien</p>`;
+  const warn=c<0?`<p class="warn">Eiweiß und Fett ergeben schon ${fmt(pk+fk)} kcal.</p>`:"";
+  if(!changed)return split+`<p class="m">Gilt seit ${g.from===TODAY?"heute":short(g.from)}.</p>`;
+  return split+warn+`<p class="m">Gilt ab heute, ${short(TODAY)}. Frühere Tage behalten ihre Ziele.</p><div class="qk" style="margin-top:2px"><button class="btn" data-a="discard">Verwerfen</button><button class="btn pri" data-a="save" ${bad?"disabled":""}>Ab heute übernehmen</button></div>`;
 }
 function settingsView(s){
   const d=s.draft||goalOf(TODAY);
@@ -479,13 +484,13 @@ const ACT={
   camera(){if(S.tab!=="today"){go(TODAY);toast("Die Kamera trägt für heute ein.")}else if(S.date!==TODAY){S.log=true;toast(`Die Kamera würde für ${short(S.date)} eintragen.`)}else toast("Die Kamera ist hier nur angedeutet.")},
   chip(v){const f=CHIPS[+v],d=S.date,min=d===TODAY?790:1140,e=entry(f,min);DAYS[d]=[e,...(DAYS[d]||[])].sort((a,b)=>b.min-a.min);S.undoFn=()=>{DAYS[d]=DAYS[d].filter(x=>x.id!==e.id)};toast(`${f.name} eingetragen${d===TODAY?"":` für ${short(d)}`} · ${f.kcal} kcal`,true)},
   undo(){S.undoFn?.();S.undoFn=null;S.toast=null;clearTimeout(toastTimer)},
-  save(){const before=GOALS.map(g=>({...g})),{kcal,p,c,f}=S.draft;GOALS=[...GOALS.filter(g=>g.from<TODAY),{from:TODAY,kcal,p,c,f}];S.draft=null;S.undoFn=()=>{GOALS=before};toast("Neue Ziele gelten ab heute",true)},
+  save(){const before=GOALS.map(g=>({...g})),{kcal,p,f}=S.draft;GOALS=[...GOALS.filter(g=>g.from<TODAY),{from:TODAY,kcal,p,c:carbsOf(S.draft),f}];S.draft=null;S.undoFn=()=>{GOALS=before};toast("Neue Ziele gelten ab heute",true)},
   discard(){S.draft=null},tol(v){S.tol=+v},
   kind(v){S.kind=v;S.off=-1;S.bar=null},per(v){S.off+=+v;S.bar=null},bar(v){S.bar=S.bar===v?null:v},open:go,sday(v){S.sday=v}
 };
 phone.addEventListener("click",ev=>{const b=ev.target.closest("[data-a]");if(!b||b.disabled)return;ACT[b.dataset.a](b.dataset.v);render()});
 phone.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.getAttribute?.("role")==="button"){ev.preventDefault();ev.target.dispatchEvent(new MouseEvent("click",{bubbles:true}))}if(ev.key==="Escape"&&S.sheet){S.sheet=false;render()}});
-phone.addEventListener("input",e=>{const k=e.target.dataset.g;if(!k)return;const{kcal,p,c,f}=goalOf(TODAY);S.draft??={kcal,p,c,f};S.draft[k]=parseInt(e.target.value.replace(/\D/g,""),10)||0;phone.querySelector("#setfoot").innerHTML=setFoot(S)});
+phone.addEventListener("input",e=>{const k=e.target.dataset.g;if(!k)return;const{kcal,p,f}=goalOf(TODAY);S.draft??={kcal,p,f};S.draft[k]=parseInt(e.target.value.replace(/\D/g,""),10)||0;phone.querySelector("#setfoot").innerHTML=setFoot(S)});
 let sx=null;
 phone.addEventListener("pointerdown",e=>{sx=S.t==="T4"&&e.target.closest("[data-swipe]")?e.clientX:null});
 phone.addEventListener("pointerup",e=>{if(sx==null)return;const d=e.clientX-sx;sx=null;if(Math.abs(d)>40){step(d>0?-1:1);render()}});

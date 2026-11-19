@@ -5,7 +5,7 @@
 
 Selbst gehostete Ernährungs-Erfassung für den persönlichen Gebrauch. Bekanntes Essen kostet einen Tap, ein neues Produkt höchstens zwei Bestätigungen: Barcode scannen, Nährwert-Etikett fotografieren, fertig. Die eigene Lebensmitteldatenbank wächst mit der Nutzung.
 
-Die App zeigt nur den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Auswertungen laufen extern über die API und einen MCP-Server.
+Die App zeigt den Tag mit kcal, Eiweiß, Kohlenhydraten und Fett, blättert zu früheren Tagen und hat eine Statistik für Woche und Monat. Tiefere Auswertungen laufen extern über die API und einen MCP-Server.
 
 ## Stack
 
