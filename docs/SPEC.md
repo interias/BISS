@@ -80,7 +80,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - **Nährstoffe im Schnitt:** Eiweiß, Kohlenhydrate, Fett als Balken bis 130 % des Ziels mit Marke beim Ziel, je „An 5 von 7 Tagen im Zielbereich“.
   - **Erfasste Tage:** in der Woche sieben Ringe, im Monat der Kalender mit Ringen. Ein Tipp öffnet den Tag. Es gibt keinen Serienzähler.
   - **Nach Wochentag** (nur im Monat): Schnitt je Wochentag als Balken.
-  - **Nach Tageszeit:** Anteil der kcal morgens, mittags, nachmittags und abends, mit den Grenzen der Mahlzeit-Vorschläge (Abschnitt 4).
+  - **Nach Tageszeit:** Anteil der kcal morgens, mittags, nachmittags und abends, mit den Grenzen der Mahlzeit-Vorschläge (Abschnitt 4). Einträge zwischen 00:00 und 04:00 Uhr gehören zum Vortag und zählen als abends.
   - **Am häufigsten:** die fünf Lebensmittel und Gerichte mit den meisten Einträgen, je Anzahl und kcal.
   - Über dem Ziel wird nichts rot. Die Farben sind die der Tagesbilanz.
 - **Einstellungen** (Reiter, [ADR-0015](adr/0015-review-and-stats.md)):
