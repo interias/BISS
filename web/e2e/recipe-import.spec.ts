@@ -37,7 +37,7 @@ test("tap budget: a recipe from a pasted text is saved with Reiter Rezepte + 3",
 test("a new recipe closed by accident opens again as it was", async ({ page }) => {
   await page.goto("/");
   await recipesTab(page).click();
-  await page.getByRole("button", { name: "+ Neues Rezept" }).click();
+  await page.getByRole("button", { name: "Neues Rezept", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.getByRole("textbox", { name: "Name" }).fill("Entwurf vom Test");
   await sheet.getByRole("button", { name: "Zutat suchen", exact: true }).click();
@@ -61,7 +61,7 @@ test("a new recipe closed by accident opens again as it was", async ({ page }) =
   // Loaded again, the app opens on Heute; the draft is still there.
   await page.reload();
   await recipesTab(page).click();
-  await page.getByRole("button", { name: "+ Neues Rezept" }).click();
+  await page.getByRole("button", { name: "Neues Rezept", exact: true }).click();
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("Entwurf vom Test");
   await sheet.getByRole("button", { name: "Neu anfangen" }).click();
   await expect(sheet.getByRole("textbox", { name: "Name" })).toHaveValue("");

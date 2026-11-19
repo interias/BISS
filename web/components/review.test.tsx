@@ -114,7 +114,10 @@ test("Statistik answers with the average first; a bar opens its day", async () =
   const { calls } = fakeApi({ entries: [{ ...yesterdayEntry, day: "2026-10-21", eaten_at: "2026-10-21T18:00:00+02:00" }] });
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Statistik" }));
-  // Last week on opening: 19 to 25 October.
+  // This week on opening, one step back is last week: 19 to 25 October.
+  expect(await screen.findByText("Diese Woche")).toBeInTheDocument();
+  expect(calls.some((c) => c.url === "/api/v1/stats?from=2026-10-26&to=2026-11-01")).toBe(true);
+  fireEvent.click(await screen.findByRole("button", { name: "Zeitraum zurück" }));
   expect(await screen.findByText("Letzte Woche")).toBeInTheDocument();
   expect(screen.getByText("19. – 25. Okt")).toBeInTheDocument();
   const hero = await screen.findByRole("region", { name: "Schnitt je Tag" });
@@ -137,14 +140,16 @@ test("Statistik switches to the month with weekdays; there is nothing after toda
   fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Statistik" }));
-  expect(await screen.findByRole("button", { name: "Zeitraum vor" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "Zeitraum vor" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Monat" }));
+  expect(await screen.findByText("Dieser Monat")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Zeitraum vor" })).toBeDisabled();
+  fireEvent.click(await screen.findByRole("button", { name: "Zeitraum zurück" }));
   expect(await screen.findByText("Letzter Monat")).toBeInTheDocument();
   expect(screen.getByText("September 2026")).toBeInTheDocument();
   expect(await screen.findByRole("region", { name: "Nach Wochentag" })).toHaveTextContent("Mi–");
   fireEvent.click(screen.getByRole("button", { name: "Zeitraum vor" }));
   expect(await screen.findByText("Dieser Monat")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Zeitraum vor" })).toBeDisabled();
 });
 
 test("Einstellungen: carbs are the remainder, Ab heute übernehmen saves with Rückgängig", async () => {

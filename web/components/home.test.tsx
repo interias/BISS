@@ -373,7 +373,7 @@ test("the cookbook leads on to a new recipe; saved, its food opens to log portio
   const { calls } = fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
-  fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Neues Rezept" }));
 
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Skyrbrötchen" } });
@@ -399,7 +399,7 @@ test("the back button in the ingredient search goes back to the recipe; an unsav
   fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
-  fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Neues Rezept" }));
   fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), { target: { value: "Linsensuppe" } });
   fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
   expect(screen.getByRole("textbox", { name: "Suchen" })).toBeInTheDocument();

@@ -224,7 +224,7 @@ test("a recipe is created, logged in two portions and weighed afterwards", async
   const name = unique("Bananenreis");
   await page.goto("/");
   await recipesTab(page).click();
-  await page.getByRole("button", { name: "+ Neues Rezept" }).click();
+  await page.getByRole("button", { name: "Neues Rezept", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("heading", { name: "Neues Rezept" })).toBeVisible();
 

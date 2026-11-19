@@ -41,10 +41,18 @@ export const DayIcon = () => (
 );
 
 /** Rezepte: the open cookbook that stood in the dock. */
-export const BookIcon = () => (
-  <Line>
+export const BookIcon = ({ size }: { size?: number }) => (
+  <Line size={size}>
     <path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5Z" />
     <path d="M12 6.5V19.5" />
+  </Line>
+);
+
+/** A link: two chain links, for a recipe read from a pasted text or link. */
+export const LinkIcon = ({ size }: { size?: number }) => (
+  <Line size={size}>
+    <path d="M10 13.5a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+    <path d="M14 10.5a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
   </Line>
 );
 
