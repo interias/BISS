@@ -5,15 +5,16 @@ get_label_extractor and get_plate_extractor.
 """
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_session
+from app.domain.stats import check_period
 from app.labels.agent import AgentLabelExtractor
 from app.labels.extractor import FakeLabelExtractor, LabelExtractor
 from app.plates.agent import AgentPlateExtractor
@@ -35,6 +36,20 @@ def get_now() -> datetime:
 
 
 NowDep = Annotated[datetime, Depends(get_now)]
+
+
+def get_period(
+    start: Annotated[date, Query(alias="from")], end: Annotated[date, Query(alias="to")]
+) -> tuple[date, date]:
+    """The period `from`..`to`, both included, of 1 to 366 days."""
+    try:
+        check_period(start, end)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return start, end
+
+
+PeriodDep = Annotated[tuple[date, date], Depends(get_period)]
 
 
 @lru_cache

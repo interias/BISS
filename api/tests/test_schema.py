@@ -204,6 +204,57 @@ def test_migration_0007_creates_and_drops_the_recipe_tables(engine: Engine) -> N
     assert key["options"]["ondelete"] == "CASCADE"
 
 
+def test_migration_0008_gives_the_default_the_first_day_with_an_entry(engine: Engine) -> None:
+    config = Config(API_DIR / "alembic.ini")
+    config.attributes["database_url"] = engine.url.render_as_string(hide_password=False)
+    try:
+        command.downgrade(config, "0007")
+        assert "setting" not in inspect(engine).get_table_names()
+        with engine.begin() as connection:
+            food = connection.execute(
+                text(
+                    "INSERT INTO food (name, kcal, protein, carbs, fat, source) "
+                    "VALUES ('Migrationstest', 100, 1, 1, 1, 'own') RETURNING id"
+                )
+            ).scalar_one()
+            for day in ("2026-03-07", "2026-03-05"):
+                connection.execute(
+                    text(
+                        "INSERT INTO entry (food_id, grams, meal, eaten_at, day, kcal, protein, "
+                        "carbs, fat) VALUES (:food, 50, 'lunch', now(), :day, 50, 0.5, 0.5, 0.5)"
+                    ),
+                    {"food": food, "day": day},
+                )
+            connection.execute(
+                text(
+                    "INSERT INTO goal (day, kcal, protein, carbs, fat) VALUES "
+                    "(NULL, 2000, 150, 200, 70), ('2026-03-06', 1800, 170, 150, 60)"
+                )
+            )
+        command.upgrade(config, "head")
+        with engine.connect() as connection:
+            goals = connection.execute(
+                text("SELECT day, valid_from, kcal FROM goal ORDER BY kcal")
+            ).all()
+            tolerance = connection.execute(text("SELECT tolerance FROM setting")).scalar_one()
+        assert [tuple(row) for row in goals] == [
+            (datetime(2026, 3, 6).date(), None, 1800),
+            (None, datetime(2026, 3, 5).date(), 2000),
+        ]
+        assert tolerance == 0.1
+    finally:
+        command.upgrade(config, "head")
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM goal"))
+            connection.execute(
+                text(
+                    "DELETE FROM entry WHERE food_id IN "
+                    "(SELECT id FROM food WHERE name = 'Migrationstest')"
+                )
+            )
+            connection.execute(text("DELETE FROM food WHERE name = 'Migrationstest'"))
+
+
 def test_combo_item_grams_are_checked_and_follow_their_combo(session: Session) -> None:
     food = Food(name="Zucker", kcal=400, protein=0, carbs=100, fat=0, source="own")
     combo = Combo(name="Kaffee")

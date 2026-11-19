@@ -1,5 +1,7 @@
+from dataclasses import asdict
 from datetime import date, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ from app.api.deps import get_now
 from app.domain.goals import default_targets
 from app.main import app
 from app.models import Goal
-from tests.factories import add_food
+from tests.factories import add_entry, add_food
 
 ZERO = {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
 
@@ -52,7 +54,7 @@ def test_day_targets_fall_back_to_the_defaults(client: TestClient) -> None:
 
 
 def test_day_targets_use_the_goal_of_the_day(client: TestClient, session: Session) -> None:
-    session.add(Goal(day=None, kcal=2000, protein=150, carbs=200, fat=70))
+    session.add(Goal(valid_from=date(2026, 1, 1), kcal=2000, protein=150, carbs=200, fat=70))
     session.add(Goal(day=date(2026, 10, 28), kcal=1800, protein=170, carbs=150, fat=60))
     session.flush()
     assert client.get("/api/v1/days/2026-10-28").json()["targets"]["kcal"] == 1800
@@ -125,3 +127,58 @@ def test_day_rows_on_equal_times_put_the_later_entry_first(
     log(client, food.id, 20, "lunch", "2026-10-28T12:00:00+01:00")
     rows = client.get("/api/v1/days/2026-10-28").json()["rows"]
     assert [row["entry"]["grams"] for row in rows] == [20, 10]
+
+
+def test_range_has_every_day_with_totals_goal_and_entries(
+    client: TestClient, session: Session
+) -> None:
+    food = add_food(session, "Reis gekocht")
+    add_entry(session, food, "2026-10-28T08:00:00+01:00", 500, protein=20, carbs=60, fat=10)
+    add_entry(session, food, "2026-10-29T02:00:00+01:00", 300.04, protein=5)  # still the 28th
+    add_entry(session, food, "2026-10-29T12:00:00+01:00", 700)
+    session.add(Goal(day=date(2026, 10, 29), kcal=1800, protein=170, carbs=150, fat=60))
+    session.flush()
+    configured = asdict(default_targets())
+
+    days = client.get("/api/v1/days", params={"from": "2026-10-27", "to": "2026-10-30"}).json()
+
+    assert days == {
+        "days": [
+            {"date": "2026-10-27", "totals": ZERO, "targets": configured, "entries": 0},
+            {
+                "date": "2026-10-28",
+                "totals": {"kcal": 800.0, "protein": 25, "carbs": 60, "fat": 10},
+                "targets": configured,
+                "entries": 2,
+            },
+            {
+                "date": "2026-10-29",
+                "totals": {"kcal": 700, "protein": 0, "carbs": 0, "fat": 0},
+                "targets": {"kcal": 1800, "protein": 170, "carbs": 150, "fat": 60},
+                "entries": 1,
+            },
+            {"date": "2026-10-30", "totals": ZERO, "targets": configured, "entries": 0},
+        ]
+    }
+
+
+def test_range_of_one_day_and_of_366_days(client: TestClient) -> None:
+    one = client.get("/api/v1/days", params={"from": "2026-10-28", "to": "2026-10-28"}).json()
+    assert [day["date"] for day in one["days"]] == ["2026-10-28"]
+    year = client.get("/api/v1/days", params={"from": "2027-01-01", "to": "2028-01-01"})
+    assert year.status_code == 200
+    assert len(year.json()["days"]) == 366
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"from": "2026-10-28", "to": "2026-10-27"},
+        {"from": "2027-01-01", "to": "2028-01-02"},
+        {"from": "2026-10-28"},
+        {"to": "2026-10-28"},
+        {"from": "2026-10-28", "to": "today"},
+    ],
+)
+def test_invalid_ranges_are_rejected(client: TestClient, params: dict) -> None:
+    assert client.get("/api/v1/days", params=params).status_code == 422

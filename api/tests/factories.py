@@ -1,11 +1,14 @@
-"""Small helpers that add foods, servings and cached products to the test session."""
+"""Small helpers that add foods, entries, servings and cached products to the test session."""
 
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.barcode.gtin import normalize_gtin
-from app.models import Food, OffCache, Serving
+from app.domain.day import day_of
+from app.domain.meal import suggest_meal
+from app.models import Entry, Food, OffCache, Serving
 
 
 def add_food(session: Session, name: str, **values) -> Food:
@@ -14,6 +17,38 @@ def add_food(session: Session, name: str, **values) -> Food:
     session.add(food)
     session.flush()
     return food
+
+
+def add_entry(
+    session: Session,
+    food: Food,
+    eaten_at: str,
+    kcal: float,
+    *,
+    protein: float = 0,
+    carbs: float = 0,
+    fat: float = 0,
+    group: tuple[UUID, str] | None = None,
+) -> Entry:
+    """An entry with the given snapshot, its day and meal from the moment it was eaten."""
+    moment = datetime.fromisoformat(eaten_at)
+    group_id, group_name = group or (None, None)
+    entry = Entry(
+        food_id=food.id,
+        grams=100,
+        meal=suggest_meal(moment),
+        eaten_at=moment,
+        day=day_of(moment),
+        kcal=kcal,
+        protein=protein,
+        carbs=carbs,
+        fat=fat,
+        group_id=group_id,
+        group_name=group_name,
+    )
+    session.add(entry)
+    session.flush()
+    return entry
 
 
 def add_serving(
