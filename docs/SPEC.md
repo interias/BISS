@@ -1,6 +1,6 @@
 # BISS – Spezifikation
 
-Stand: 17.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html)
+Stand: 19.11.2026 · Begriffe: [CONTEXT.md](../CONTEXT.md) · Entscheidungen: [docs/adr/](adr/) · Design: [docs/design/prototype.html](design/prototype.html), Rückblick, Statistik und Einstellungen: [docs/design/rueckblick.html](design/rueckblick.html)
 
 ## 1. Ziel und Leitprinzipien
 
@@ -14,18 +14,27 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | Schnellzugriff | 1 |
 | Suche | + 2 |
 | Schnellzugriff aus der leeren Suche | Suche + 1 |
-| Rezept aus „Meine Rezepte“ | Kochbuch + 2 |
-| Rezept aus Text oder Link anlegen | Kochbuch + 3 |
+| Rezept aus „Meine Rezepte“ | Reiter Rezepte + 2 |
+| Rezept aus Text oder Link anlegen | Reiter Rezepte + 3 |
 | Bekannter Barcode | Kamera + 1 |
 | Neues Produkt | Kamera + Auslöser + 2 Bestätigungen |
 | Teller | Kamera + Auslöser + 1 Bestätigung |
 | Mahlzeit diktieren | Mikrofon + Fertig + 1 Bestätigung |
 | Zutat zu einem Gericht ergänzen | aufklappen + 3 |
+| Gestern ansehen | 1 |
+| Anderer Tag im selben Monat | Datum + 1 |
+| Zurück zu heute | 1 |
+| Statistik | 1 |
+| Einstellungen | 1 |
+
+Die Kamera ist aus jedem Reiter mit einem Tap erreichbar. Auf einem früheren Tag kostet Eintragen einen Tap mehr („+ Nachtragen“), danach gelten die Budgets oben.
+
+Jede Änderung an der Oberfläche folgt den Regeln für ein einheitliches Interface in [docs/design/einheitlichkeit.md](design/einheitlichkeit.md).
 
 **Weitere Leitprinzipien:**
 
-1. **Nur erfassen:** Die App zeigt ausschließlich den heutigen Tag (kcal, Eiweiß, Kohlenhydrate, Fett). Es gibt keine Diagramme und keine Historie-Auswertungen.
-2. **Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
+1. **Erfassen zuerst:** Der Reiter Heute dient dem Erfassen. Rückblick und Statistik ([ADR-0015](adr/0015-review-and-stats.md)) kosten das Erfassen keinen Tap und urteilen nicht: keine Serien, Noten, Abzeichen, Erinnerungen und kein Rot bei Überschreitung.
+2. **Tiefere Auswertung extern:** Andere Werkzeuge lesen über die REST-API und den MCP-Server.
 3. **Logik im Backend:** Der Web-Client zeigt nur an. Eine spätere Flutter-App nutzt dieselbe API ([ADR-0003](adr/0003-logic-in-backend.md)).
 
 ## 2. Funktionsumfang
@@ -41,23 +50,48 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 | **E7 Teller-Erkennung** | Foto eines Gerichts → Zutaten mit geschätzten Mengen, abgebildet auf eigene DB und BLS, Ergebnis-Sheet nach Prototyp | Gericht mit einem Foto und einer Bestätigung |
 | **E8 Schnellzugriff** | Gespeicherte Kombinationen als Vorlage, Chip im Dock, Anpassen per langem Drücken, „als Schnellzugriff merken“ im Tagebuch, MCP `log_combo` ([ADR-0010](adr/0010-combo-template.md)) | Feste Kombinationen mit einem Tap |
 
+| **E9 Rückblick und Statistik** | Navigationsleiste, Tag wechseln mit Pfeil und Kalender, Nachtragen auf frühere Tage, Statistik für Woche und Monat, Einstellungen mit Zielen ab heute und Toleranz ([ADR-0015](adr/0015-review-and-stats.md)) | Gestern mit einem Tap, „Wie war die Woche?“ ohne externes Werkzeug |
+
 Dazu kommen **Rezepte** ([ADR-0012](adr/0012-recipe-as-food.md)): selbst Gekochtes und Gebackenes aus rohen Zutaten, in Portionen eingetragen, das **Diktat** ([ADR-0013](adr/0013-dictation.md)): eine gesprochene Mahlzeit wird ein Gericht wie ein Teller, und der **Rezept-Import** ([ADR-0014](adr/0014-recipe-import.md)): ein eingefügter Rezepttext oder Link füllt das Rezept-Blatt.
 
-**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Statistiken jeder Art.
+**Nicht im MVP** (eigene Epics, wenn gewünscht): Offline-Warteschlange, Authentifizierung, Flutter-App, USDA, Körpergewicht und Energiebilanz.
 
 ## 3. Abläufe
 
 Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens aus dem Prototyp werden auf die shadcn-Variablen abgebildet, hell und dunkel.
 
 - **Hauptscreen:**
-  - Header mit Logo, „BISS“ und Datum.
-  - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g).
+  - Header mit Logo, „BISS“ und Datum („Heute · Do 19. Nov“, „Gestern · Mi 18. Nov“, sonst „Di 10. Nov“). Links vom Datum ein Pfeil zurück, auf einem früheren Tag rechts einer vor.
+  - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g), gegen das Ziel, das an diesem Tag galt.
   - Tagebuch als eine Liste, neueste zuerst. Jede Zeile zeigt ihre Uhrzeit. Mahlzeiten zeigt die App nicht.
-  - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld, Mikrofon (nur mit Spracherkennung im Browser) und einem Kamera-Knopf.
+  - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und Mikrofon (nur mit Spracherkennung im Browser). Die Kamera steht in der Navigationsleiste.
   - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
-  - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch und die Blätter. Das Dock mit der Suche bleibt immer unten erreichbar.
+  - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch, die Statistik und die Blätter. Auf heute bleibt das Dock mit der Suche immer unten erreichbar.
+- **Navigationsleiste** ([ADR-0015](adr/0015-review-and-stats.md)): unten unter dem Dock, mit den Reitern Heute, Rezepte, Statistik und Einstellungen. In der Mitte steht erhaben die Kamera, aus jedem Reiter mit einem Tap. Sie trägt immer für heute ein und wechselt dafür zu Heute. Der aktive Reiter hat eine Pille in der Akzentfarbe. Ein Tipp auf Heute, während Heute offen ist, springt zum heutigen Tag.
+- **Anderer Tag:**
+  - Der Pfeil zurück geht einen Tag zurück, der Pfeil vor einen vor, nie über heute hinaus.
+  - Ein Tipp aufs Datum öffnet das Blatt „Tag wählen“: ein Monat mit −/+ und je Tag einem kleinen Ring (Anteil am kcal-Ziel des Tages), ein Tag ohne Einträge gestrichelt, heute in der Akzentfarbe, der gewählte Tag gefüllt. Darunter „Heute“ und „Gestern“. Ein Tipp auf einen Tag öffnet ihn und schließt das Blatt. Künftige Tage sind gesperrt.
+  - Auf einem früheren Tag ersetzt eine Leiste mit „Zurück zu heute“ und „+ Nachtragen“ das Dock. „+ Nachtragen“ zeigt das Dock mit dem Band „Trägt ein für <Tag> · Fertig“. Jeder Eintrag dann bekommt diesen Tag (`eaten_at` an dem Tag, Uhrzeit wie bei einem Eintrag jetzt), und der Toast sagt „<Name> eingetragen für <Tag> · X kcal“.
+  - Die App öffnet und lädt immer mit heute. Kommt sie nach dem Tageswechsel in den Vordergrund, springt sie auf den neuen Tag, außer ein Blatt ist offen.
+- **Statistik** (Reiter, [ADR-0015](adr/0015-review-and-stats.md)):
+  - Oben „Woche | Monat“ und darunter der Zeitraum mit −/+: „Letzte Woche · 9. – 15. Nov“, „Diese Woche“, „KW 45“; „Letzter Monat · Oktober 2026“, „Dieser Monat“. Beim Öffnen gilt die letzte Woche. Vor den ersten Eintrag und über heute hinaus geht es nicht.
+  - Antwort zuerst: der Schnitt je Tag groß („2.276 kcal je Tag“), darunter „124 unter deinem Ziel von 2.400“ und der Vergleich zum Zeitraum davor („67 kcal weniger als in der Woche davor“). Gelten im Zeitraum verschiedene Ziele, steht „deinem Ziel (im Schnitt 2.450)“. Klein darunter „Aus 6 von 7 Tagen. An 2 Tagen im Zielbereich (±10 %).“
+  - **Kalorien je Tag:** Balken mit gestrichelter Ziellinie, die beim Wechsel des Ziels springt. Ein Tag ohne Einträge zeigt einen Strich auf der Grundlinie, der laufende Tag einen gestrichelten Umriss. Im Monat sind die Balken heller und eine Linie zeigt den Schnitt der letzten 7 erfassten Tage. Ein Tipp auf einen Balken zeigt darunter Tag, kcal und „E K F“ mit „Öffnen“; „Öffnen“ wechselt zu Heute auf diesen Tag.
+  - **Nährstoffe im Schnitt:** Eiweiß, Kohlenhydrate, Fett als Balken bis 130 % des Ziels mit Marke beim Ziel, je „An 5 von 7 Tagen im Zielbereich“.
+  - **Erfasste Tage:** in der Woche sieben Ringe, im Monat der Kalender mit Ringen. Ein Tipp öffnet den Tag. Es gibt keinen Serienzähler.
+  - **Nach Wochentag** (nur im Monat): Schnitt je Wochentag als Balken.
+  - **Nach Tageszeit:** Anteil der kcal morgens, mittags, nachmittags und abends, mit den Grenzen der Mahlzeit-Vorschläge (Abschnitt 4). Einträge zwischen 00:00 und 04:00 Uhr gehören zum Vortag und zählen als abends.
+  - **Am häufigsten:** die fünf Lebensmittel und Gerichte mit den meisten Einträgen, je Anzahl und kcal.
+  - Über dem Ziel wird nichts rot. Die Farben sind die der Tagesbilanz.
+- **Einstellungen** (Reiter, [ADR-0015](adr/0015-review-and-stats.md)):
+  - **Tagesziele:** Kalorien, Eiweiß und Fett sind Zahlenfelder wie im Lebensmittel-Editor (Zifferntastatur, ganze Zahlen über 0). Kohlenhydrate sind der Rest und stehen als berechnete Zeile darunter: `(kcal − 4·Eiweiß − 9·Fett) ÷ 4`. So ergeben die Nährwerte immer genau das Kalorienziel. Ändert man die Kalorien, ziehen die Kohlenhydrate live mit. Eine Leiste in den drei Farben zeigt die Anteile an den Kalorien („E 27 % · K 45 % · F 28 %“).
+  - Ergeben Eiweiß und Fett schon mehr als das Kalorienziel, steht „Eiweiß und Fett ergeben schon X kcal.“ in der Warnfarbe, und „Ab heute übernehmen“ bleibt grau.
+  - Ändert man einen Wert, erscheint unten fest „Gilt ab heute, <Tag>. Frühere Tage behalten ihre Ziele.“ mit „Verwerfen“ und „Ab heute übernehmen“. Sonst steht dort „Gilt seit <Tag>“. „Ab heute übernehmen“ speichert und sagt „Neue Ziele gelten ab heute“ mit „Rückgängig“.
+  - Die Vorschau rechnet lokal und ist reine Anzeige. Verbindlich rechnet das Backend beim Speichern ([ADR-0003](adr/0003-logic-in-backend.md)).
+  - **Toleranz:** ±5, ±10, ±15 oder ±20 %, Standard ±10 %. Ein Tipp gilt sofort, für alle Tage.
+  - **Bisherige Ziele:** alle Standardziele, das neueste zuerst, je mit „seit <Tag>“.
 - **Chips im Dock:**
-  - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) und das Kochbuch-Symbol stehen fest vorn. Beide brauchen nie Scrollen.
+  - „+ Schnellzugriff“ (ein Plus mit dem Zeichen der Schnellzugriff-Chips, den zwei gestapelten Quadraten) steht fest vorn und braucht nie Scrollen.
   - Dahinter stehen Schnellzugriffe und Zuletzt-Chips in einer Reihe, das zuletzt verwendete zuerst. Was gerade eingetragen wurde, steht also gleich neben den festen Knöpfen.
   - Verwendet heißt: der neueste Eintrag des Lebensmittels, beim Schnellzugriff die neueste Gruppe mit seinem Namen (`group_name`, Abschnitt 4), jeweils nach `eaten_at`. Ein Schnellzugriff steht vor den Lebensmitteln, die mit ihm eingetragen wurden.
   - Ein Schnellzugriff, der noch nie eingetragen wurde, steht hinter allen verwendeten Chips, in der Reihenfolge des Anlegens.
@@ -77,7 +111,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Ein Tap auf ein Lebensmittel öffnet das Mengen-Sheet wie bei einem Treffer. Das Tap-Budget der Suche gilt unverändert, das Tippen entfällt.
   - Ein Schnellzugriff steht mit seiner Summe in beiden Gruppen. Ein Tap trägt ihn ein wie sein Chip im Dock, mit dem Toast „Rückgängig“, und schließt die Suche. Wo die Suche eine Zutat wählt (Teller, Schnellzugriff, Gericht), fehlen die Schnellzugriffe.
 - **Rezept** ([ADR-0012](adr/0012-recipe-as-food.md)):
-  - Im Dock steht neben „+ Schnellzugriff“ ein Kochbuch-Symbol. Es öffnet „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
+  - Der Reiter Rezepte zeigt „Meine Rezepte“: alle Rezepte, das zuletzt gespeicherte zuerst, je mit Foto, Portionen und kcal je Portion. Ein Tap öffnet das Mengen-Sheet des Rezepts, „+ Neues Rezept“ das Rezept-Blatt.
   - Ein Rezept steht überall in der Akzentfarbe: in der Suche mit der Marke „Rezept“, als Chip im Dock und im Tagebuch (`recipe` am Lebensmittel).
 - **Farben der Namen:** Ein eigenes Rezept steht in der Akzentfarbe (Magenta). Ein gescanntes Produkt, also eines mit Barcode aus Scan oder Etikett-Foto (`scanned`), steht in Türkis. Alles andere bleibt neutral. Das gilt in Suche, Dock-Chips, Tagebuch, im Titel des Mengen-Sheets und auf den Zutaten-Vorschlägen; ein Rezept geht vor.
 - **Einheitliches Aussehen** (Klassen in `web/lib/styles.ts`):
@@ -140,7 +174,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Kennzahlen live nach der lokalen Formel, „Eintragen · X kcal“ und „Verwerfen“.
   - „Eintragen“ speichert den Teller als eigenes Lebensmittel und trägt es ein (Abschnitt 7a): ein Rezept mit einer Portion, den zugeordneten Zutaten und dem Tellerfoto als Produktfoto. Im Tagebuch steht eine Zeile. Ein Tap öffnet das Mengen-Sheet: Die Anzahl ändert der Chip „1 Portion“ („2 × 1 Portion“), „Bearbeiten“ öffnet das Rezept-Blatt mit den Zutaten. „Rückgängig“ im Toast entfernt den Eintrag, das Lebensmittel bleibt.
 - **Mahlzeit diktieren** ([ADR-0013](adr/0013-dictation.md)):
-  - Das Mikrofon links neben der Kamera öffnet das Blatt „Ich höre zu“ mit dem gehörten Text in großer Schrift und „Fertig“. Ohne Spracherkennung im Browser fehlt der Knopf.
+  - Das Mikrofon am rechten Ende der Suchzeile öffnet das Blatt „Ich höre zu“ mit dem gehörten Text in großer Schrift und „Fertig“. Ohne Spracherkennung im Browser fehlt der Knopf.
   - „Fertig“ oder eine Pause beendet das Zuhören. Der Satz geht an `POST /plates/dictate`. Solange zeigt das Blatt „Erkenne Gericht …“ mit dem Ladebildschirm der Kamera (eine der vier Animationen, eigene Sprüche wie „Wiege jedes Wort …“) und darunter klein den gehörten Satz.
   - Danach öffnet das Teller-Ergebnis-Sheet ohne Foto und gilt unverändert: Gewichte, Gesamtgewicht, ✕, „tauschen“, „Zutat suchen“, „Eintragen“ als Rezept mit einer Portion, nur ohne Produktfoto.
   - Schließen oder die Zurück-Taste bricht ab, ohne etwas zu schicken. Ein gesperrtes Mikrofon sagt der Toast „Das Mikrofon ist aus. Erlaube es im Browser.“, ein Satz ohne Lebensmittel den Hinweis des Modells.
@@ -157,7 +191,8 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 | `food_source_data` | `food_id`, `source`, `source_id`, `payload` (jsonb, Rohdaten), `fetched_at` – Grundlage des Overlays |
 | `serving` | `id`, `food_id`, `label`, `grams`, `origin` (`package`/`estimated`/`own`), `is_default` |
 | `entry` | `id`, `food_id`, `grams`, `meal` (`breakfast`/`lunch`/`snack`/`dinner`), `eaten_at` (timestamptz), `day` (date), `kcal`, `protein`, `carbs`, `fat` (Snapshot beim Speichern), `group_id` (uuid, nullable) und `group_name` (nullable): die Einträge eines Gerichts |
-| `goal` | `day` (nullable = Standard), `kcal`, `protein`, `carbs`, `fat` |
+| `goal` | `day` (Tagesziel eines Tages) oder `valid_from` (Standardziel ab diesem Tag), genau eines gesetzt, `kcal`, `protein`, `carbs`, `fat` |
+| `setting` | eine Zeile: `tolerance` (Anteil, 0,05 bis 0,20, Standard 0,10) |
 | `combo` | `id`, `name`, `position` (Reihenfolge im Dock), `created_at`, `updated_at` – Vorlage eines Schnellzugriffs (E8) |
 | `combo_item` | `id`, `combo_id` (löscht mit), `food_id`, `grams` (> 0 und ≤ 1.500), `position` – Zutaten der Vorlage in Reihenfolge |
 | `recipe` | `id`, `food_id` (eindeutig), `description`, `portions` (1–100), `cooked_grams` (optional, ≤ 50.000) – Rezept; sein Lebensmittel trägt die Werte je 100 g des fertigen Gerichts ([ADR-0012](adr/0012-recipe-as-food.md)) |
@@ -167,6 +202,9 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 Regeln:
 
 - **Tag und Mahlzeit:** Zeitzone `Europe/Berlin`. Ein Eintrag bis 04:00 Uhr zählt zum Vortag. Ohne Angabe schlägt das Backend die Mahlzeit nach Uhrzeit vor: < 10:30 Frühstück, < 14:30 Mittag, < 17:30 Snack, sonst Abend.
+- **Ziel eines Tages:** sein Tagesziel, sonst das Standardziel mit dem neuesten `valid_from` bis zu diesem Tag, sonst die Standardziele aus `.env`. Eine Änderung in den Einstellungen schreibt ein Standardziel mit `valid_from` = heute, ein Standardziel von heute wird ersetzt. Vorgegeben sind dabei kcal, Eiweiß und Fett; das Backend speichert die Kohlenhydrate als `(kcal − 4·Eiweiß − 9·Fett) ÷ 4` ungerundet und lehnt einen Wert unter 0 ab (422). Tagesziele der Fitness-App bleiben, wie sie gesendet werden. Frühere Tage ändern sich nie. Die Migration gibt einem bestehenden Standardziel den ersten Tag mit Eintrag als `valid_from`.
+- **Zielbereich:** Ein Wert liegt darin, wenn `|Ist − Ziel| ≤ tolerance × Ziel`, je Wert für sich und mit dem Ziel des Tages.
+- **Statistik:** Es zählen abgeschlossene Tage (vor heute) mit mindestens einem Eintrag. Schnitte sind Summen geteilt durch diese Tage, ebenso das Ziel im Schnitt. Eine Woche läuft von Montag bis Sonntag, ein Monat ist ein Kalendermonat. Verglichen wird mit dem Zeitraum gleicher Art davor, wenn er erfasste Tage hat.
 - **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
 - **Snapshot:** Ein Eintrag speichert seine Makros beim Anlegen und beim Ändern der Menge. Spätere Korrekturen am Lebensmittel ändern vergangene Tage nicht. Nur der Eintrag, aus dessen Mengen-Sheet das Lebensmittel oder Rezept bearbeitet wurde, wird mit „Speichern“ neu berechnet.
 - **Overlay:** Ein Update aus der Quelle überschreibt nur Felder, die nicht in `overridden` stehen. Eigene Änderungen gehen nie verloren.
@@ -211,7 +249,11 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/labels/extract` | Etikett-Foto plus optionale GTIN → Entwurf mit Validierungsergebnis (E4) |
 | POST | `/plates/extract` | Teller-Foto → Gericht mit Zutaten, Mengen und Zuordnung, nichts wird eingetragen (E7) |
 | POST | `/plates/dictate` | Diktierter Satz `{text}` (1–600 Zeichen) → dasselbe wie `/plates/extract`, nichts wird eingetragen ([ADR-0013](adr/0013-dictation.md)) |
-| GET / PUT | `/goals/default` | Standardziele (E5) |
+| GET | `/days?from=&to=` | je Tag Summen, geltendes Ziel und Anzahl Einträge, für Kalender und Balken (E9) |
+| GET | `/stats?from=&to=` | Statistik eines Zeitraums nach Abschnitt 4: Schnitte, Ziel im Schnitt, Tage im Zielbereich je Wert, erfasste und mögliche Tage, Vergleich zum Zeitraum davor, Wochentage, Tageszeiten, häufigste Lebensmittel (E9) |
+| GET / PUT | `/goals/default` | Standardziel, das heute gilt; `PUT` mit `kcal`, `protein`, `fat` setzt es ab heute, die Kohlenhydrate rechnet das Backend (E5, E9) |
+| GET | `/goals` | alle Standardziele mit `valid_from`, das neueste zuerst (E9) |
+| GET / PUT | `/settings` | Toleranz (E9) |
 | GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |
 
 **MCP-Server** (E5, [ADR-0007](adr/0007-mcp.md)): Er liegt unter `/mcp` im API-Container und nutzt dieselben Services. Lesend sind `search_food`, `get_food`, `list_entries`, `daily_summary` und `list_combos`, schreibend nur `log_meal` und `log_combo` (per `combo_id` oder Name, E8).
@@ -348,7 +390,7 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
   - kcal innerhalb ± 35 % bei ≥ 70 % der Teller mit kcal.
   - p95 der Zeit je Foto < 15 s.
   - Daneben vergleicht der Benchmark `tests/test_plates_bench.py` Modelle und Varianten auf denselben Fotos, mit mehreren Durchläufen: genannte Hauptzutaten, richtig zugeordnete, erfundene Zutaten und Zutaten ohne Lebensmittel. Er setzt keine Schwellen.
-- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, das zuletzt verwendete vorn in der Chip-Reihe, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012), Rezept aus Text → Speichern und ein Entwurf, der Escape und Neuladen übersteht (ADR-0014, LLM gemockt). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Kochbuch + 2, Rezept aus Text = Kochbuch + 3.
+- **Frontend:** Vitest für Komponenten und das Schrittraster der Gramm. Die Kernabläufe laufen als Playwright-E2E: Zuletzt-Chip mit Rückgängig, Suche → Eintrag, Eintrag bearbeiten, Barcode-Treffer (E3), Etikett → Editor → Eintrag (E4, LLM gemockt), Etikett ohne Barcode → Editor → Eintrag (E6, LLM gemockt), Teller → Ergebnis → Eintrag als eigenes Lebensmittel mit Foto, Anzahl Portionen ändern (E7, LLM gemockt), Diktat → Ergebnis → Eintrag ohne Foto und Abbruch per Zurück-Taste (ADR-0013, Spracherkennung und LLM gemockt), Schnellzugriff anlegen, per Tap eintragen mit Rückgängig, das zuletzt verwendete vorn in der Chip-Reihe, anpassen und aus einer Gruppe im Tagebuch merken (E8), unbekanntes Produkt → Open-Food-Facts-Treffer → Mengen-Sheet → Eintrag (Stub, ADR-0011), Rezept anlegen → zwei Portionen eintragen → Fertiggewicht nachtragen (ADR-0012), Rezept aus Text → Speichern und ein Entwurf, der Escape und Neuladen übersteht (ADR-0014, LLM gemockt), gestern per Pfeil und ein Tag aus dem Kalender, Nachtragen auf gestern mit Rückgängig, Statistik → Balken → Tag öffnen, Ziel ab heute ändern und gestern behält sein Ziel (ADR-0015). Die beiden E6-Abläufe (Barcode-Foto, Etikett ohne Barcode), der Teller-Ablauf, das Diktat, der Schnellzugriff und die leere Suche zählen dabei ihr Tap-Budget aus Abschnitt 1: Teller = Kamera + Auslöser + Eintragen, Diktat = Mikrofon + Fertig + Eintragen, Schnellzugriff = 1, leere Suche = Suche + 2, Schnellzugriff aus der leeren Suche = Suche + 1, Zutat zu einem Gericht = aufklappen + 3, Rezept aus „Meine Rezepte“ = Reiter Rezepte + 2, Rezept aus Text = Reiter Rezepte + 3, gestern = 1, Tag im selben Monat = Datum + 1, zurück zu heute = 1, Statistik = 1, Einstellungen = 1.
 
 ## 9. Betrieb
 
@@ -360,5 +402,5 @@ Pflicht ab E1: Jedes Epic endet mit grünen Tests und lauffähigem `docker compo
 - **PWA:** Die App hat ein Manifest und lässt sich auf dem Handy zum Startbildschirm hinzufügen.
 - **Volumes:** `db-data` und `images`.
 - **Zugang:** keine Authentifizierung, die App läuft im lokalen Netz ([ADR-0005](adr/0005-no-auth-mvp.md)). Für die Kamera braucht es HTTPS, das kommt über den Compose-Dienst `tailscale` im eigenen Tailnet (README, „Starten“), nie über Tailscale Funnel. Ohne Tailscale läuft der Kamera-Test über `localhost`. Der Test mit echter Kamera und echter Packung aus E3 ist am 29.10.2026 über Tailscale auf dem Handy bestanden.
-- **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F).
+- **Konfiguration** per `.env`: Token, Modellnamen, Standardziele (2.400 kcal / 160 g E / 260 g KH / 75 g F), solange in den Einstellungen keines gespeichert ist.
 - **Backup** (E5): nächtlich `pg_dump` plus ein Tarball der Bilder auf ein gemountetes Verzeichnis. Die letzten 14 Sicherungen bleiben erhalten.

@@ -18,7 +18,8 @@ export function barWidth(value: number, goal: number) {
   return `${goal > 0 ? Math.min((value / goal) * 100, 100) : 0}%`;
 }
 
-const BARS = [
+/** Eiweiß, Kohlenhydrate, Fett with word and colour, as the bars of the day summary show them. */
+export const BARS = [
   { key: "protein", label: "Eiweiß", color: "var(--biss-prot)" },
   { key: "carbs", label: "Kohlenhydrate", color: "var(--biss-carb)" },
   { key: "fat", label: "Fett", color: "var(--biss-fat)" },

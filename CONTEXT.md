@@ -15,7 +15,13 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Tagebuch | `rows` | Einträge und Gerichte eines Tages als eine Liste, neueste zuerst |
 | Tag | `day` | Kalendertag in Europe/Berlin. Ein Eintrag bis 04:00 Uhr zählt zum Vortag |
 | Tagesbilanz | `day summary` | Summe von kcal, Eiweiß, KH und Fett eines Tages gegen die Ziele |
-| Tagesziel | `goal` | Sollwerte eines Tages; ohne eigenen Wert gilt das Standardziel |
+| Tagesziel | `goal` | Sollwerte eines einzelnen Tages, etwa von der Fitness-App gesetzt; geht dem Standardziel vor |
+| Standardziel | `goal.valid_from` | Sollwerte ab einem Tag. Eine Änderung in den Einstellungen gilt ab heute, frühere Tage behalten ihr Ziel |
+| Toleranz | `tolerance` | Wie weit ein Wert vom Ziel abweichen darf und noch im Zielbereich liegt, Standard ±10 % |
+| Zielbereich | `in range` | Ziel ± Toleranz, je Wert und mit dem Ziel des Tages |
+| Statistik | `stats` | Der Reiter mit dem Rückblick auf eine Woche oder einen Monat. Es zählen abgeschlossene Tage mit Einträgen |
+| Nachtragen | `backfill` | Eintragen auf einen früheren Tag. Erst „+ Nachtragen“ zeigt dort das Dock |
+| Einstellungen | `settings` | Der Reiter mit Tageszielen, Toleranz und bisherigen Zielen |
 | Zuletzt-Chip | `recent` | Lebensmittel im Dock, ein Tap trägt die Standardportion ein |
 | Wirt | `suggest` | Die Vorhersage der leeren Suche: Wie der Wirt einer Stammkneipe, der morgens den Kaffee und abends das Bier hinstellt, rät er den nächsten Eintrag aus Häufigkeit, Uhrzeit und dem eben Eingetragenen |
 | Etikett | `label` | Foto der Nährwerttabelle. Es wird ausgelesen und ist das erste Produktfoto des neuen Lebensmittels |
@@ -30,4 +36,4 @@ Fachbegriffe von BISS. Im Code gilt der englische Bezeichner.
 | Produktfoto | `image` | Separates Foto des Produkts, wird gespeichert und angezeigt |
 | GTIN | `gtin` | Barcode, normalisiert auf 14 Stellen mit führenden Nullen |
 
-_Avoid_: „Rezept“ für einen Schnellzugriff (der ist eine Vorlage und kein Lebensmittel), „Kombi“ (es heißt Schnellzugriff), „Statistik“ (nicht Teil der App).
+_Avoid_: „Rezept“ für einen Schnellzugriff (der ist eine Vorlage und kein Lebensmittel), „Kombi“ (es heißt Schnellzugriff), „Serie“ oder „Streak“ (gibt es bewusst nicht, ADR-0015).

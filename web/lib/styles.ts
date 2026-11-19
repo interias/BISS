@@ -12,3 +12,6 @@ export const hitArea = "relative after:absolute after:-inset-[5px] after:content
 
 /** A primary button that cannot be used yet: plain grey, readable in light and dark. */
 export const primaryOff = "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground";
+
+/** A text or number field, as in the food editor. */
+export const inputField = "h-[42px] w-full min-w-0 rounded-[10px] border bg-surface-2 px-3 text-foreground";

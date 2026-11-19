@@ -12,6 +12,7 @@ import {
   deleteEntryGroup,
   dictatePlate,
   getChips,
+  getDay,
   getToday,
   logCombo,
   scanBarcode,
@@ -34,25 +35,36 @@ import {
   type Recipe,
   type SearchHit,
 } from "@/lib/api";
+import { addDays, backfillEatenAt } from "@/lib/dates";
 import { canDictate, newRecognition, transcript, type Recognition } from "@/lib/dictation";
-import { fmt, headerDate, shortName } from "@/lib/format";
+import { dayLabel, fmt, shortDay, shortName } from "@/lib/format";
+import { addPill, hitArea } from "@/lib/styles";
+import { cn } from "@/lib/utils";
 import { serverVersion } from "@/lib/version";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera, type Known } from "@/components/camera/camera";
 import { ComboSheet } from "@/components/combo/combo-sheet";
+import { DayPicker } from "@/components/day-picker";
 import { DaySummary } from "@/components/day-summary";
 import { DictationSheet } from "@/components/dictation-sheet";
 import { Diary } from "@/components/diary";
 import { Dock } from "@/components/dock";
 import { FoodEditor } from "@/components/food-editor";
+import { BackIcon, ForwardIcon } from "@/components/icons";
+import { NavBar, type Tab } from "@/components/nav-bar";
 import { PlateSheet } from "@/components/plate/plate-sheet";
 import { RecipeSheet } from "@/components/recipe/recipe-sheet";
-import { RecipesSheet } from "@/components/recipe/recipes-sheet";
+import { RecipesPage } from "@/components/recipe/recipes-page";
 import { SearchSheet } from "@/components/search-sheet";
+import { Settings } from "@/components/settings";
 import { Sheet } from "@/components/sheet";
+import { Statistics } from "@/components/stats/statistics";
 import { Toast, useToast } from "@/components/toast";
 
-const load = () => Promise.all([getToday(), getChips()]);
+/** The day on view (null: today, as the backend resolves it) and the dock's chips. */
+const load = (date: string | null) => Promise.all([date === null ? getToday() : getDay(date), getChips()]);
+
+const TITLES: Record<Tab, string> = { today: "BISS", recipes: "Rezepte", stats: "Statistik", settings: "Einstellungen" };
 
 const DICTATION_OFF = "Das Mikrofon ist aus. Erlaube es im Browser.";
 const DICTATION_FAILED = "Diktat hat nicht geklappt.";
@@ -98,16 +110,35 @@ type SheetState =
   | { kind: "combo"; combo?: Combo }
   // A new recipe, or the one of the amount sheet "Bearbeiten" came from (ADR-0012).
   | { kind: "recipe"; recipeId?: number; back?: AmountState; importing?: boolean }
-  // "Meine Rezepte": all recipes, to log one or to start a new one.
-  | { kind: "recipes" };
+  // "Tag wählen": the month with a ring per day (ADR-0015).
+  | { kind: "calendar" };
 
-/** The single screen: header, day summary, diary, dock, sheets and the toast. */
+/**
+ * The single screen: header, the page of the tab (Heute with day summary and diary, Rezepte,
+ * Statistik, Einstellungen), dock, the bar of the tabs, sheets and the toast.
+ */
 export function Home() {
+  const [tab, setTab] = useState<Tab>("today");
   const [day, setDay] = useState<Day | null>(null);
+  // Today as the backend resolves it, and the earlier day on view (null: today). The app
+  // always opens on today (ADR-0015).
+  const [today, setToday] = useState<string | null>(null);
+  const [view, setView] = useState<string | null>(null);
+  const viewRef = useRef<string | null>(null);
+  // "+ Nachtragen" on an earlier day: the dock logs on that day.
+  const [backfill, setBackfill] = useState(false);
+  const backfillDay = view !== null && backfill ? view : null;
   // The dock's row: Schnellzugriffe and recent foods, the latest used first.
   const [chips, setChips] = useState<Chip[]>([]);
   const combos = chips.flatMap((chip) => (chip.combo ? [chip.combo] : []));
   const [sheet, setSheet] = useState<SheetState | null>(null);
+  // Each closed sheet loads "Meine Rezepte" again: a recipe or a draft may have changed.
+  const [sheetWasOpen, setSheetWasOpen] = useState(false);
+  const [recipesStamp, setRecipesStamp] = useState(0);
+  if ((sheet !== null) !== sheetWasOpen) {
+    setSheetWasOpen(sheet !== null);
+    if (sheet === null) setRecipesStamp(recipesStamp + 1);
+  }
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
   // The first load failed: without the backend the screen would stay empty without a word.
@@ -123,46 +154,75 @@ export function Home() {
   // Counts closed dictation sheets: an answer for a sheet that is gone opens nothing.
   const dictationRun = useRef(0);
 
-  // Every change reloads the day from the backend, which computes all values (ADR-0003).
-  const apply = useCallback(([today, row]: [Day, Chip[]]) => {
-    setDay(today);
-    setChips(row);
-  }, []);
-  const reload = useCallback(() => load().then(apply), [apply]);
+  // Every change reloads the day from the backend, which computes all values (ADR-0003). An
+  // answer for a day no longer on view is dropped, so fast taps on the arrow end on the last.
+  const fetchDay = useCallback(
+    (date: string | null) =>
+      load(date).then(([loaded, row]) => {
+        if (date !== viewRef.current) return;
+        setDay(loaded);
+        setChips(row);
+        if (date === null) setToday(loaded.date);
+      }),
+    [],
+  );
+  const reload = useCallback(() => fetchDay(viewRef.current), [fetchDay]);
 
   /** Loads the day and says so when the backend does not answer. */
   const start = useCallback(
     () =>
-      load().then(
-        (loaded) => {
-          apply(loaded);
-          setOffline(false);
-        },
+      fetchDay(viewRef.current).then(
+        () => setOffline(false),
         (failure) => {
           console.error(failure);
           setOffline(true);
         },
       ),
-    [apply],
+    [fetchDay],
   );
 
   useEffect(() => {
     start();
   }, [start]);
 
-  // A phone keeps the page open over night: back in front it shows the current day again.
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible") start();
-    };
-    document.addEventListener("visibilitychange", refresh);
-    return () => document.removeEventListener("visibilitychange", refresh);
-  }, [start]);
+  /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
+  const fail = useCallback(
+    (failure: unknown) => {
+      console.error(failure);
+      show("Das hat nicht geklappt. Verbindung prüfen.");
+    },
+    [show],
+  );
+
+  /** Shows a day on Heute; today or later is today. Backfilling ends with the day. */
+  const showDay = useCallback(
+    (date: string | null, current: string | null) => {
+      const next = date === null || current === null || date >= current ? null : date;
+      viewRef.current = next;
+      setView(next);
+      setBackfill(false);
+      setTab("today");
+      fetchDay(next).catch(fail);
+    },
+    [fetchDay, fail],
+  );
 
   // The back button of the phone closes the sheet or the camera instead of leaving the app:
   // an open one stands on a history entry of its own. Closed by a tap, the entry stays and
   // is used again, so at most one is ever left over.
   const overlay = sheet !== null || camera;
+
+  // A phone keeps the page open over night: back in front it loads the day again, and after
+  // the change of day it shows the new today, unless a sheet or the camera is open.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (overlay || viewRef.current === null) return void start();
+      getToday().then((fresh) => (fresh.date !== today ? showDay(null, fresh.date) : reload()), fail);
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, [start, overlay, today, showDay, reload, fail]);
   // A step inside the sheet, such as the ingredient search of a recipe, goes back first.
   const sheetBack = useRef<(() => boolean) | null>(null);
   useEffect(() => {
@@ -218,15 +278,6 @@ export function Home() {
     }
   }, [listening]);
 
-  /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
-  const fail = useCallback(
-    (failure: unknown) => {
-      console.error(failure);
-      show("Das hat nicht geklappt. Verbindung prüfen.");
-    },
-    [show],
-  );
-
   /** Runs a write, reloads the day and closes the sheet; the toast follows. */
   const write = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -239,8 +290,15 @@ export function Home() {
     }
   };
 
-  /** Every logged entry says what it brought: "<Name> eingetragen · X kcal". */
-  const loggedText = (name: string, kcal: number) => `${name} eingetragen · ${fmt(kcal)} kcal`;
+  /**
+   * Every logged entry says what it brought: "<Name> eingetragen · X kcal", on an earlier day
+   * "<Name> eingetragen für Mi 18. Nov · X kcal".
+   */
+  const loggedText = (name: string, kcal: number, on = backfillDay) =>
+    `${name} eingetragen${on ? ` für ${shortDay(on)}` : ""} · ${fmt(kcal)} kcal`;
+
+  /** While backfilling, every new entry gets that day at the clock time of now (SPEC 3). */
+  const when = () => (backfillDay ? { eaten_at: backfillEatenAt(backfillDay) } : {});
 
   const undo = (entryId: number) => () => {
     deleteEntry(entryId).then(reload).catch(fail);
@@ -248,7 +306,7 @@ export function Home() {
 
   const logRecent = async (food: FoodSummary) => {
     // Only the food: the backend takes the standard serving and the suggested meal.
-    const entry = await createEntry({ food_id: food.id });
+    const entry = await createEntry({ food_id: food.id, ...when() });
     await reload();
     show(loggedText(shortName(food.name), entry.macros.kcal), undo(entry.id));
   };
@@ -261,14 +319,14 @@ export function Home() {
 
   /** One tap: the template's items, the meal the backend suggests. */
   const tapCombo = async (combo: Combo) => {
-    const group = await logCombo(combo.id);
+    const group = await logCombo(combo.id, when());
     await reload();
     comboLogged(combo.name, group);
   };
 
   /** Logs the adjusted items; the template stays as it is. */
   const logAdjusted = (combo: Combo) => (items: ComboItemWrite[]) =>
-    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items }))).catch(fail);
+    write(async () => comboLogged(combo.name, await logCombo(combo.id, { items, ...when() }))).catch(fail);
 
   /** "Als Vorlage speichern" changes the template, "Speichern" of a new one creates it. */
   const saveCombo = (combo?: Combo) => (name: string, items: ComboItemWrite[]) =>
@@ -303,8 +361,10 @@ export function Home() {
         if (grams !== entry.grams || refresh) await updateEntry(entry.id, { grams });
         show("Gespeichert");
       } else {
-        const created = await createEntry({ ...target, grams });
-        show(loggedText(shortName(created.food.name), created.macros.kcal), undo(created.id));
+        // One more ingredient of a Gericht takes its time, on the day on view.
+        const joins = "group_id" in target && !!target.group_id;
+        const created = await createEntry({ ...target, grams, ...(joins ? {} : when()) });
+        show(loggedText(shortName(created.food.name), created.macros.kcal, joins ? view : backfillDay), undo(created.id));
       }
     }).catch(fail);
 
@@ -359,7 +419,7 @@ export function Home() {
       // The dish counts without its photo too; a dictated one has none.
       if (photo) await uploadFoodImage(recipe.food_id, photo).catch(console.error);
       // Without grams: the standard serving, which is the one portion.
-      const entry = await createEntry({ food_id: recipe.food_id });
+      const entry = await createEntry({ food_id: recipe.food_id, ...when() });
       show(loggedText(name, entry.macros.kcal), undo(entry.id));
     }).catch(fail);
 
@@ -443,21 +503,62 @@ export function Home() {
       show("Entfernt");
     }).catch(fail);
 
+  // The band says which day the dock logs on, on Heute and on Rezepte alike.
+  const band = backfillDay && (tab === "today" || tab === "recipes") && (
+    <div className="flex items-center justify-between gap-2 border-t bg-accent px-5 py-1 text-[13px] font-semibold">
+      <span>{`Trägt ein für ${shortDay(backfillDay)}`}</span>
+      <button type="button" onClick={() => setBackfill(false)} className="py-1.5 pl-2.5 font-bold text-primary">
+        Fertig
+      </button>
+    </div>
+  );
+  const dock = tab === "today" && (view === null || backfill);
+  const pastBar = tab === "today" && view !== null && !backfill;
+
   return (
-    // On a phone the app is pinned to the screen: only the diary and the sheets scroll, the
-    // page never does, so the dock with the search always stays at the bottom.
+    // On a phone the app is pinned to the screen: only the diary, the pages and the sheets
+    // scroll, the page never does, so the dock with the search always stays at the bottom.
     <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground max-sm:fixed max-sm:inset-0 sm:relative sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
-      <header className="flex items-center justify-between px-5 pt-[18px] pb-1.5">
-        <div className="flex items-center gap-2">
+      <header className="flex min-h-[58px] items-center justify-between gap-1.5 pt-[18px] pr-3 pb-1.5 pl-5">
+        <div className="flex min-w-0 items-center gap-2">
           <Image src="/logo.svg" alt="" width={26} height={26} priority />
-          <h1 className="font-heading text-[22px] font-extrabold tracking-[.06em]">BISS</h1>
+          <h1 className={cn("font-heading text-[22px] font-extrabold", tab === "today" && "tracking-[.06em]")}>
+            {TITLES[tab]}
+          </h1>
         </div>
-        <span className="text-[13px] font-semibold text-muted-foreground">
-          {day && headerDate(day.date)}
-        </span>
+        {tab === "today" && day && today && (
+          <div className="flex items-center text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
+            <button
+              type="button"
+              aria-label="Einen Tag zurück"
+              onClick={() => showDay(addDays(day.date, -1), today)}
+              className={cn(hitArea, "grid h-9 w-8 place-items-center")}
+            >
+              <BackIcon />
+            </button>
+            <button
+              type="button"
+              aria-label={`${dayLabel(day.date, today)}, Tag wählen`}
+              onClick={() => setSheet({ kind: "calendar" })}
+              className={cn("px-1 py-2 tabular-nums", view !== null && "font-bold text-primary")}
+            >
+              {dayLabel(day.date, today)}
+            </button>
+            {view !== null && (
+              <button
+                type="button"
+                aria-label="Einen Tag vor"
+                onClick={() => showDay(addDays(day.date, 1), today)}
+                className={cn(hitArea, "grid h-9 w-8 place-items-center")}
+              >
+                <ForwardIcon />
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
-      <main className="flex-1 overflow-y-auto bg-card px-5 pt-1 pb-3">
+      <main key={tab} className="flex-1 overflow-y-auto bg-card px-5 pt-1 pb-3">
         {!day && offline && (
           <div role="alert" className="grid justify-items-center gap-3 pt-16 text-center text-sm text-muted-foreground">
             <p>BISS ist gerade nicht erreichbar.</p>
@@ -466,11 +567,12 @@ export function Home() {
             </button>
           </div>
         )}
-        {day && (
+        {tab === "today" && day && (
           <>
             <DaySummary totals={day.totals} targets={day.targets} />
             <Diary
               rows={day.rows}
+              empty={view === null ? undefined : "Für diesen Tag gibt es keine Einträge."}
               comboNames={combos.map((combo) => combo.name)}
               onOpen={(entry) => setSheet({ kind: "amount", foodId: entry.food.id, entry })}
               onAddToGroup={(group) => setSheet({ kind: "search", groupId: group.group_id })}
@@ -479,18 +581,60 @@ export function Home() {
             />
           </>
         )}
+        {tab === "recipes" && (
+          <RecipesPage
+            stamp={recipesStamp}
+            onPick={(recipe) => setSheet({ kind: "amount", foodId: recipe.food_id })}
+            onNew={() => setSheet({ kind: "recipe" })}
+            onImport={() => setSheet({ kind: "recipe", importing: true })}
+          />
+        )}
+        {tab === "stats" && today && (
+          <Statistics today={today} onOpen={(date) => showDay(date, today)} onError={fail} />
+        )}
+        {tab === "settings" && today && (
+          <Settings today={today} show={show} onError={fail} onGoalChanged={() => reload().catch(fail)} />
+        )}
       </main>
 
-      <Dock
-        chips={chips}
-        onCombo={(combo) => tapCombo(combo).catch(fail)}
-        onComboHold={(combo) => setSheet({ kind: "combo", combo })}
-        onNewCombo={() => setSheet({ kind: "combo" })}
-        onRecipes={() => setSheet({ kind: "recipes" })}
-        onRecent={(food) => logRecent(food).catch(fail)}
-        onSearch={() => setSheet({ kind: "search" })}
-        onDictate={dictation ? dictate : undefined}
+      {band}
+      {pastBar && today && (
+        // An earlier day has no dock, so nothing lands there by accident (ADR-0015).
+        <div className="grid grid-cols-2 gap-2.5 border-t px-5 pt-2.5 pb-3">
+          <button
+            type="button"
+            onClick={() => showDay(null, today)}
+            className="h-11 rounded-[13px] border text-sm font-semibold"
+          >
+            Zurück zu heute
+          </button>
+          <button type="button" onClick={() => setBackfill(true)} className={cn(addPill, "h-11 text-sm")}>
+            + Nachtragen
+          </button>
+        </div>
+      )}
+      {dock && (
+        <Dock
+          chips={chips}
+          onCombo={(combo) => tapCombo(combo).catch(fail)}
+          onComboHold={(combo) => setSheet({ kind: "combo", combo })}
+          onNewCombo={() => setSheet({ kind: "combo" })}
+          onRecent={(food) => logRecent(food).catch(fail)}
+          onSearch={() => setSheet({ kind: "search" })}
+          onDictate={dictation ? dictate : undefined}
+        />
+      )}
+
+      <NavBar
+        tab={tab}
+        onTab={(next) => {
+          // Heute while on Heute jumps to today.
+          if (next === "today" && tab === "today") showDay(null, today);
+          else setTab(next);
+        }}
         onCamera={() => {
+          // The camera always logs for today, from every tab.
+          if (view !== null || tab !== "today") showDay(null, today);
           setSheet(null);
           setCamera(true);
         }}
@@ -577,12 +721,11 @@ export function Home() {
               onCancel={() => setSheet(null)}
             />
           )}
-          {sheet.kind === "recipes" && (
-            <RecipesSheet
-              onPick={(recipe) => setSheet({ kind: "amount", foodId: recipe.food_id })}
-              onNew={() => setSheet({ kind: "recipe" })}
-              onImport={() => setSheet({ kind: "recipe", importing: true })}
-            />
+          {sheet.kind === "calendar" && today && (
+            <DayPicker today={today} selected={day.date} onPick={(date) => {
+              setSheet(null);
+              showDay(date, today);
+            }} onError={fail} />
           )}
           {sheet.kind === "recipe" && (
             <RecipeSheet
@@ -608,7 +751,8 @@ export function Home() {
         </Sheet>
       )}
 
-      <Toast toast={toast} onHide={hide} />
+      {/* Above the dock, the bar on an earlier day, or the bar of the tabs. */}
+      <Toast toast={toast} onHide={hide} bottom={dock ? (band ? 234 : 200) : pastBar ? 140 : band ? 106 : 72} />
     </div>
   );
 }

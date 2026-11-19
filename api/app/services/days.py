@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.domain.goals import Targets, targets_for
+from app.domain.goals import Targets, load_goals, targets_for
 from app.domain.macros import Macros, total
 from app.domain.meal import Meal, suggest_meal
+from app.domain.stats import days_of
 from app.models import Entry, Food
 
 
@@ -132,3 +133,43 @@ def day_summary(session: Session, day: date, now: datetime | None = None) -> Day
         meals=meals,
         suggested_meal=suggest_meal(now or datetime.now(UTC)),
     )
+
+
+@dataclass(frozen=True)
+class DayTotals:
+    """A day of a range: its totals, the goal that applies and the number of entries."""
+
+    day: date
+    totals: Macros
+    targets: Targets
+    entries: int
+
+
+def logged_totals(session: Session, start: date, end: date) -> dict[date, tuple[Macros, int]]:
+    """Totals and number of entries of the days from start to end with entries, in one query."""
+    rows = session.execute(
+        select(
+            Entry.day,
+            func.sum(Entry.kcal),
+            func.sum(Entry.protein),
+            func.sum(Entry.carbs),
+            func.sum(Entry.fat),
+            func.count(),
+        )
+        .where(Entry.day.between(start, end))
+        .group_by(Entry.day)
+    ).all()
+    return {
+        day: (Macros(*(round(value, 1) for value in sums)), entries) for day, *sums, entries in rows
+    }
+
+
+def day_range(session: Session, start: date, end: date) -> list[DayTotals]:
+    """Every day from start to end, ascending; days without entries with zero totals."""
+    logged = logged_totals(session, start, end)
+    goals = load_goals(session)
+    found = []
+    for day in days_of(start, end):
+        totals, entries = logged.get(day, (Macros(0, 0, 0, 0), 0))
+        found.append(DayTotals(day, totals, goals.of(day), entries))
+    return found
