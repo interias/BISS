@@ -12,6 +12,9 @@ import { FoodPic } from "@/components/food-pic";
 /** A press this long opens the Schnellzugriff instead of logging it (SPEC 3). */
 export const HOLD_MS = 500;
 
+/** A chip gives way under the finger at once, before the backend answers. */
+const CHIP_PRESS = "transition-[transform,opacity] duration-150 active:scale-[.96]";
+
 /** The two lines of a chip: the name, below it grams and kcal. */
 function ChipText({ name, grams, kcal, color }: { name: string; grams: number; kcal: number; color?: string }) {
   return (
@@ -38,7 +41,17 @@ function ComboMark() {
  * A Schnellzugriff chip: a tap logs it, a long press or the context menu opens it. The click
  * that ends a long press does nothing; a click from the keyboard always logs.
  */
-function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; onHold: () => void }) {
+function ComboChip({
+  combo,
+  pending,
+  onTap,
+  onHold,
+}: {
+  combo: Combo;
+  pending: boolean;
+  onTap: () => void;
+  onHold: () => void;
+}) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // `pressing` while the pointer is down; `held` once that press opened the combo.
   const pressing = useRef(false);
@@ -86,7 +99,12 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
         hold();
       }}
       onClick={click}
-      className="inline-flex flex-none items-center gap-2 rounded-full border border-transparent bg-accent py-[4px] pr-3.5 pl-3 text-left whitespace-nowrap select-none [-webkit-touch-callout:none]"
+      aria-busy={pending || undefined}
+      className={cn(
+        "inline-flex flex-none items-center gap-2 rounded-full border border-transparent bg-accent py-[4px] pr-3.5 pl-3 text-left whitespace-nowrap select-none [-webkit-touch-callout:none]",
+        CHIP_PRESS,
+        pending && "opacity-60",
+      )}
     >
       <ComboMark />
       <ChipText name={clip(combo.name)} grams={grams} kcal={combo.totals.kcal} />
@@ -102,6 +120,7 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
  */
 export function Dock({
   chips,
+  pending = null,
   onCombo,
   onComboHold,
   onNewCombo,
@@ -110,6 +129,8 @@ export function Dock({
   onDictate,
 }: {
   chips: Chip[];
+  /** The key (`combo-<id>`, `food-<id>`) of the chip whose entry is on its way. */
+  pending?: string | null;
   onCombo: (combo: Combo) => void;
   onComboHold: (combo: Combo) => void;
   onNewCombo: () => void;
@@ -142,6 +163,7 @@ export function Dock({
               <ComboChip
                 key={`combo-${combo.id}`}
                 combo={combo}
+                pending={pending === `combo-${combo.id}`}
                 onTap={() => onCombo(combo)}
                 onHold={() => onComboHold(combo)}
               />
@@ -156,9 +178,12 @@ export function Dock({
               aria-label={`${name} ${fmt(grams)} g`}
               title={food.name}
               onClick={() => onRecent(food)}
+              aria-busy={pending === `food-${food.id}` || undefined}
               // An own recipe in the accent colour, a scanned product in turquoise, as in the search.
               className={cn(
                 "inline-flex flex-none items-center gap-1.5 rounded-full border bg-surface-2 py-[4px] pr-3 pl-[4px] text-left whitespace-nowrap",
+                CHIP_PRESS,
+                pending === `food-${food.id}` && "opacity-60",
                 food.recipe ? "border-primary" : food.scanned && "border-scan",
               )}
             >

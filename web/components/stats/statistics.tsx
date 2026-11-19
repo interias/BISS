@@ -4,13 +4,15 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getStats, type DayTotals, type Stats } from "@/lib/api";
 import { daysFrom, period, type PeriodKind } from "@/lib/dates";
 import { dayLabel, dayOfMonth, daysDative, fmt, percent, periodTitle, weekdayShort, WEEKDAYS_FROM_MONDAY } from "@/lib/format";
-import { canStepBack, compareLine, goalLine, timeShares } from "@/lib/stats";
+import { canStepBack, compareLine, goalLine, openingOffset, timeShares } from "@/lib/stats";
 import { kicker } from "@/lib/styles";
 import { DayRing, MonthCalendar, useDayTotals } from "@/components/calendar";
 import { BARS } from "@/components/day-summary";
 import { BackIcon, ForwardIcon } from "@/components/icons";
 import { Segmented } from "@/components/segmented";
 import { KcalChart } from "@/components/stats/kcal-chart";
+import { StatsSkeleton, useDelayed } from "@/components/skeleton";
+import { cn } from "@/lib/utils";
 
 const TIMES = ["Morgens", "Mittags", "Nachmittags", "Abends"];
 
@@ -39,7 +41,8 @@ function HBar({ label, share, value }: { label: string; share: number; value: st
 
 /**
  * The tab Statistik (SPEC 3, ADR-0015): a week (Monday to Sunday) or a calendar month, this
- * week on opening and this month on switching. The answer comes first, the average per day against the goal; then kcal per
+ * week on opening and this month on switching (the one before on its first day, which has no
+ * finished day yet). The answer comes first, the average per day against the goal; then kcal per
  * day, nutrients, logged days, weekdays (month only), times of day and the most frequent foods.
  * A tap on a day opens it on Heute. All numbers are the backend's.
  */
@@ -53,7 +56,7 @@ export function Statistics({
   onError: (failure: unknown) => void;
 }) {
   const [kind, setKind] = useState<PeriodKind>("week");
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState(() => openingOffset("week", today));
   const [selected, setSelected] = useState<string | null>(null);
   const shown = period(kind, offset, today);
   const key = `${shown.from}/${shown.to}`;
@@ -70,6 +73,10 @@ export function Statistics({
     };
   }, [key, onError]);
   const stats = loaded?.key === key ? loaded.stats : null;
+  // While the next period loads, the last one stays dimmed instead of an empty page.
+  const stale = stats === null && loaded !== null;
+  const showing = stats ?? loaded?.stats ?? null;
+  const loadingShown = useDelayed(loaded === null);
   const days = useDayTotals(shown.from, shown.to, today, onError);
   const title = periodTitle(shown);
 
@@ -89,7 +96,7 @@ export function Statistics({
         value={kind}
         onChange={(value) => {
           setKind(value);
-          setOffset(0);
+          setOffset(openingOffset(value, today));
           setSelected(null);
         }}
       />
@@ -123,9 +130,11 @@ export function Statistics({
           In diesem Zeitraum gibt es noch keine abgeschlossenen Tage.
         </p>
       )}
-      {stats?.average && stats.target_average && stats.days_logged > 0 && (
+      {loadingShown && <StatsSkeleton />}
+      {showing?.average && showing.target_average && showing.days_logged > 0 && (
+        <div aria-busy={stale || undefined} className={cn("transition-opacity duration-150", stale && "opacity-45")}>
         <Overview
-          stats={stats as Stats & { average: NonNullable<Stats["average"]>; target_average: NonNullable<Stats["target_average"]> }}
+          stats={showing as Stats & { average: NonNullable<Stats["average"]>; target_average: NonNullable<Stats["target_average"]> }}
           kind={kind}
           today={today}
           shown={shown}
@@ -134,6 +143,7 @@ export function Statistics({
           onSelect={setSelected}
           onOpen={onOpen}
         />
+        </div>
       )}
     </div>
   );
@@ -175,6 +185,8 @@ function Overview({
         </p>
         <p className="text-[13.5px] leading-snug text-muted-foreground">
           {`Aus ${fmt(stats.days_logged)} von ${daysDative(stats.days_possible)}. An ${daysDative(stats.in_range.kcal)} im Zielbereich (±${percent(stats.tolerance)}).`}
+          {/* The running day is in the chart but not in the numbers: said, not left to guess. */}
+          {shown.from <= today && today <= shown.to && " Heute zählt ab morgen mit."}
         </p>
       </section>
 

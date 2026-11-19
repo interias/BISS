@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { canStepBack, chartTop, compareLine, goalLine, timeShares } from "./stats";
+import { canStepBack, chartTop, compareLine, goalLine, openingOffset, timeShares } from "./stats";
 import { dayLabel, daysDative, periodTitle, shortDay, sinceDay } from "./format";
 import { period } from "./dates";
 
@@ -51,4 +51,13 @@ test("days and periods are named in German", () => {
   expect(periodTitle(period("month", -2, today))).toEqual({ name: "September", range: "September 2026" });
   expect(daysDative(1)).toBe("1 Tag");
   expect(daysDative(6)).toBe("6 Tagen");
+});
+
+test("the tab opens on this week and month, on their first day on the one before", () => {
+  // Thursday 19 November 2026.
+  expect(openingOffset("week", "2026-11-19")).toBe(0);
+  expect(openingOffset("month", "2026-11-19")).toBe(0);
+  // A Monday has no finished day of its week yet, the first of a month none of its month.
+  expect(openingOffset("week", "2026-11-16")).toBe(-1);
+  expect(openingOffset("month", "2026-11-01")).toBe(-1);
 });

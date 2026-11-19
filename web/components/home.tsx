@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import {
   createCombo,
@@ -55,6 +55,7 @@ import { NavBar, type Tab } from "@/components/nav-bar";
 import { PlateSheet } from "@/components/plate/plate-sheet";
 import { RecipeSheet } from "@/components/recipe/recipe-sheet";
 import { RecipesPage } from "@/components/recipe/recipes-page";
+import { DaySkeleton, RowsSkeleton, useDelayed } from "@/components/skeleton";
 import { SearchSheet } from "@/components/search-sheet";
 import { Settings } from "@/components/settings";
 import { Sheet } from "@/components/sheet";
@@ -143,7 +144,9 @@ export function Home() {
   const [busy, setBusy] = useState(false);
   // The first load failed: without the backend the screen would stay empty without a word.
   const [offline, setOffline] = useState(false);
-  const { toast, show, hide } = useToast();
+  const { toast, show, showError, hide } = useToast();
+  // Until the first day is there, a skeleton stands in once the wait is noticeable.
+  const loadingShown = useDelayed(!day && !offline);
   // The dish of the open plate sheet once it is stored: a second try after a failure updates
   // it instead of storing it twice.
   const plateDish = useRef<{ plate: PlateExtraction; recipe: Recipe } | null>(null);
@@ -185,14 +188,18 @@ export function Home() {
     start();
   }, [start]);
 
-  /** A failed call is said, not only logged: otherwise a tap seems to do nothing. */
-  const fail = useCallback(
-    (failure: unknown) => {
+  /**
+   * A failed call is said, not only logged: otherwise a tap seems to do nothing. The toast
+   * stays until tapped away; with `retry` it offers "Nochmal".
+   */
+  const failWith = useCallback(
+    (retry?: () => void) => (failure: unknown) => {
       console.error(failure);
-      show("Das hat nicht geklappt. Verbindung prüfen.");
+      showError("Das hat nicht geklappt. Verbindung prüfen.", retry);
     },
-    [show],
+    [showError],
   );
+  const fail = useMemo(() => failWith(), [failWith]);
 
   /** Shows a day on Heute; today or later is today. Backfilling ends with the day. */
   const showDay = useCallback(
@@ -307,8 +314,9 @@ export function Home() {
   const logRecent = async (food: FoodSummary) => {
     // Only the food: the backend takes the standard serving and the suggested meal.
     const entry = await createEntry({ food_id: food.id, ...when() });
-    await reload();
+    // Said at once, the day with its new totals follows.
     show(loggedText(shortName(food.name), entry.macros.kcal), undo(entry.id));
+    await reload();
   };
 
   /** The toast of a logged Schnellzugriff; "Rückgängig" removes the whole group, as for a plate. */
@@ -320,8 +328,23 @@ export function Home() {
   /** One tap: the template's items, the meal the backend suggests. */
   const tapCombo = async (combo: Combo) => {
     const group = await logCombo(combo.id, when());
-    await reload();
     comboLogged(combo.name, group);
+    await reload();
+  };
+
+  // The chip of the tap on its way: further taps wait for it, so nothing is logged twice.
+  const [pending, setPending] = useState<string | null>(null);
+  const pendingRef = useRef<string | null>(null);
+  const once = (key: string, action: () => Promise<unknown>) => {
+    if (pendingRef.current) return;
+    pendingRef.current = key;
+    setPending(key);
+    action()
+      .catch(failWith(() => once(key, action)))
+      .finally(() => {
+        pendingRef.current = null;
+        setPending(null);
+      });
   };
 
   /** Logs the adjusted items; the template stays as it is. */
@@ -497,10 +520,22 @@ export function Home() {
     });
   };
 
+  /**
+   * "Rückgängig" of a removed entry logs it again with the same food, grams, meal and moment,
+   * in its Gericht while that still exists (a new snapshot, like the undo of a Gericht).
+   */
+  const restore = (entry: Entry) => {
+    const alone = { food_id: entry.food.id, grams: entry.grams, meal: entry.meal, eaten_at: entry.eaten_at };
+    const logged = entry.group_id
+      ? createEntry({ ...alone, group_id: entry.group_id }).catch(() => createEntry(alone))
+      : createEntry(alone);
+    logged.then(reload).catch(fail);
+  };
+
   const remove = (entry: Entry) => () =>
     write(async () => {
       await deleteEntry(entry.id);
-      show("Entfernt");
+      show(`${shortName(entry.food.name)} entfernt`, () => restore(entry));
     }).catch(fail);
 
   // The band says which day the dock logs on, on Heute and on Rezepte alike.
@@ -567,6 +602,7 @@ export function Home() {
             </button>
           </div>
         )}
+        {!day && !offline && loadingShown && (tab === "today" ? <DaySkeleton /> : <RowsSkeleton />)}
         {tab === "today" && day && (
           <>
             <DaySummary totals={day.totals} targets={day.targets} />
@@ -587,6 +623,7 @@ export function Home() {
             onPick={(recipe) => setSheet({ kind: "amount", foodId: recipe.food_id })}
             onNew={() => setSheet({ kind: "recipe" })}
             onImport={() => setSheet({ kind: "recipe", importing: true })}
+            onError={fail}
           />
         )}
         {tab === "stats" && today && (
@@ -616,10 +653,11 @@ export function Home() {
       {dock && (
         <Dock
           chips={chips}
-          onCombo={(combo) => tapCombo(combo).catch(fail)}
+          pending={pending}
+          onCombo={(combo) => once(`combo-${combo.id}`, () => tapCombo(combo))}
           onComboHold={(combo) => setSheet({ kind: "combo", combo })}
           onNewCombo={() => setSheet({ kind: "combo" })}
-          onRecent={(food) => logRecent(food).catch(fail)}
+          onRecent={(food) => once(`food-${food.id}`, () => logRecent(food))}
           onSearch={() => setSheet({ kind: "search" })}
           onDictate={dictation ? dictate : undefined}
         />

@@ -45,3 +45,31 @@ test("a new toast restarts the 3 s", () => {
   expect(screen.getByRole("status")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
 });
+
+function ErrorHarness({ onRetry }: { onRetry?: () => void }) {
+  const { toast, showError, hide } = useToast();
+  return (
+    <>
+      <button onClick={() => showError("Das hat nicht geklappt.", onRetry)}>fail</button>
+      <Toast toast={toast} onHide={hide} />
+    </>
+  );
+}
+
+test("an error stays until tapped away, with Nochmal when it can be repeated", () => {
+  const onRetry = vi.fn();
+  render(<ErrorHarness onRetry={onRetry} />);
+  fireEvent.click(screen.getByText("fail"));
+  act(() => vi.advanceTimersByTime(10_000));
+  expect(screen.getByRole("alert")).toHaveTextContent("Das hat nicht geklappt.");
+  fireEvent.click(screen.getByRole("button", { name: "Nochmal" }));
+  expect(onRetry).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("an error without a retry closes with OK", () => {
+  render(<ErrorHarness />);
+  fireEvent.click(screen.getByText("fail"));
+  fireEvent.click(screen.getByRole("button", { name: "OK" }));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});

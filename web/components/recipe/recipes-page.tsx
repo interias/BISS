@@ -9,6 +9,7 @@ import { BookIcon, LinkIcon } from "@/components/icons";
 import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { draftName } from "@/components/recipe/recipe-sheet";
+import { RowsSkeleton, useDelayed } from "@/components/skeleton";
 
 /**
  * "Meine Rezepte" (ADR-0012), the page of the tab Rezepte (ADR-0015): all own recipes, the one
@@ -23,11 +24,13 @@ export function RecipesPage({
   onPick,
   onNew,
   onImport,
+  onError,
 }: {
   stamp: number;
   onPick: (recipe: Recipe) => void;
   onNew: () => void;
   onImport: () => void;
+  onError: (failure: unknown) => void;
 }) {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   // An unsaved new recipe stays until saved or discarded, and is found here again.
@@ -38,11 +41,12 @@ export function RecipesPage({
       if (!live) return;
       setRecipes(found);
       setDraft(draftName());
-    }, console.error);
+    }, (failure) => live && onError(failure));
     return () => {
       live = false;
     };
-  }, [stamp]);
+  }, [stamp, onError]);
+  const loadingShown = useDelayed(recipes === null);
 
   return (
     <>
@@ -75,6 +79,7 @@ export function RecipesPage({
           <span className="text-sm font-bold text-primary">Weiter</span>
         </button>
       )}
+      {loadingShown && <RowsSkeleton rows={3} />}
       <ul aria-label="Rezepte">
         {recipes?.map((recipe) => (
           <li key={recipe.id}>

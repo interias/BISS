@@ -1,7 +1,7 @@
 // What the statistics tab says about the numbers of GET /stats; all counting is the
 // backend's (ADR-0003, ADR-0015). Never a judgement: no red, no grades.
 import type { Stats } from "@/lib/api";
-import type { PeriodKind } from "@/lib/dates";
+import { period, type PeriodKind } from "@/lib/dates";
 import { fmt } from "@/lib/format";
 
 /** The top of the kcal axis: at least 3.000, else the next 500 above the highest value. */
@@ -37,3 +37,9 @@ export function timeShares(times: Stats["times_of_day"]) {
 /** Whether the period before can be shown: it reaches the first day of the diary. */
 export const canStepBack = (stats: Stats | null) =>
   stats !== null && stats.first_day !== null && stats.previous.to >= stats.first_day;
+
+/**
+ * The period the tab opens on: this week or this month, but the one before on its first day,
+ * when the current one has no finished day yet (today counts from tomorrow on).
+ */
+export const openingOffset = (kind: PeriodKind, today: string) => (period(kind, 0, today).from === today ? -1 : 0);

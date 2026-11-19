@@ -149,15 +149,25 @@ test("opening an entry and saving 90 g updates its values", async ({ page }) => 
   await expect(page.getByRole("status")).toContainText("Gespeichert");
 });
 
-test("removing an entry takes it out of the diary", async ({ page }) => {
+test("removing an entry takes it out of the diary; Rückgängig brings it back", async ({ page }) => {
   const seeded = await entries.create(bananaId, 120, "snack");
   await page.goto("/");
   const entry = page.locator(`[data-entry-id="${seeded.id}"]`);
   await entry.click();
   await page.getByRole("dialog").getByRole("button", { name: "Entfernen" }).click();
   await expect(entry).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText("Entfernt");
+  await expect(page.getByRole("status")).toContainText("entfernt");
   expect((await page.request.delete(`/api/v1/entries/${seeded.id}`)).status()).toBe(404);
+
+  // The same food, grams and meal as a new entry.
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
+    page.getByRole("button", { name: "Rückgängig" }).click(),
+  ]);
+  const restored: { id: number; grams: number; meal: string } = await response.json();
+  entries.track(restored.id);
+  expect(restored).toMatchObject({ grams: 120, meal: "snack" });
+  await expect(page.locator(`[data-entry-id="${restored.id}"]`)).toBeVisible();
 });
 
 test("on a phone the page never scrolls and the dock stays at the bottom", async ({ page }) => {
