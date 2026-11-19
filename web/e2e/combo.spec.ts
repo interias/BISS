@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { countTaps, Entries, findFood } from "./helpers";
+import { countTaps, Entries, findFood, recipesTab, tab } from "./helpers";
 
 // Schnellzugriff of SPEC 3 (ADR-0010): a saved combination, logged with one tap as an entry
 // group. Names are unique per run, the e2e database keeps what other runs left.
@@ -84,13 +84,13 @@ test("+ Neu creates a combo from searched foods and shows its chip", async ({ pa
 
   await expect(page.getByRole("status")).toContainText(`${name} als Schnellzugriff gespeichert`);
   await expect(chipOf(page, name)).toBeVisible();
-  // "+ Neu" and the cookbook stand first.
+  // "+ Neu" stands first; the cookbook moved to the tab Rezepte (ADR-0015).
   const chips = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button");
   await expect(chips.first()).toHaveAccessibleName("Neuer Schnellzugriff");
-  await expect(chips.nth(1)).toHaveAccessibleName("Meine Rezepte");
+  await expect(page.getByRole("button", { name: "Meine Rezepte" })).toHaveCount(0);
 });
 
-test("after + Neu and the cookbook the chip used last comes first, combo or food", async ({ page }) => {
+test("after + Neu the chip used last comes first, combo or food", async ({ page }) => {
   await entries.create(bananaId, 120, "snack"); // makes the banana a recent food
   const combo = await createCombo(page.request, unique("Reis mit Banane"));
   await page.goto("/");
@@ -98,7 +98,7 @@ test("after + Neu and the cookbook the chip used last comes first, combo or food
 
   await loggedGroup(page, combo.id, () => chipOf(page, combo.name).click());
   // Logged just now: before every recent food, its own banana and rice too.
-  await expect(chips.nth(2)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
+  await expect(chips.nth(1)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
 
   const banana = page.getByRole("group", { name: "Zuletzt gegessen" }).getByRole("button", { name: /^Banane roh\s*120 g$/ });
   const [response] = await Promise.all([
@@ -106,8 +106,8 @@ test("after + Neu and the cookbook the chip used last comes first, combo or food
     banana.click(),
   ]);
   entries.track(((await response.json()) as { id: number }).id);
-  await expect(chips.nth(2)).toHaveAccessibleName(/^Banane roh\s*120 g$/);
-  await expect(chips.nth(3)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
+  await expect(chips.nth(1)).toHaveAccessibleName(/^Banane roh\s*120 g$/);
+  await expect(chips.nth(2)).toHaveAccessibleName(`Schnellzugriff ${combo.name}`);
 });
 
 test("tap budget: a Schnellzugriff is logged with 1 tap as one group", async ({ page, request }) => {
@@ -223,9 +223,9 @@ test("als Schnellzugriff merken makes a combo of a diary group", async ({ page, 
 test("a recipe is created, logged in two portions and weighed afterwards", async ({ page, request }) => {
   const name = unique("Bananenreis");
   await page.goto("/");
-  await page.getByRole("button", { name: "Meine Rezepte" }).click();
+  await recipesTab(page).click();
+  await page.getByRole("button", { name: "+ Neues Rezept" }).click();
   const sheet = page.getByRole("dialog");
-  await sheet.getByRole("button", { name: "+ Neues Rezept" }).click();
   await expect(sheet.getByRole("heading", { name: "Neues Rezept" })).toBeVisible();
 
   await sheet.getByRole("textbox", { name: "Name" }).fill(name);
@@ -266,6 +266,7 @@ test("a recipe is created, logged in two portions and weighed afterwards", async
   entries.track(entry.id);
   // Two of four portions are half of the dish.
   expect(Math.abs(entry.macros.kcal - recipe.totals.kcal / 2)).toBeLessThanOrEqual(1);
+  await tab(page, "Heute").click();
   await expect(page.locator(`[data-entry-id="${entry.id}"]`)).toContainText(name);
 
   // Weighed after cooking: 400 g, so a portion is 100 g and 100 g carry more.
@@ -282,20 +283,21 @@ test("a recipe is created, logged in two portions and weighed afterwards", async
   expect(food.standard_serving).toMatchObject({ label: "1 Portion", grams: 100 });
   expect(food.recipe_id).toBe(recipe.id);
 
-  // The cookbook lists it, newest first, and logs it with cookbook + recipe + Eintragen.
+  // "Meine Rezepte" lists it, newest first, and logs it with Reiter Rezepte + recipe + Eintragen.
   await expect(sheet.getByRole("heading", { name })).toBeVisible();
   await page.goto("/");
   const taps = await countTaps(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "Meine Rezepte" }).click();
-  await sheet.getByRole("list", { name: "Rezepte" }).getByRole("button").first().click();
+  await recipesTab(page).click();
+  await page.getByRole("list", { name: "Rezepte" }).getByRole("button").first().click();
   await expect(sheet.getByRole("heading", { name })).toBeVisible();
   const [again] = await Promise.all([
     page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/entries"),
     sheet.getByRole("button", { name: /^Eintragen · \d+ kcal$/ }).click(),
   ]);
   entries.track((await again.json()).id);
-  expect(await taps(), "Kochbuch + Rezept + Eintragen").toBe(3);
+  expect(await taps(), "Reiter Rezepte + Rezept + Eintragen").toBe(3);
   // In the diary the recipe stands in the accent colour.
+  await tab(page, "Heute").click();
   await expect(page.locator("[data-entry-id]").first().getByText(name)).toHaveClass(/text-primary/);
 });

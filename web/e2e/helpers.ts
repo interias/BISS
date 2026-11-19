@@ -48,6 +48,12 @@ export class Entries {
   }
 }
 
+/** A tab in the bar at the bottom (ADR-0015): Heute, Rezepte, Statistik, Einstellungen. */
+export const tab = (page: Page, name: string) =>
+  page.getByRole("navigation", { name: "Bereiche" }).getByRole("button", { name, exact: true });
+
+export const recipesTab = (page: Page) => tab(page, "Rezepte");
+
 /** The kcal total in the ring as a number ("1.234" → 1234). */
 export async function totalKcal(page: Page) {
   const text = await page.getByTestId("kcal-total").textContent();

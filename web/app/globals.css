@@ -20,6 +20,8 @@
   --biss-accent: #b3245f;
   --biss-accent-ink: #ffffff;
   --biss-accent-soft: #f6dce7;
+  /* The lighter kcal bars of a month in the statistics (docs/design/rueckblick.html). */
+  --biss-bar: #e0a3bd;
   --biss-prot: #2f64d6;
   --biss-carb: #c98e00;
   --biss-fat: #23926a;
@@ -63,6 +65,7 @@
     --biss-accent: #e2588f;
     --biss-accent-ink: #1c0712;
     --biss-accent-soft: #3a1726;
+    --biss-bar: #7c3653;
     --biss-prot: #7aa2ff;
     --biss-carb: #f0c04a;
     --biss-fat: #52c99a;

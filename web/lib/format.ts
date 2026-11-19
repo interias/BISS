@@ -1,4 +1,5 @@
 import type { Basis, Category, Meal, Serving, Source } from "@/lib/api";
+import { addDays, isoWeek } from "@/lib/dates";
 
 export const MEALS: Meal[] = ["breakfast", "lunch", "snack", "dinner"];
 
@@ -65,14 +66,79 @@ export const originLine = (brand: string | null, source: Source) => brand ?? SOU
 export const per100Unit = (basis: Basis) => (basis === "ml" ? "100 ml" : "100 g");
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+/** Monday first, as the calendar and the statistics list them. */
+export const WEEKDAYS_FROM_MONDAY = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTH_NAMES = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+];
 
-/** Header date for the ISO day the backend returns: "Heute · Mi 28. Okt". */
-export function headerDate(isoDay: string) {
+const parts = (isoDay: string) => {
   const [y, m, d] = isoDay.split("-").map(Number);
-  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return `Heute · ${WEEKDAYS[weekday]} ${d}. ${MONTHS[m - 1]}`;
+  return { y, m, d, weekday: new Date(Date.UTC(y, m - 1, d)).getUTCDay() };
+};
+
+/** A day in short: "Mi 18. Nov". */
+export function shortDay(isoDay: string) {
+  const { m, d, weekday } = parts(isoDay);
+  return `${WEEKDAYS[weekday]} ${d}. ${MONTHS[m - 1]}`;
 }
+
+/** The weekday alone: "Mi". */
+export const weekdayShort = (isoDay: string) => WEEKDAYS[parts(isoDay).weekday];
+
+/** The day of the month alone: 18. */
+export const dayOfMonth = (isoDay: string) => parts(isoDay).d;
+
+/** Header date: "Heute · Do 19. Nov", "Gestern · Mi 18. Nov", else "Di 10. Nov". */
+export function dayLabel(isoDay: string, today: string) {
+  if (isoDay === today) return `Heute · ${shortDay(isoDay)}`;
+  return isoDay === addDays(today, -1) ? `Gestern · ${shortDay(isoDay)}` : shortDay(isoDay);
+}
+
+/** "November 2026". */
+export function monthTitle(isoDay: string) {
+  const { y, m } = parts(isoDay);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+/** "seit heute" or "seit Do 1. Okt": since when a goal applies. */
+export const sinceDay = (isoDay: string, today: string) => (isoDay === today ? "seit heute" : `seit ${shortDay(isoDay)}`);
+
+/** A share as a percentage: 0.1 → "10 %". */
+export const percent = (share: number) => `${fmt(share * 100)} %`;
+
+/**
+ * Name and dates of a statistics period: "Letzte Woche" with "9. – 15. Nov", "Diese Woche",
+ * "KW 45"; "Letzter Monat" with "Oktober 2026", "Dieser Monat".
+ */
+export function periodTitle({ kind, offset, from, to }: { kind: "week" | "month"; offset: number; from: string; to: string }) {
+  if (kind === "month") {
+    const name = offset === 0 ? "Dieser Monat" : offset === -1 ? "Letzter Monat" : MONTH_NAMES[parts(from).m - 1];
+    return { name, range: monthTitle(from) };
+  }
+  const a = parts(from);
+  const b = parts(to);
+  const range =
+    a.m === b.m ? `${a.d}. – ${b.d}. ${MONTHS[b.m - 1]}` : `${a.d}. ${MONTHS[a.m - 1]} – ${b.d}. ${MONTHS[b.m - 1]}`;
+  if (offset === 0) return { name: "Diese Woche", range };
+  if (offset === -1) return { name: "Letzte Woche", range };
+  return { name: `KW ${isoWeek(from)}`, range };
+}
+
+/** "1 Tag", "2 Tagen": the dative after "an" and "aus". */
+export const daysDative = (n: number) => `${fmt(n)} ${n === 1 ? "Tag" : "Tagen"}`;
 
 /** Clock time of an entry in Europe/Berlin, e.g. "07:12". */
 export const clockTime = (iso: string) =>

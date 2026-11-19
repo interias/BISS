@@ -258,6 +258,58 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 /** The current day; the backend resolves "today" with the 04:00 boundary. */
 export const getToday = () => request<Day>("/days/today");
+/** Any day by its date, with the goal that applied on it. */
+export const getDay = (date: string) => request<Day>(`/days/${date}`);
+
+/** One day of a range: sums, the goal of that day and the number of entries (E9). */
+export type DayTotals = { date: string; totals: Macros; targets: Macros; entries: number };
+
+/** Every day from `from` to `to` inclusive, ascending; for the calendar and the bars. */
+export const getDays = (from: string, to: string) =>
+  request<{ days: DayTotals[] }>(`/days?from=${from}&to=${to}`).then((body) => body.days);
+
+/**
+ * Statistics of a period (SPEC 4): only closed days with entries count. `previous` is the
+ * period of the same kind before, `weekdays` runs from Monday to Sunday.
+ */
+export type Stats = {
+  from: string;
+  to: string;
+  today: string;
+  days_possible: number;
+  days_logged: number;
+  average: Macros | null;
+  target_average: Macros | null;
+  targets_vary: boolean;
+  tolerance: number;
+  in_range: { kcal: number; protein: number; carbs: number; fat: number };
+  previous: { from: string; to: string; average_kcal: number | null };
+  trailing_kcal: { date: string; kcal: number | null }[];
+  weekdays: (number | null)[];
+  times_of_day: { morning: number; midday: number; afternoon: number; evening: number };
+  top: { name: string; kind: "food" | "group"; count: number; kcal: number }[];
+};
+
+export const getStats = (from: string, to: string) => request<Stats>(`/stats?from=${from}&to=${to}`);
+
+/** A standard goal; `valid_from` is the day it applies from (ADR-0015). */
+export type Goal = Macros & { valid_from: string | null };
+
+/** The standard goal that applies today. */
+export const getDefaultGoal = () => request<Goal & { kind: "default" }>("/goals/default");
+
+/** Sets the standard goal from today; the backend computes the carbs as the remainder (422 below 0). */
+export const putDefaultGoal = (body: { kcal: number; protein: number; fat: number }) =>
+  request<Goal & { kind: "default" }>("/goals/default", { method: "PUT", body: JSON.stringify(body) });
+
+/** Every standard goal, the newest first. */
+export const getGoals = () => request<{ goals: Goal[] }>("/goals").then((body) => body.goals);
+
+/** The tolerance of the statistics, a share from 0.05 to 0.20. */
+export type Settings = { tolerance: number };
+export const getSettings = () => request<Settings>("/settings");
+export const putSettings = (body: Settings) =>
+  request<Settings>("/settings", { method: "PUT", body: JSON.stringify(body) });
 export const getRecent = () => request<FoodSummary[]>("/recent");
 /** The local search; `off_more` says the backend finds asking Open Food Facts worthwhile. */
 export const searchFoods = (q: string) =>
@@ -314,7 +366,8 @@ export async function scanBarcode(code: string): Promise<{ food: BarcodeFood } |
  */
 export const createEntry = (
   // With `group_id` the entry joins that Gericht as one more ingredient.
-  body: ({ food_id: number; group_id?: string } | { gtin: string }) & { grams?: number; meal?: Meal },
+  // `eaten_at` puts the entry on an earlier day (backfill, ADR-0015).
+  body: ({ food_id: number; group_id?: string } | { gtin: string }) & { grams?: number; meal?: Meal; eaten_at?: string },
 ) =>
   request<Entry>("/entries", { method: "POST", body: JSON.stringify(body) });
 export const updateEntry = (id: number, body: { grams?: number; meal?: Meal }) =>
@@ -465,7 +518,7 @@ export const deleteCombo = (id: number) => request<void>(`/combos/${id}`, { meth
  * Logs the combo as an entry group named like it; without meal the backend suggests one.
  * `items` change this entry only, never the template.
  */
-export const logCombo = (id: number, body: { meal?: Meal; items?: ComboItemWrite[] } = {}) =>
+export const logCombo = (id: number, body: { meal?: Meal; eaten_at?: string; items?: ComboItemWrite[] } = {}) =>
   request<EntryGroup>(`/combos/${id}/log`, { method: "POST", body: JSON.stringify(body) });
 
 /**

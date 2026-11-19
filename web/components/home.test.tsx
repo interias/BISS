@@ -360,7 +360,7 @@ test("a Schnellzugriff in the empty search is logged with one tap and closes the
 test("the cookbook lists the recipes; a tap opens one to log portions", async () => {
   fakeApi();
   render(<Home />);
-  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
   const list = await screen.findByRole("list", { name: "Rezepte" });
   const row = within(list).getByRole("button", { name: /^Skyrbrötchen/ });
   expect(row).toHaveTextContent("5 Portionen · je 90 g");
@@ -372,7 +372,7 @@ test("the cookbook lists the recipes; a tap opens one to log portions", async ()
 test("the cookbook leads on to a new recipe; saved, its food opens to log portions", async () => {
   const { calls } = fakeApi();
   render(<Home />);
-  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
   fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
 
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
@@ -398,7 +398,7 @@ test("the cookbook leads on to a new recipe; saved, its food opens to log portio
 test("the back button in the ingredient search goes back to the recipe; an unsaved one waits in the cookbook", async () => {
   fakeApi();
   render(<Home />);
-  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
   fireEvent.click(await screen.findByRole("button", { name: "+ Neues Rezept" }));
   fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), { target: { value: "Linsensuppe" } });
   fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
@@ -410,7 +410,7 @@ test("the back button in the ingredient search goes back to the recipe; an unsav
   // Closed from the recipe itself, it is not lost: the cookbook leads back to it.
   window.dispatchEvent(new PopStateEvent("popstate"));
   await waitFor(() => expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole("button", { name: "Meine Rezepte" }));
+  // Still on the tab Rezepte: the page loads the draft again once the sheet is closed.
   fireEvent.click(await screen.findByRole("button", { name: /Nicht gespeichert\s*Linsensuppe/ }));
   expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue("Linsensuppe");
   window.localStorage.clear();
@@ -419,7 +419,7 @@ test("the back button in the ingredient search goes back to the recipe; an unsav
 test("Aus Text oder Link in the cookbook opens the recipe sheet with the field for the text", async () => {
   fakeApi();
   render(<Home />);
-  fireEvent.click(await screen.findByRole("button", { name: "Meine Rezepte" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
   fireEvent.click(await screen.findByRole("button", { name: "Aus Text oder Link" }));
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Rezepttext oder Link" })).toHaveFocus();
@@ -596,7 +596,6 @@ test("+ Neu creates a combo from searched foods; its chip stands first after + N
   });
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips[0]).toHaveAccessibleName("Neuer Schnellzugriff");
-  expect(chips[1]).toHaveAccessibleName("Meine Rezepte");
   // Never logged yet: it follows the used chips.
   expect(chips.at(-1)).toHaveAccessibleName("Schnellzugriff Bananenpause");
   expect(calls.some((c) => c.url.endsWith("/log"))).toBe(false);

@@ -131,6 +131,7 @@ function GroupRow({
  */
 export function Diary({
   rows,
+  empty = "Noch nichts eingetragen",
   comboNames,
   onOpen,
   onAddToGroup,
@@ -138,6 +139,8 @@ export function Diary({
   onRemember,
 }: {
   rows: DayRow[];
+  /** What an empty day says; an earlier day has none instead of nothing yet. */
+  empty?: string;
   comboNames: string[];
   onOpen: (entry: Entry) => void;
   onAddToGroup: (group: DayGroupRow) => void;
@@ -162,7 +165,7 @@ export function Diary({
           ),
         )
       ) : (
-        <div className="py-2 text-[13px] text-muted-foreground">Noch nichts eingetragen</div>
+        <div className="py-2 text-[13px] text-muted-foreground">{empty}</div>
       )}
     </section>
   );
