@@ -34,8 +34,6 @@ export function timeShares(times: Stats["times_of_day"]) {
   return values.map((value) => value / sum);
 }
 
-/**
- * Whether the period before can be shown. The answer has no first day of the diary, so the
- * period before counts as empty, and as the start, when it has no logged days.
- */
-export const canStepBack = (stats: Stats | null) => stats !== null && stats.previous.average_kcal !== null;
+/** Whether the period before can be shown: it reaches the first day of the diary. */
+export const canStepBack = (stats: Stats | null) =>
+  stats !== null && stats.first_day !== null && stats.previous.to >= stats.first_day;

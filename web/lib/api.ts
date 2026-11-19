@@ -288,6 +288,8 @@ export type Stats = {
   weekdays: (number | null)[];
   times_of_day: { morning: number; midday: number; afternoon: number; evening: number };
   top: { name: string; kind: "food" | "group"; count: number; kcal: number }[];
+  /** The first day with an entry, the start for paging back; null without entries. */
+  first_day: string | null;
 };
 
 export const getStats = (from: string, to: string) => request<Stats>(`/stats?from=${from}&to=${to}`);

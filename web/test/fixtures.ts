@@ -350,6 +350,7 @@ export function fakeStats(from: string, to: string): Stats {
     weekdays: [2100, 2200, null, 2300, 2400, 2500, 2600],
     times_of_day: { morning: 500, midday: 800, afternoon: 300, evening: 676 },
     top: [{ name: "Banane roh", kind: "food", count: 5, kcal: 560 }],
+    first_day: "2026-08-01",
   };
 }
 

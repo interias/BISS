@@ -58,6 +58,7 @@ def test_week_counts_closed_logged_days_against_their_goal(client: TestClient) -
         "2026-11-05",
     )
     assert (stats["days_possible"], stats["days_logged"]) == (3, 2)
+    assert stats["first_day"] == "2026-10-30"
     assert stats["average"] == {"kcal": 1100, "protein": 55, "carbs": 0, "fat": 0}
     assert stats["target_average"] == {"kcal": 1550, "protein": 100, "carbs": 140, "fat": 50}
     assert stats["targets_vary"] is True

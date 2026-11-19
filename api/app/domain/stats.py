@@ -103,6 +103,7 @@ class Stats:
     weekdays: list[float | None]
     times_of_day: dict[TimeOfDay, float]
     top: list[TopItem]
+    first_day: date | None = None
 
 
 def _mean(values: list[float]) -> float | None:

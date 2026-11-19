@@ -206,9 +206,7 @@ export function KcalChart({
               Öffnen
             </button>
           </>
-        ) : (
-          "Balken antippen zeigt den Tag."
-        )}
+        ) : null}
       </div>
     </>
   );

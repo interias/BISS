@@ -174,6 +174,7 @@ def stats(found: Stats) -> schemas.Stats:
         weekdays=found.weekdays,
         times_of_day=schemas.TimesOfDay(**found.times_of_day),
         top=[schemas.TopItem(**vars(item)) for item in found.top],
+        first_day=found.first_day,
     )
 
 

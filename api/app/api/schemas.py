@@ -696,6 +696,7 @@ class Stats(BaseModel):
     weekdays: list[float | None] = Field(description="mean kcal Monday to Sunday")
     times_of_day: TimesOfDay = Field(description="shares of the kcal by local clock time")
     top: list[TopItem] = Field(description="the most frequent foods and plates, up to five")
+    first_day: date | None = Field(description="the first day with an entry; null: none yet")
 
 
 Certainty = Literal["recognized", "guessed"]

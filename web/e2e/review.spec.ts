@@ -153,7 +153,7 @@ test("Statistik: a bar shows its day and Öffnen opens it on Heute", async ({ pa
   const chart = page.getByRole("group", { name: "Kalorien je Tag" });
   await chart.getByRole("button", { name: new RegExp(`^${escape(shortDay(yesterday))}: [\\d.]+ kcal$`) }).click();
   await expect(page.getByText(shortDay(yesterday), { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Öffnen" }).click();
+  await page.getByRole("button", { name: "Öffnen", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "BISS" })).toBeVisible();
   await expect(dateButton(page)).toHaveText(`Gestern · ${shortDay(yesterday)}`);

@@ -1,8 +1,9 @@
 """Statistik of a period: loads the totals, entries, goals and tolerance the rules need."""
 
+from dataclasses import replace
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain.goals import load_goals
@@ -29,7 +30,7 @@ def period_stats(session: Session, start: date, end: date, today: date) -> Stats
         .join(Food, Food.id == Entry.food_id)
         .where(Entry.day.between(start, min(end, today - timedelta(days=1))))
     ).all()
-    return statistics(
+    found = statistics(
         start,
         end,
         today,
@@ -38,3 +39,5 @@ def period_stats(session: Session, start: date, end: date, today: date) -> Stats
         load_goals(session),
         settings.tolerance(session),
     )
+    # The first day of the diary bounds paging back, even across weeks without entries.
+    return replace(found, first_day=session.scalar(select(func.min(Entry.day))))
