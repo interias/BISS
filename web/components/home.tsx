@@ -36,6 +36,7 @@ import {
 } from "@/lib/api";
 import { canDictate, newRecognition, transcript, type Recognition } from "@/lib/dictation";
 import { fmt, headerDate, shortName } from "@/lib/format";
+import { serverVersion } from "@/lib/version";
 import { AmountForm, AmountSheet } from "@/components/amount-sheet";
 import { Camera, type Known } from "@/components/camera/camera";
 import { ComboSheet } from "@/components/combo/combo-sheet";
@@ -177,6 +178,32 @@ export function Home() {
     };
     window.addEventListener("popstate", close);
     return () => window.removeEventListener("popstate", close);
+  }, [overlay]);
+
+  // The phone wakes a sleeping page with its old code: back in front, a newer build on the
+  // server loads the app again. Never over an open sheet or camera, their input would be
+  // lost; the next return checks again.
+  const version = useRef<string | null>(null);
+  useEffect(() => {
+    serverVersion().then((loaded) => {
+      version.current = loaded;
+    });
+  }, []);
+  useEffect(() => {
+    if (overlay) return;
+    let current = true;
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const latest = await serverVersion();
+      if (!current || !latest) return;
+      if (version.current && version.current !== latest) window.location.reload();
+      else version.current = latest;
+    };
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      current = false;
+      document.removeEventListener("visibilitychange", check);
+    };
   }, [overlay]);
 
   // Closing the dictation sheet (scrim, Escape, back button) ends the listening unsent.

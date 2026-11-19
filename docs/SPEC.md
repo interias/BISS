@@ -119,7 +119,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Portionsliste: Stern markiert den Standard, Herkunft `Packung` / `geschätzt` / `eigene`. Eine geänderte Packungs- oder geschätzte Portion wird zu `eigene`.
   - „Speichern“ (neu: „Speichern & eintragen“) und „Abbrechen“ (aus dem Etikett: „Verwerfen“) stehen fest am unteren Rand des Blatts, die Felder scrollen darüber. Auch nach einem langen Etikett braucht Speichern kein Scrollen.
 - **Toast nach dem Eintragen:** Jeder neue Eintrag sagt „<Name> eingetragen · X kcal“, die kcal des Eintrags gerundet, mit „Rückgängig“ für 3 s. Das gilt für Zuletzt-Chip, Suche, Barcode, Etikett, Teller, Diktat, Rezept, eine Zutat zu einem Gericht und den Schnellzugriff (dort die Summe der Gruppe).
-- **Fehler:** Schlägt ein Aufruf fehl, sagt ein Toast „Das hat nicht geklappt. Verbindung prüfen.“. Ist das Backend beim Öffnen nicht erreichbar, steht das auf dem Hauptscreen mit „Erneut versuchen“. Kommt die App wieder in den Vordergrund, lädt sie den Tag neu.
+- **Fehler:** Schlägt ein Aufruf fehl, sagt ein Toast „Das hat nicht geklappt. Verbindung prüfen.“. Ist das Backend beim Öffnen nicht erreichbar, steht das auf dem Hauptscreen mit „Erneut versuchen“. Kommt die App wieder in den Vordergrund, lädt sie den Tag neu. Liegt auf dem Server inzwischen ein neuer Stand, lädt sie sich selbst neu, außer ein Blatt oder die Kamera ist offen.
 - **Kamera:**
   - Drei Auslöser: Barcode (automatisch), Etikett und Teller (E7).
   - Ein erkannter Barcode öffnet ohne Auslösen das Mengen-Sheet.
