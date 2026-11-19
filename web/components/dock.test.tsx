@@ -14,10 +14,8 @@ function renderDock() {
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
-    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
-    onCamera: vi.fn(),
   };
   render(<Dock chips={[comboChip(coffeeCombo()), foodChip(banana)]} {...actions} />);
   return { ...actions, chip: screen.getByRole("button", { name: "Schnellzugriff Kaffee" }) };
@@ -28,17 +26,14 @@ test("+ Neu and the cookbook stand first, then the chips mixed in the backend's 
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
-    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
-    onCamera: vi.fn(),
   };
   const rice = { ...banana, id: 8, name: "Reis gekocht" };
   render(<Dock chips={[foodChip(rice), comboChip(coffeeCombo()), foodChip(banana)]} {...actions} />);
   const chips = within(screen.getByRole("group", { name: "Zuletzt gegessen" })).getAllByRole("button");
   expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
     "Neuer Schnellzugriff",
-    "Meine Rezepte",
     "Reis gekocht 120 g",
     "Schnellzugriff Kaffee",
     "Banane roh 120 g",
@@ -64,10 +59,8 @@ test("long names are cut to about 14 characters, the full name stays in the labe
       onCombo={vi.fn()}
       onComboHold={vi.fn()}
       onNewCombo={vi.fn()}
-      onRecipes={vi.fn()}
       onRecent={vi.fn()}
       onSearch={vi.fn()}
-      onCamera={vi.fn()}
     />,
   );
   const combo = screen.getByRole("button", { name: "Schnellzugriff Frühstücksmüsli mit Joghurt" });
@@ -129,21 +122,19 @@ test("a recent chip without a photo shows the symbol of its category", () => {
   expect(chip.querySelector('[data-category="fruit"]')).not.toBeNull();
 });
 
-test("the cookbook opens the own recipes, and the chip of a recipe stands in the accent colour", () => {
+test("the chip of a recipe stands in the accent colour", () => {
   const actions = {
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
-    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
-    onCamera: vi.fn(),
   };
   const rolls = { ...banana, id: 71, name: "Skyrbrötchen", recipe: true };
   render(<Dock chips={[rolls, banana].map(foodChip)} {...actions} />);
 
-  fireEvent.click(screen.getByRole("button", { name: "Meine Rezepte" }));
-  expect(actions.onRecipes).toHaveBeenCalledOnce();
+  // The cookbook moved to the tab Rezepte (ADR-0015).
+  expect(screen.queryByRole("button", { name: "Meine Rezepte" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^Skyrbrötchen/ })).toHaveClass("border-primary");
   expect(screen.getByText("Skyrbrötchen")).toHaveClass("text-primary");
   expect(screen.getByRole("button", { name: /^Banane roh/ })).not.toHaveClass("border-primary");
@@ -154,10 +145,8 @@ test("the chip of a scanned product stands in turquoise, a recipe wins over it",
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
-    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
-    onCamera: vi.fn(),
   };
   const bar = { ...banana, id: 80, name: "Testriegel", scanned: true };
   const both = { ...banana, id: 81, name: "Eigenes Brot", scanned: true, recipe: true };
@@ -173,10 +162,8 @@ test("a chip shows the photo of its food when it has one", () => {
     onCombo: vi.fn(),
     onComboHold: vi.fn(),
     onNewCombo: vi.fn(),
-    onRecipes: vi.fn(),
     onRecent: vi.fn(),
     onSearch: vi.fn(),
-    onCamera: vi.fn(),
   };
   const rolls = { ...banana, id: 71, name: "Skyrbrötchen", image_path: "rolls.webp" };
   render(<Dock chips={[rolls, banana].map(foodChip)} {...actions} />);
@@ -187,19 +174,22 @@ test("a chip shows the photo of its food when it has one", () => {
   expect(screen.getByRole("button", { name: /^Banane roh/ }).querySelector("img")).toBeNull();
 });
 
-test("the microphone stands before the camera only with onDictate", () => {
+test("the microphone stands at the right end of the search row only with onDictate", () => {
   const onDictate = vi.fn();
   const { rerender } = render(
-    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
-      onRecent={vi.fn()} onSearch={vi.fn()} onCamera={vi.fn()} />,
+    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()}
+      onRecent={vi.fn()} onSearch={vi.fn()} />,
   );
   expect(screen.queryByRole("button", { name: "Mahlzeit diktieren" })).not.toBeInTheDocument();
   rerender(
-    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()} onRecipes={vi.fn()}
-      onRecent={vi.fn()} onSearch={vi.fn()} onDictate={onDictate} onCamera={vi.fn()} />,
+    <Dock chips={[]} onCombo={vi.fn()} onComboHold={vi.fn()} onNewCombo={vi.fn()}
+      onRecent={vi.fn()} onSearch={vi.fn()} onDictate={onDictate} />,
   );
   const mic = screen.getByRole("button", { name: "Mahlzeit diktieren" });
-  expect(mic.nextElementSibling).toHaveAccessibleName("Kamera: Barcode, Etikett oder Teller");
+  expect(mic.previousElementSibling).toHaveTextContent("Lebensmittel suchen");
+  expect(mic.nextElementSibling).toBeNull();
+  // The camera stands in the bar of the tabs (ADR-0015).
+  expect(screen.queryByRole("button", { name: /^Kamera/ })).not.toBeInTheDocument();
   fireEvent.click(mic);
   expect(onDictate).toHaveBeenCalled();
 });

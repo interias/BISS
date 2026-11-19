@@ -94,34 +94,31 @@ function ComboChip({ combo, onTap, onHold }: { combo: Combo; onTap: () => void; 
 }
 
 /**
- * Dock: the button for a new Schnellzugriff (a plus with the mark of its chips) and the cookbook of the own recipes first so they never need scrolling, then
- * the Schnellzugriff and recent chips in the order of the backend (the latest used first), search field,
- * the microphone and the camera button.
+ * Dock: the button for a new Schnellzugriff (a plus with the mark of its chips) first so it
+ * never needs scrolling, then the Schnellzugriff and recent chips in the order of the backend
+ * (the latest used first), the search field and the microphone at its right end. The camera
+ * stands in the bar below (ADR-0015).
  */
 export function Dock({
   chips,
   onCombo,
   onComboHold,
   onNewCombo,
-  onRecipes,
   onRecent,
   onSearch,
   onDictate,
-  onCamera,
 }: {
   chips: Chip[];
   onCombo: (combo: Combo) => void;
   onComboHold: (combo: Combo) => void;
   onNewCombo: () => void;
-  onRecipes: () => void;
   onRecent: (food: FoodSummary) => void;
   onSearch: () => void;
   /** Without speech recognition in the browser there is no microphone (ADR-0013). */
   onDictate?: () => void;
-  onCamera: () => void;
 }) {
   return (
-    <div className="border-t bg-card px-5 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))]">
+    <div className="border-t bg-card px-5 pt-2.5 pb-3">
       <div
         role="group"
         aria-label="Zuletzt gegessen"
@@ -137,19 +134,6 @@ export function Dock({
           {/* A plus and the mark of the Schnellzugriff chips: a new one of those. */}
           +
           <ComboMark />
-        </button>
-        <button
-          type="button"
-          aria-label="Meine Rezepte"
-          title="Meine Rezepte"
-          onClick={onRecipes}
-          className="grid size-[38px] flex-none place-items-center rounded-full border border-primary text-primary"
-        >
-          {/* An open cookbook. */}
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5Z" />
-            <path d="M12 6.5V19.5" />
-          </svg>
         </button>
         {chips.map(({ combo, food }) => {
           if (combo) {
@@ -217,17 +201,6 @@ export function Dock({
             </svg>
           </button>
         )}
-        <button
-          type="button"
-          aria-label="Kamera: Barcode, Etikett oder Teller"
-          onClick={onCamera}
-          className="grid size-16 flex-none place-items-center rounded-[22px] bg-primary text-primary-foreground shadow-[0_8px_18px_-8px_var(--biss-accent)] active:scale-[.96]"
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-            <circle cx="12" cy="13" r="3.6" />
-          </svg>
-        </button>
       </div>
     </div>
   );

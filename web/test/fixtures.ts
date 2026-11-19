@@ -13,6 +13,7 @@ import type {
   PlateItem,
   Recipe,
   SearchHit,
+  Stats,
 } from "@/lib/api";
 
 const ZERO: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
@@ -328,7 +329,31 @@ function dayRows(entries: Entry[], sum: (list: Entry[]) => Macros): DayRow[] {
     .reverse();
 }
 
-export function makeDay(entries: Entry[] = []): Day {
+/** The fake's today; its entries are those of this day. */
+export const FAKE_TODAY = "2026-10-28";
+
+/** The statistics of last week as GET /stats answers them, for the fake backend. */
+export function fakeStats(from: string, to: string): Stats {
+  return {
+    from,
+    to,
+    today: FAKE_TODAY,
+    days_possible: 7,
+    days_logged: 6,
+    average: { kcal: 2276, protein: 150, carbs: 250, fat: 70 },
+    target_average: { kcal: 2400, protein: 160, carbs: 260, fat: 75 },
+    targets_vary: false,
+    tolerance: 0.1,
+    in_range: { kcal: 2, protein: 5, carbs: 4, fat: 3 },
+    previous: { from, to, average_kcal: 2343 },
+    trailing_kcal: [],
+    weekdays: [2100, 2200, null, 2300, 2400, 2500, 2600],
+    times_of_day: { morning: 500, midday: 800, afternoon: 300, evening: 676 },
+    top: [{ name: "Banane roh", kind: "food", count: 5, kcal: 560 }],
+  };
+}
+
+export function makeDay(entries: Entry[] = [], date = FAKE_TODAY): Day {
   const sum = (list: Entry[]) =>
     list.reduce(
       (a, e) => ({
@@ -340,7 +365,7 @@ export function makeDay(entries: Entry[] = []): Day {
       ZERO,
     );
   return {
-    date: "2026-10-28",
+    date,
     totals: sum(entries),
     targets: { kcal: 2400, protein: 160, carbs: 260, fat: 75 },
     meals: (["breakfast", "lunch", "snack", "dinner"] as const).map((meal) => {
@@ -356,6 +381,12 @@ export function makeDay(entries: Entry[] = []): Day {
     suggested_meal: "snack",
   };
 }
+
+const addDay = (date: string) => {
+  const next = new Date(`${date}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(status === 204 ? null : JSON.stringify(body), {
@@ -387,6 +418,10 @@ export function fakeApi({
 }: { plate?: PlateExtraction; combos?: Combo[]; entries?: Entry[] } = {}) {
   let entries: Entry[] = [...logged];
   let nextId = 200 + logged.length;
+  // The standard goals, the newest first, and the tolerance of the statistics.
+  let goal = { kcal: 2400, protein: 160, carbs: 260, fat: 75, valid_from: "2026-10-01" as string | null };
+  let goals = [goal, { kcal: 2600, protein: 150, carbs: 290, fat: 85, valid_from: "2026-08-01" }];
+  let tolerance = 0.1;
   let saved = [...combos];
   let nextCombo = 50;
   const catalog = [banana, riceDetail, chicken, broccoli, sugar, coffee];
@@ -405,6 +440,7 @@ export function fakeApi({
         grams: item.grams,
         meal: meal ?? "snack",
         eaten_at: eaten_at ?? bananaEntry.eaten_at,
+        day: eaten_at ? eaten_at.slice(0, 10) : bananaEntry.day,
         macros: scale(food.per_100, item.grams),
         group_id,
         group_name,
@@ -442,7 +478,33 @@ export function fakeApi({
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
     calls.push({ method, url, body });
-    if (url === "/api/v1/days/today") return json(makeDay(entries));
+    const onDay = (date: string) => entries.filter((e) => e.day === date);
+    if (url === "/api/v1/days/today") return json(makeDay(onDay(FAKE_TODAY)));
+    const dayUrl = url.match(/^\/api\/v1\/days\/(\d{4}-\d{2}-\d{2})$/);
+    if (dayUrl) return json(makeDay(onDay(dayUrl[1]), dayUrl[1]));
+    const range = url.match(/^\/api\/v1\/days\?from=([\d-]+)&to=([\d-]+)$/);
+    if (range) {
+      const days = [];
+      for (let date = range[1]; date <= range[2]; date = addDay(date)) {
+        const day = makeDay(onDay(date), date);
+        days.push({ date, totals: day.totals, targets: day.targets, entries: onDay(date).length });
+      }
+      return json({ days });
+    }
+    const stats = url.match(/^\/api\/v1\/stats\?from=([\d-]+)&to=([\d-]+)$/);
+    if (stats) return json(fakeStats(stats[1], stats[2]));
+    if (url === "/api/v1/goals/default" && method === "GET") return json({ ...goal, kind: "default" });
+    if (url === "/api/v1/goals/default" && method === "PUT") {
+      goal = { ...body, carbs: (body.kcal - 4 * body.protein - 9 * body.fat) / 4, valid_from: FAKE_TODAY };
+      goals = [goal, ...goals.filter((g) => g.valid_from !== FAKE_TODAY)];
+      return json({ ...goal, kind: "default" });
+    }
+    if (url === "/api/v1/goals") return json({ goals });
+    if (url === "/api/v1/settings" && method === "GET") return json({ tolerance });
+    if (url === "/api/v1/settings" && method === "PUT") {
+      tolerance = body.tolerance;
+      return json({ tolerance });
+    }
     if (url === "/api/v1/recent") return json([banana, riceDetail]);
     // As the backend: the recent foods, then the combos never logged (all of the fake's).
     if (url === "/api/v1/chips") {
@@ -490,7 +552,7 @@ export function fakeApi({
     const known = combo && saved.find((c) => c.id === Number(combo[1]));
     if (known && combo[2] && method === "POST") {
       const items = body.items ?? known.items.map((i) => ({ food_id: i.food.id, grams: i.grams }));
-      return logGroup(known.name, items, body.meal);
+      return logGroup(known.name, items, body.meal, body.eaten_at);
     }
     if (known && method === "PATCH") {
       const items = body.items ?? known.items.map((i) => ({ food_id: i.food.id, grams: i.grams }));
@@ -569,7 +631,12 @@ export function fakeApi({
       return json(entry, 201);
     }
     if (url === "/api/v1/entries" && method === "POST") {
-      const entry = { ...bananaEntry, id: 100 + calls.length };
+      // A backfilled entry lands on the day of its time (none of the fake's are before 04:00).
+      const entry = {
+        ...bananaEntry,
+        id: 100 + calls.length,
+        ...(body.eaten_at ? { eaten_at: body.eaten_at, day: body.eaten_at.slice(0, 10) } : {}),
+      };
       entries = [...entries, entry];
       return json(entry, 201);
     }

@@ -7,37 +7,44 @@ import { addPill } from "@/lib/styles";
 import { AiMark } from "@/components/ai-mark";
 import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
-import { SheetTitle } from "@/components/sheet";
 import { draftName } from "@/components/recipe/recipe-sheet";
 
 /**
- * "Meine Rezepte" (ADR-0012): all own recipes, the one saved last first. A tap opens the
- * amount sheet of the recipe's food to log portions, where "Bearbeiten" leads to the recipe;
- * "+ Neues Rezept" starts one, "Aus Text oder Link" one read from a pasted recipe (ADR-0014).
+ * "Meine Rezepte" (ADR-0012), the page of the tab Rezepte (ADR-0015): all own recipes, the one
+ * saved last first. A tap opens the amount sheet of the recipe's food to log portions, where
+ * "Bearbeiten" leads to the recipe; "+ Neues Rezept" starts one, "Aus Text oder Link" one read
+ * from a pasted recipe (ADR-0014). A new `stamp` loads the list and the draft again, after a
+ * sheet over the page closed.
  */
-export function RecipesSheet({
+export function RecipesPage({
+  stamp,
   onPick,
   onNew,
   onImport,
 }: {
+  stamp: number;
   onPick: (recipe: Recipe) => void;
   onNew: () => void;
   onImport: () => void;
 }) {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   // An unsaved new recipe stays until saved or discarded, and is found here again.
-  const [draft] = useState(() => draftName());
+  const [draft, setDraft] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    getRecipes().then((found) => live && setRecipes(found), console.error);
+    getRecipes().then((found) => {
+      if (!live) return;
+      setRecipes(found);
+      setDraft(draftName());
+    }, console.error);
     return () => {
       live = false;
     };
-  }, []);
+  }, [stamp]);
 
   return (
     <>
-      <SheetTitle className="mb-2.5 font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</SheetTitle>
+      <h2 className="mb-2.5 font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</h2>
       <div className="mb-2 flex flex-wrap gap-2">
         <button type="button" onClick={onNew} className={addPill}>
           + Neues Rezept

@@ -32,7 +32,7 @@ import {
 } from "@/lib/editor";
 import { CATEGORY_LABELS, fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { addPill } from "@/lib/styles";
+import { addPill, inputField } from "@/lib/styles";
 import { PhotoPicker } from "@/components/photo-picker";
 import { SheetTitle } from "@/components/sheet";
 
@@ -97,8 +97,7 @@ const textsOf = (per100?: Per100) =>
     NUTRIENTS.map(({ key }) => [key, toInput(per100?.[key] ?? null)]),
   ) as Record<NutrientKey, string>;
 
-const inputClass =
-  "h-[42px] w-full min-w-0 rounded-[10px] border bg-surface-2 px-3 text-foreground";
+const inputClass = inputField;
 
 /**
  * Photo, name, brand, nutrition table per 100 g with the live Atwater hint, and the serving
