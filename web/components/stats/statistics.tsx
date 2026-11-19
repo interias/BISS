@@ -38,8 +38,8 @@ function HBar({ label, share, value }: { label: string; share: number; value: st
 }
 
 /**
- * The tab Statistik (SPEC 3, ADR-0015): a week (Monday to Sunday) or a calendar month, last
- * week on opening. The answer comes first, the average per day against the goal; then kcal per
+ * The tab Statistik (SPEC 3, ADR-0015): a week (Monday to Sunday) or a calendar month, this
+ * week on opening and this month on switching. The answer comes first, the average per day against the goal; then kcal per
  * day, nutrients, logged days, weekdays (month only), times of day and the most frequent foods.
  * A tap on a day opens it on Heute. All numbers are the backend's.
  */
@@ -53,7 +53,7 @@ export function Statistics({
   onError: (failure: unknown) => void;
 }) {
   const [kind, setKind] = useState<PeriodKind>("week");
-  const [offset, setOffset] = useState(-1);
+  const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const shown = period(kind, offset, today);
   const key = `${shown.from}/${shown.to}`;
@@ -89,7 +89,7 @@ export function Statistics({
         value={kind}
         onChange={(value) => {
           setKind(value);
-          setOffset(-1);
+          setOffset(0);
           setSelected(null);
         }}
       />

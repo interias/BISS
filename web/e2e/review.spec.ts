@@ -90,7 +90,7 @@ test("tap budget: Statistik and Einstellungen with 1 tap each", async ({ page })
     "aria-pressed",
     "true",
   );
-  await expect(page.getByText("Letzte Woche")).toBeVisible();
+  await expect(page.getByText("Diese Woche")).toBeVisible();
   expect(await taps(), "Statistik").toBe(1);
 
   await tab(page, "Einstellungen").click();
@@ -144,11 +144,11 @@ test("Statistik: a bar shows its day and Öffnen opens it on Heute", async ({ pa
 
   await page.goto("/");
   await tab(page, "Statistik").click();
-  // Last week on opening; yesterday may lie in this week.
-  await expect(page.getByText("Letzte Woche")).toBeVisible();
-  if (yesterday >= mondayOf(today)) {
-    await page.getByRole("button", { name: "Zeitraum vor" }).click();
-    await expect(page.getByText("Diese Woche")).toBeVisible();
+  // This week on opening; on a Monday yesterday lies in last week.
+  await expect(page.getByText("Diese Woche")).toBeVisible();
+  if (yesterday < mondayOf(today)) {
+    await page.getByRole("button", { name: "Zeitraum zurück" }).click();
+    await expect(page.getByText("Letzte Woche")).toBeVisible();
   }
   const chart = page.getByRole("group", { name: "Kalorien je Tag" });
   await chart.getByRole("button", { name: new RegExp(`^${escape(shortDay(yesterday))}: [\\d.]+ kcal$`) }).click();

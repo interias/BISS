@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { getRecipes, imageUrl, type Recipe } from "@/lib/api";
 import { fmt } from "@/lib/format";
-import { addPill } from "@/lib/styles";
+import { iconPill } from "@/lib/styles";
 import { AiMark } from "@/components/ai-mark";
+import { BookIcon, LinkIcon } from "@/components/icons";
 import { MacroLine } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { draftName } from "@/components/recipe/recipe-sheet";
@@ -12,8 +13,9 @@ import { draftName } from "@/components/recipe/recipe-sheet";
 /**
  * "Meine Rezepte" (ADR-0012), the page of the tab Rezepte (ADR-0015): all own recipes, the one
  * saved last first. A tap opens the amount sheet of the recipe's food to log portions, where
- * "Bearbeiten" leads to the recipe; "+ Neues Rezept" starts one, "Aus Text oder Link" one read
- * from a pasted recipe (ADR-0014). A new `stamp` loads the list and the draft again, after a
+ * "Bearbeiten" leads to the recipe. Two icon buttons like the one for a new Schnellzugriff in the
+ * dock: "Neues Rezept" (plus and book) starts one, "Aus Text oder Link" (sparkles and link) one
+ * read from a pasted recipe (ADR-0014). The header already says Rezepte, so no heading of its own. A new `stamp` loads the list and the draft again, after a
  * sheet over the page closed.
  */
 export function RecipesPage({
@@ -44,14 +46,20 @@ export function RecipesPage({
 
   return (
     <>
-      <h2 className="mb-2.5 font-heading text-[21px] leading-[1.15] font-bold">Meine Rezepte</h2>
       <div className="mb-2 flex flex-wrap gap-2">
-        <button type="button" onClick={onNew} className={addPill}>
-          + Neues Rezept
+        <button type="button" aria-label="Neues Rezept" title="Neues Rezept" onClick={onNew} className={iconPill}>
+          +
+          <BookIcon size={17} />
         </button>
-        <button type="button" onClick={onImport} className={addPill}>
+        <button
+          type="button"
+          aria-label="Aus Text oder Link"
+          title="Aus Text oder Link"
+          onClick={onImport}
+          className={iconPill}
+        >
           <AiMark />
-          Aus Text oder Link
+          <LinkIcon size={17} />
         </button>
       </div>
       {draft !== null && (

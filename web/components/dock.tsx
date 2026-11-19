@@ -4,6 +4,7 @@ import { useRef, type MouseEvent } from "react";
 import { kindColor, photoOf, type Chip, type Combo, type FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
 import { clip, fmt, shortName } from "@/lib/format";
+import { iconPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ai-mark";
 import { FoodPic } from "@/components/food-pic";
@@ -129,7 +130,7 @@ export function Dock({
           aria-label="Neuer Schnellzugriff"
           title="Neuer Schnellzugriff"
           onClick={onNewCombo}
-          className="inline-flex h-[38px] flex-none items-center gap-1.5 rounded-full border border-dashed border-primary px-3 text-[15px] leading-none font-bold text-primary"
+          className={iconPill}
         >
           {/* A plus and the mark of the Schnellzugriff chips: a new one of those. */}
           +
