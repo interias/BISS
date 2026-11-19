@@ -29,6 +29,8 @@ Der Leitsatz und seine Regeln stehen in [AGENTS.md](../AGENTS.md). Diese Tabelle
 
 Die Kamera ist aus jedem Reiter mit einem Tap erreichbar. Auf einem früheren Tag kostet Eintragen einen Tap mehr („+ Nachtragen“), danach gelten die Budgets oben.
 
+Jede Änderung an der Oberfläche folgt den Regeln für ein einheitliches Interface in [docs/design/einheitlichkeit.md](design/einheitlichkeit.md).
+
 **Weitere Leitprinzipien:**
 
 1. **Erfassen zuerst:** Der Reiter Heute dient dem Erfassen. Rückblick und Statistik ([ADR-0015](adr/0015-review-and-stats.md)) kosten das Erfassen keinen Tap und urteilen nicht: keine Serien, Noten, Abzeichen, Erinnerungen und kein Rot bei Überschreitung.
@@ -82,8 +84,10 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - **Am häufigsten:** die fünf Lebensmittel und Gerichte mit den meisten Einträgen, je Anzahl und kcal.
   - Über dem Ziel wird nichts rot. Die Farben sind die der Tagesbilanz.
 - **Einstellungen** (Reiter, [ADR-0015](adr/0015-review-and-stats.md)):
-  - **Tagesziele:** Kalorien, Eiweiß, Kohlenhydrate und Fett als Zahlenfelder (Zifferntastatur, ganze Zahlen über 0). Ändert man einen Wert, erscheint „Gilt ab heute, <Tag>. Frühere Tage behalten ihre Ziele.“ mit „Verwerfen“ und „Ab heute übernehmen“. Sonst steht dort „Gilt seit <Tag>“. „Ab heute übernehmen“ speichert und sagt „Neue Ziele gelten ab heute“ mit „Rückgängig“.
-  - Weichen kcal und `4·Eiweiß + 4·KH + 9·Fett` um mehr als 10 % ab, sagt ein Hinweis „Deine Nährwerte ergeben X kcal, nicht Y.“ Speichern bleibt möglich.
+  - **Tagesziele:** Kalorien, Eiweiß und Fett sind Zahlenfelder wie im Lebensmittel-Editor (Zifferntastatur, ganze Zahlen über 0). Kohlenhydrate sind der Rest und stehen als berechnete Zeile darunter: `(kcal − 4·Eiweiß − 9·Fett) ÷ 4`. So ergeben die Nährwerte immer genau das Kalorienziel. Ändert man die Kalorien, ziehen die Kohlenhydrate live mit. Eine Leiste in den drei Farben zeigt die Anteile an den Kalorien („E 27 % · K 45 % · F 28 %“).
+  - Ergeben Eiweiß und Fett schon mehr als das Kalorienziel, steht „Eiweiß und Fett ergeben schon X kcal.“ in der Warnfarbe, und „Ab heute übernehmen“ bleibt grau.
+  - Ändert man einen Wert, erscheint unten fest „Gilt ab heute, <Tag>. Frühere Tage behalten ihre Ziele.“ mit „Verwerfen“ und „Ab heute übernehmen“. Sonst steht dort „Gilt seit <Tag>“. „Ab heute übernehmen“ speichert und sagt „Neue Ziele gelten ab heute“ mit „Rückgängig“.
+  - Die Vorschau rechnet lokal und ist reine Anzeige. Verbindlich rechnet das Backend beim Speichern ([ADR-0003](adr/0003-logic-in-backend.md)).
   - **Toleranz:** ±5, ±10, ±15 oder ±20 %, Standard ±10 %. Ein Tipp gilt sofort, für alle Tage.
   - **Bisherige Ziele:** alle Standardziele, das neueste zuerst, je mit „seit <Tag>“.
 - **Chips im Dock:**
@@ -198,7 +202,7 @@ PostgreSQL 18 ([ADR-0001](adr/0001-postgres.md)). Alle Nährwerte gelten je 100 
 Regeln:
 
 - **Tag und Mahlzeit:** Zeitzone `Europe/Berlin`. Ein Eintrag bis 04:00 Uhr zählt zum Vortag. Ohne Angabe schlägt das Backend die Mahlzeit nach Uhrzeit vor: < 10:30 Frühstück, < 14:30 Mittag, < 17:30 Snack, sonst Abend.
-- **Ziel eines Tages:** sein Tagesziel, sonst das Standardziel mit dem neuesten `valid_from` bis zu diesem Tag, sonst die Standardziele aus `.env`. Eine Änderung in den Einstellungen schreibt ein Standardziel mit `valid_from` = heute, ein Standardziel von heute wird ersetzt. Frühere Tage ändern sich nie. Die Migration gibt einem bestehenden Standardziel den ersten Tag mit Eintrag als `valid_from`.
+- **Ziel eines Tages:** sein Tagesziel, sonst das Standardziel mit dem neuesten `valid_from` bis zu diesem Tag, sonst die Standardziele aus `.env`. Eine Änderung in den Einstellungen schreibt ein Standardziel mit `valid_from` = heute, ein Standardziel von heute wird ersetzt. Vorgegeben sind dabei kcal, Eiweiß und Fett; das Backend speichert die Kohlenhydrate als `(kcal − 4·Eiweiß − 9·Fett) ÷ 4` ungerundet und lehnt einen Wert unter 0 ab (422). Tagesziele der Fitness-App bleiben, wie sie gesendet werden. Frühere Tage ändern sich nie. Die Migration gibt einem bestehenden Standardziel den ersten Tag mit Eintrag als `valid_from`.
 - **Zielbereich:** Ein Wert liegt darin, wenn `|Ist − Ziel| ≤ tolerance × Ziel`, je Wert für sich und mit dem Ziel des Tages.
 - **Statistik:** Es zählen abgeschlossene Tage (vor heute) mit mindestens einem Eintrag. Schnitte sind Summen geteilt durch diese Tage, ebenso das Ziel im Schnitt. Eine Woche läuft von Montag bis Sonntag, ein Monat ist ein Kalendermonat. Verglichen wird mit dem Zeitraum gleicher Art davor, wenn er erfasste Tage hat.
 - **Mahlzeit nur als Datum:** `meal` bleibt in Tabelle, API und MCP. Die App wählt und zeigt sie nicht, das Backend füllt sie nach Uhrzeit.
@@ -247,7 +251,7 @@ REST unter `/api/v1` auf Port 2478. Das OpenAPI-Schema wird erzeugt und ist die 
 | POST | `/plates/dictate` | Diktierter Satz `{text}` (1–600 Zeichen) → dasselbe wie `/plates/extract`, nichts wird eingetragen ([ADR-0013](adr/0013-dictation.md)) |
 | GET | `/days?from=&to=` | je Tag Summen, geltendes Ziel und Anzahl Einträge, für Kalender und Balken (E9) |
 | GET | `/stats?from=&to=` | Statistik eines Zeitraums nach Abschnitt 4: Schnitte, Ziel im Schnitt, Tage im Zielbereich je Wert, erfasste und mögliche Tage, Vergleich zum Zeitraum davor, Wochentage, Tageszeiten, häufigste Lebensmittel (E9) |
-| GET / PUT | `/goals/default` | Standardziel, das heute gilt; `PUT` setzt es ab heute (E5, E9) |
+| GET / PUT | `/goals/default` | Standardziel, das heute gilt; `PUT` mit `kcal`, `protein`, `fat` setzt es ab heute, die Kohlenhydrate rechnet das Backend (E5, E9) |
 | GET | `/goals` | alle Standardziele mit `valid_from`, das neueste zuerst (E9) |
 | GET / PUT | `/settings` | Toleranz (E9) |
 | GET / PUT / DELETE | `/goals/{date}` | Tagesziele: lesen, setzen, entfernen; ohne Tagesziel gilt das Standardziel (E5) |

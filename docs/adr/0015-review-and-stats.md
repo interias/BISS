@@ -13,6 +13,7 @@ SPEC 1 sagte bisher „Nur erfassen“: Die App zeigt nur den heutigen Tag, Ausw
 - **Statistik als Überblick:** Woche (Mo bis So) oder Kalendermonat. Oben der Schnitt je Tag gegen das Ziel, darunter Kalorien je Tag, Nährstoffe, erfasste Tage, Wochentag (nur Monat), Tageszeit und die häufigsten Lebensmittel. Ein Tipp auf einen Tag öffnet sein Tagebuch.
 - **Ehrliche Zahlen:** Es zählen nur abgeschlossene Tage mit mindestens einem Eintrag. Über dem Ziel wird nichts rot. Es gibt keine Serien, Noten, Abzeichen oder Erinnerungen.
 - **Ziele ab heute:** Ein Standardziel gilt ab einem Tag (`valid_from`). Eine Änderung in den Einstellungen gilt ab heute, frühere Tage behalten das Ziel, das an ihnen galt. Ein Tagesziel der Fitness-App (`PUT /goals/{date}`) geht weiter vor.
+- **Ziele sind in sich stimmig:** Vorgegeben werden Kalorien, Eiweiß und Fett. Die Kohlenhydrate sind der Rest, `(kcal − 4·Eiweiß − 9·Fett) ÷ 4`. So ergeben die Nährwerte immer das Kalorienziel. Die Abwägung gegen Gramm allein, Prozent und Schieberegler steht in [docs/design/einheitlichkeit.md](../design/einheitlichkeit.md).
 - **Toleranz:** Ein Wert liegt im Zielbereich, wenn er höchstens um die Toleranz vom Ziel abweicht, Standard ±10 %. Sie ist eine Sicht der Statistik und gilt für alle Tage.
 - **Rechnen im Backend** ([ADR-0003](0003-logic-in-backend.md)): Zählregeln, Schnitte, Zielbereich und das geltende Ziel je Tag liefert die API. Die App zeigt nur an.
 
