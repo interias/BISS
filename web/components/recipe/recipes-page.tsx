@@ -14,11 +14,14 @@ import { RowsSkeleton, useDelayed } from "@/components/skeleton";
 /**
  * "Meine Rezepte" (ADR-0012), the page of the tab Rezepte (ADR-0015): all own recipes, the one
  * saved last first. A tap opens the amount sheet of the recipe's food to log portions, where
- * "Bearbeiten" leads to the recipe. Two icon buttons like the one for a new Schnellzugriff in the
- * dock: "Neues Rezept" (plus and book) starts one, "Aus Text oder Link" (sparkles and link) one
- * read from a pasted recipe (ADR-0014). The header already says Rezepte, so no heading of its own. A new `stamp` loads the list and the draft again, after a
+ * "Bearbeiten" leads to the recipe. Two buttons like the one for a new Schnellzugriff in the
+ * dock, each with one word, since a symbol alone is guessed at: "+ Neu" (plus and book) starts
+ * one, "Import" (sparkles and link) one read from a pasted recipe or link (ADR-0014). The header already says Rezepte, so no heading of its own. A new `stamp` loads the list and the draft again, after a
  * sheet over the page closed.
  */
+/** The word beside the symbols, in the size of the other pills. */
+const LABEL = "text-[13px] font-semibold";
+
 export function RecipesPage({
   stamp,
   onPick,
@@ -51,19 +54,15 @@ export function RecipesPage({
   return (
     <>
       <div className="mb-2 flex flex-wrap gap-2">
-        <button type="button" aria-label="Neues Rezept" title="Neues Rezept" onClick={onNew} className={iconPill}>
+        <button type="button" aria-label="Neues Rezept" onClick={onNew} className={iconPill}>
           +
           <BookIcon size={17} />
+          <span className={LABEL}>Neu</span>
         </button>
-        <button
-          type="button"
-          aria-label="Aus Text oder Link"
-          title="Aus Text oder Link"
-          onClick={onImport}
-          className={iconPill}
-        >
+        <button type="button" aria-label="Import aus Text oder Link" onClick={onImport} className={iconPill}>
           <AiMark />
           <LinkIcon size={17} />
+          <span className={LABEL}>Import</span>
         </button>
       </div>
       {draft !== null && (

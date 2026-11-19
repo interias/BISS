@@ -420,7 +420,7 @@ test("Aus Text oder Link in the cookbook opens the recipe sheet with the field f
   fakeApi();
   render(<Home />);
   fireEvent.click(await screen.findByRole("button", { name: "Rezepte" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Aus Text oder Link" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Import aus Text oder Link" }));
   expect(await screen.findByRole("heading", { name: "Neues Rezept" })).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Rezepttext oder Link" })).toHaveFocus();
 });
