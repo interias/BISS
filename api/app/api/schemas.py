@@ -597,6 +597,107 @@ class Goal(Macros):
     )
 
 
+class DefaultGoalIn(BaseModel):
+    """The default from today on; the carbs are the remainder of the kcal (SPEC 4)."""
+
+    kcal: float = Field(gt=0)
+    protein: Amount
+    fat: Amount
+
+
+class DefaultGoal(Goal):
+    valid_from: date | None = Field(
+        description="the day this default applies from; null: the defaults of the configuration"
+    )
+
+
+class StoredDefault(Macros):
+    valid_from: date | None = Field(description="null: no default stored, the configuration")
+
+
+class Goals(BaseModel):
+    goals: list[StoredDefault] = Field(description="the defaults, the newest first")
+
+
+class Settings(BaseModel):
+    tolerance: float = Field(description="share of the goal a Zielbereich allows, ±")
+
+
+class SettingsIn(BaseModel):
+    tolerance: float = Field(ge=0.05, le=0.20)
+
+
+class DayTotals(BaseModel):
+    date: date
+    totals: Macros
+    targets: Macros
+    entries: int = Field(description="number of entries on the day")
+
+
+class DayRange(BaseModel):
+    days: list[DayTotals] = Field(description="every day of the range, ascending")
+
+
+class InRange(BaseModel):
+    kcal: int
+    protein: int
+    carbs: int
+    fat: int
+
+
+class PreviousPeriod(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: date = Field(alias="from")
+    to: date
+    average_kcal: float | None
+
+
+class TrailingKcal(BaseModel):
+    date: date
+    kcal: float | None
+
+
+class TimesOfDay(BaseModel):
+    morning: float
+    midday: float
+    afternoon: float
+    evening: float
+
+
+class TopItem(BaseModel):
+    name: str
+    kind: Literal["food", "group"]
+    count: int
+    kcal: float
+
+
+class Stats(BaseModel):
+    """Only closed days (before today) with at least one entry count (SPEC 4)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: date = Field(alias="from")
+    to: date
+    today: date
+    days_possible: int = Field(description="days of the period before today")
+    days_logged: int = Field(description="of those, the days with at least one entry")
+    average: Macros | None
+    target_average: Macros | None = Field(description="the mean goal of the logged days")
+    targets_vary: bool = Field(description="the logged days had different goals")
+    tolerance: float
+    in_range: InRange = Field(description="logged days in the Zielbereich, per value")
+    previous: PreviousPeriod = Field(
+        description="the calendar month before a calendar month, else as many days before"
+    )
+    trailing_kcal: list[TrailingKcal] = Field(
+        description="per day the mean kcal of the logged days among it and the six before"
+    )
+    weekdays: list[float | None] = Field(description="mean kcal Monday to Sunday")
+    times_of_day: TimesOfDay = Field(description="shares of the kcal by local clock time")
+    top: list[TopItem] = Field(description="the most frequent foods and plates, up to five")
+
+
 Certainty = Literal["recognized", "guessed"]
 
 

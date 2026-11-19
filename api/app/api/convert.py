@@ -3,12 +3,13 @@
 from sqlalchemy.orm import Session
 
 from app.api import schemas
+from app.domain.stats import Stats
 from app.models import Entry, Food
 from app.plates.match import Plate
 from app.search.search import Hit
 from app.services import foods, recipes
 from app.services.combos import ComboView
-from app.services.days import DaySummary, EntryRow
+from app.services.days import DaySummary, DayTotals, EntryRow
 from app.services.entries import EntryGroup
 from app.services.foods import FALLBACK_SERVING, StandardServing, standard_serving
 
@@ -135,6 +136,44 @@ def day(summary: DaySummary) -> schemas.Day:
             for meal in summary.meals
         ],
         suggested_meal=summary.suggested_meal,
+    )
+
+
+def day_totals(totals: DayTotals) -> schemas.DayTotals:
+    return schemas.DayTotals(
+        date=totals.day,
+        totals=schemas.Macros.model_validate(totals.totals),
+        targets=schemas.Macros.model_validate(totals.targets),
+        entries=totals.entries,
+    )
+
+
+def stats(found: Stats) -> schemas.Stats:
+    def macros(values):
+        return None if values is None else schemas.Macros.model_validate(values)
+
+    return schemas.Stats(
+        from_=found.start,
+        to=found.end,
+        today=found.today,
+        days_possible=found.days_possible,
+        days_logged=found.days_logged,
+        average=macros(found.average),
+        target_average=macros(found.target_average),
+        targets_vary=found.targets_vary,
+        tolerance=found.tolerance,
+        in_range=schemas.InRange(**found.in_range),
+        previous=schemas.PreviousPeriod(
+            from_=found.previous.start,
+            to=found.previous.end,
+            average_kcal=found.previous.average_kcal,
+        ),
+        trailing_kcal=[
+            schemas.TrailingKcal(date=day, kcal=kcal) for day, kcal in found.trailing_kcal
+        ],
+        weekdays=found.weekdays,
+        times_of_day=schemas.TimesOfDay(**found.times_of_day),
+        top=[schemas.TopItem(**vars(item)) for item in found.top],
     )
 
 

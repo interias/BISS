@@ -18,6 +18,7 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Integer,
+    SmallInteger,
     String,
     Text,
     Uuid,
@@ -172,14 +173,27 @@ Food.recipe = column_property(
 
 
 class Goal(Base):
+    """Either the goal of one day (`day`) or a default from a day on (`valid_from`)."""
+
     __tablename__ = "goal"
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    day: Mapped[date | None] = mapped_column(Date)
+    day: Mapped[date | None] = mapped_column(Date, unique=True)
+    valid_from: Mapped[date | None] = mapped_column(Date, unique=True)
     kcal: Mapped[float] = mapped_column(Double)
     protein: Mapped[float] = mapped_column(Double)
     carbs: Mapped[float] = mapped_column(Double)
     fat: Mapped[float] = mapped_column(Double)
+
+
+class Setting(Base):
+    """The single row of settings (ADR-0015)."""
+
+    __tablename__ = "setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, server_default="1")
+    # Share the Zielbereich allows around a goal, 0.05 to 0.20.
+    tolerance: Mapped[float] = mapped_column(Double, server_default="0.10")
 
 
 # Name and brand of the payload as off.draft() reads them, normalised (migration 0003).
