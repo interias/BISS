@@ -152,6 +152,8 @@ test("a further tap on a serving adds one more: 2 eggs, 3 eggs", () => {
   const chip = () => screen.getByRole("button", { name: /1 Ei \(M\).*g$/ });
   expect(amount()).toHaveValue(55);
   expect(chip()).toHaveAttribute("aria-pressed", "true");
+  // The chosen chip says its count, so the next tap reads as one more.
+  expect(chip()).toHaveTextContent("1 × 1 Ei (M)55 g");
   fireEvent.click(chip());
   expect(amount()).toHaveValue(110);
   expect(chip()).toHaveTextContent("2 × 1 Ei (M)110 g");

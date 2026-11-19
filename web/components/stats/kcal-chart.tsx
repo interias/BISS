@@ -16,8 +16,7 @@ const BOTTOM = 20;
 
 /**
  * Kalorien je Tag (SPEC 3): a bar per day with the dashed goal line, which steps where the
- * goal changed. A day without entries is a stroke on the base line, the running day a dashed
- * outline. In a month the bars are lighter and a line shows the average of the last 7 logged
+ * goal changed. A day without entries has no mark, the running day a dashed outline. In a month the bars are lighter and a line shows the average of the last 7 logged
  * days. Over the goal nothing turns red: the line shows where a day stands (ADR-0015).
  */
 export function KcalChart({
@@ -93,11 +92,8 @@ export function KcalChart({
           const value = values[i];
           const logged = (days.get(date)?.entries ?? 0) > 0 && value > 0;
           const r = Math.min(3, barWidth / 2);
-          if (!logged) {
-            return (
-              <line key={date} x1={x} x2={x + barWidth} y1={base - 1} y2={base - 1} stroke="var(--biss-muted)" strokeWidth="2" />
-            );
-          }
+          // A day without entries has no mark: a stroke read as "ate little" (its tap says "keine Einträge").
+          if (!logged) return null;
           if (date === today) {
             return (
               <rect
