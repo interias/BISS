@@ -54,6 +54,10 @@ export function Sheet({ onClose, back, children }: { onClose: () => void; back?:
             openerRef.current = document.activeElement;
             (event.currentTarget as HTMLElement).focus();
           }}
+          // A tap on the toast (Nochmal, OK, Rückgängig) is not a tap beside the sheet.
+          onInteractOutside={(event) => {
+            if ((event.target as Element | null)?.closest?.("[data-toast]")) event.preventDefault();
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const opener = openerRef.current;

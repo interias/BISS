@@ -389,7 +389,7 @@ export function Home() {
         const created = await createEntry({ ...target, grams, ...(joins ? {} : when()) });
         show(loggedText(shortName(created.food.name), created.macros.kcal, joins ? view : backfillDay), undo(created.id));
       }
-    }).catch(fail);
+    }).catch(failWith(() => submit(target, entry, refresh)(grams)));
 
   const edited = (back?: AmountState) => (food: FoodDetail) => {
     reload().catch(fail); // names and values in the diary may have changed
@@ -536,7 +536,7 @@ export function Home() {
     write(async () => {
       await deleteEntry(entry.id);
       show(`${shortName(entry.food.name)} entfernt`, () => restore(entry));
-    }).catch(fail);
+    }).catch(failWith(remove(entry)));
 
   // The band says which day the dock logs on, on Heute and on Rezepte alike.
   const band = backfillDay && (tab === "today" || tab === "recipes") && (
@@ -795,7 +795,12 @@ export function Home() {
       )}
 
       {/* Above the dock, the bar on an earlier day, or the bar of the tabs. */}
-      <Toast toast={toast} onHide={hide} bottom={dock ? (band ? 234 : 200) : pastBar ? 140 : band ? 106 : 72} />
+      <Toast
+        toast={toast}
+        onHide={hide}
+        top={sheet !== null}
+        bottom={dock ? (band ? 234 : 200) : pastBar ? 140 : band ? 106 : 72}
+      />
     </div>
   );
 }

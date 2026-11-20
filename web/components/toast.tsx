@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export const TOAST_MS = 3000;
 
@@ -34,14 +35,31 @@ export function useToast() {
 /**
  * Toast above the dock, with "Rückgängig" when an undo is given; an error with "Nochmal" or
  * "OK". `bottom` is its distance in
- * px from the lower edge, so it stands above whatever bars are shown.
+ * px from the lower edge, so it stands above whatever bars are shown. Over an open sheet it
+ * stands `top`, on the free strip of the scrim, and covers no button of the sheet. It lives in
+ * the body: inside the app it stood under every sheet (Sheet lets a tap on it through).
  */
-export function Toast({ toast, onHide, bottom = 150 }: { toast: ToastState | null; onHide: () => void; bottom?: number }) {
+export function Toast({
+  toast,
+  onHide,
+  bottom = 150,
+  top = false,
+}: {
+  toast: ToastState | null;
+  onHide: () => void;
+  bottom?: number;
+  top?: boolean;
+}) {
   if (!toast) return null;
-  return (
+  return createPortal(
     <div
+      data-toast
       className="pointer-events-none fixed inset-x-0 z-40 mx-auto w-full max-w-[420px] px-4"
-      style={{ bottom: `calc(${bottom}px + env(safe-area-inset-bottom, 0px))` }}
+      style={
+        top
+          ? { top: "calc(12px + env(safe-area-inset-top, 0px))" }
+          : { bottom: `calc(${bottom}px + env(safe-area-inset-bottom, 0px))` }
+      }
     >
       <div
         role={toast.error ? "alert" : "status"}
@@ -73,6 +91,7 @@ export function Toast({ toast, onHide, bottom = 150 }: { toast: ToastState | nul
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

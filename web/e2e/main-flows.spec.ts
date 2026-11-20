@@ -149,6 +149,37 @@ test("opening an entry and saving 90 g updates its values", async ({ page }) => 
   await expect(page.getByRole("status")).toContainText("Gespeichert");
 });
 
+test("a failed save is said above the open sheet; Nochmal saves and the sheet stays until then", async ({ page }) => {
+  const seeded = await entries.create(bananaId, 120, "snack");
+  await page.goto("/");
+  const entry = page.locator(`[data-entry-id="${seeded.id}"]`);
+  await entry.click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("button", { name: "weniger" }).click(); // 110
+  const path = new RegExp(`/api/v1/entries/${seeded.id}$`);
+  await page.route(path, (route) => route.abort());
+  await sheet.getByRole("button", { name: /^Speichern · \d+ kcal$/ }).click();
+
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("Das hat nicht geklappt.");
+  // Seen, not hidden under the sheet: the toast is what lies at its middle.
+  const box = (await alert.boundingBox())!;
+  const onTop = await page.evaluate(
+    ([x, y]) => !!document.elementFromPoint(x, y)?.closest("[data-toast]"),
+    [box.x + box.width / 2, box.y + box.height / 2],
+  );
+  expect(onTop).toBe(true);
+  await expect(sheet).toBeVisible();
+
+  await page.unroute(path);
+  const saved = await entryIdFrom(page, "PATCH", new RegExp(`^/api/v1/entries/${seeded.id}$`), () =>
+    alert.getByRole("button", { name: "Nochmal" }).click(),
+  );
+  expect(saved.grams).toBe(110);
+  await expect(sheet).toHaveCount(0);
+  await expect(entry).toContainText("110 g");
+});
+
 test("removing an entry takes it out of the diary; Rückgängig brings it back", async ({ page }) => {
   const seeded = await entries.create(bananaId, 120, "snack");
   await page.goto("/");
