@@ -128,6 +128,8 @@ export function Home() {
   const viewRef = useRef<string | null>(null);
   // "+ Nachtragen" on an earlier day: the dock logs on that day.
   const [backfill, setBackfill] = useState(false);
+  // The day on view came from "Öffnen" in the statistics: the back button returns there.
+  const [fromStats, setFromStats] = useState(false);
   const backfillDay = view !== null && backfill ? view : null;
   // The dock's row: Schnellzugriffe and recent foods, the latest used first.
   const [chips, setChips] = useState<Chip[]>([]);
@@ -208,6 +210,7 @@ export function Home() {
       viewRef.current = next;
       setView(next);
       setBackfill(false);
+      setFromStats(false);
       setTab("today");
       fetchDay(next).catch(fail);
     },
@@ -230,22 +233,33 @@ export function Home() {
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
   }, [start, overlay, today, showDay, reload, fail]);
+  // Away from Heute, the back button goes one step home on that entry too: from a tab to
+  // Heute, from a day opened in the statistics back to the statistics.
+  const away = tab !== "today" || fromStats;
+  const backEntry = overlay || away;
+  useEffect(() => {
+    if (backEntry && window.history.state?.biss !== "overlay") window.history.pushState({ biss: "overlay" }, "");
+  }, [backEntry]);
   // A step inside the sheet, such as the ingredient search of a recipe, goes back first.
   const sheetBack = useRef<(() => boolean) | null>(null);
   useEffect(() => {
-    if (!overlay) return;
-    if (window.history.state?.biss !== "overlay") window.history.pushState({ biss: "overlay" }, "");
-    const close = () => {
-      if (sheetBack.current?.()) {
-        window.history.pushState({ biss: "overlay" }, "");
-        return;
-      }
-      setSheet(null);
-      setCamera(false);
+    if (!backEntry) return;
+    const back = () => {
+      const again = () => window.history.pushState({ biss: "overlay" }, "");
+      if (overlay) {
+        if (sheetBack.current?.()) return again();
+        setSheet(null);
+        setCamera(false);
+        if (away) again();
+      } else if (fromStats && today) {
+        showDay(null, today);
+        setTab("stats");
+        again();
+      } else setTab("today");
     };
-    window.addEventListener("popstate", close);
-    return () => window.removeEventListener("popstate", close);
-  }, [overlay]);
+    window.addEventListener("popstate", back);
+    return () => window.removeEventListener("popstate", back);
+  }, [backEntry, overlay, away, fromStats, today, showDay]);
 
   // The phone wakes a sleeping page with its old code: back in front, a newer build on the
   // server loads the app again. Never over an open sheet or camera, their input would be
@@ -627,7 +641,14 @@ export function Home() {
           />
         )}
         {tab === "stats" && today && (
-          <Statistics today={today} onOpen={(date) => showDay(date, today)} onError={fail} />
+          <Statistics
+            today={today}
+            onOpen={(date) => {
+              showDay(date, today);
+              setFromStats(true);
+            }}
+            onError={fail}
+          />
         )}
         {tab === "settings" && today && (
           <Settings today={today} show={show} onError={fail} onGoalChanged={() => reload().catch(fail)} />
@@ -668,7 +689,10 @@ export function Home() {
         onTab={(next) => {
           // Heute while on Heute jumps to today.
           if (next === "today" && tab === "today") showDay(null, today);
-          else setTab(next);
+          else {
+            setFromStats(false);
+            setTab(next);
+          }
         }}
         onCamera={() => {
           // The camera always logs for today, from every tab.

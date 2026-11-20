@@ -158,6 +158,28 @@ test("Statistik: a bar shows its day and Öffnen opens it on Heute", async ({ pa
   await expect(page.getByRole("heading", { name: "BISS" })).toBeVisible();
   await expect(dateButton(page)).toHaveText(`Gestern · ${shortDay(yesterday)}`);
   await expect(page.locator(`[data-entry-id="${seeded.id}"]`)).toBeVisible();
+
+  // The back button returns to the statistics, once more to today; the app stays.
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Statistik" })).toBeVisible();
+  await page.goBack();
+  await expect(dateButton(page)).toHaveText(`Heute · ${shortDay(today)}`);
+});
+
+test("the back button on a tab goes to Heute, not out of the app", async ({ page }) => {
+  await page.goto("/");
+  for (const name of ["Rezepte", "Statistik", "Einstellungen"]) {
+    await tab(page, name).click();
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("button", { name: "Lebensmittel suchen" })).toBeVisible();
+  }
+  // From one tab to the next is one step home, too.
+  await tab(page, "Rezepte").click();
+  await tab(page, "Statistik").click();
+  await page.goBack();
+  await expect(page.getByRole("button", { name: "Lebensmittel suchen" })).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/");
 });
 
 test.describe("goals", () => {

@@ -65,7 +65,7 @@ Layout, Farben, Schriften und Abläufe folgen dem Prototyp. Die Design-Tokens au
   - Tagesbilanz mit segmentiertem Kalorienring und drei Makro-Balken (Ist/Soll in g), gegen das Ziel, das an diesem Tag galt.
   - Tagebuch als eine Liste, neueste zuerst. Jede Zeile zeigt ihre Uhrzeit. Mahlzeiten zeigt die App nicht.
   - Dock mit Schnellzugriff- und Zuletzt-Chips, Suchfeld und Mikrofon (nur mit Spracherkennung im Browser). Die Kamera steht in der Navigationsleiste.
-  - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht.
+  - Die Zurück-Taste des Handys schließt ein offenes Blatt oder die Kamera und verlässt die App nicht. Auf Rezepte, Statistik und Einstellungen führt sie zu Heute, von einem Tag, den „Öffnen“ in der Statistik gezeigt hat, zurück zur Statistik.
   - Auf dem Handy ist die App am Bildschirm festgemacht: Die Seite selbst scrollt nie, nur das Tagebuch, die Statistik und die Blätter. Auf heute bleibt das Dock mit der Suche immer unten erreichbar.
 - **Navigationsleiste** ([ADR-0015](adr/0015-review-and-stats.md)): unten unter dem Dock, mit den Reitern Heute, Rezepte, Statistik und Einstellungen. In der Mitte steht erhaben die Kamera, aus jedem Reiter mit einem Tap. Sie trägt immer für heute ein und wechselt dafür zu Heute. Der aktive Reiter hat eine Pille in der Akzentfarbe. Ein Tipp auf Heute, während Heute offen ist, springt zum heutigen Tag.
 - **Anderer Tag:**
