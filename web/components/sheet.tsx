@@ -32,10 +32,14 @@ export function useSheetBack(handler: (() => void) | null) {
 /**
  * Bottom sheet from the prototype: scrim, grab handle, slides up; closes on scrim or Escape.
  * `back` lets the owner of the back button ask for a step inside the sheet first.
+ * Closed, it hands the focus back to what opened it, or to the element marked
+ * `data-sheet-home` when that is gone (a removed entry): Radix only knows its own triggers,
+ * so the keyboard landed on the top of the page.
  */
 export function Sheet({ onClose, back, children }: { onClose: () => void; back?: SheetBack; children: ReactNode }) {
   const ownRef = useRef<(() => boolean) | null>(null);
   const stepsRef = back ?? ownRef;
+  const openerRef = useRef<Element | null>(null);
   return (
     <Dialog.Root open onOpenChange={(open) => !open && !stepsRef.current?.() && onClose()}>
       <Dialog.Portal>
@@ -47,7 +51,16 @@ export function Sheet({ onClose, back, children }: { onClose: () => void; back?:
           // autoFocus, such as the search, keeps it.
           onOpenAutoFocus={(event) => {
             event.preventDefault();
+            openerRef.current = document.activeElement;
             (event.currentTarget as HTMLElement).focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const opener = openerRef.current;
+            const target = opener instanceof HTMLElement && opener.isConnected && opener !== document.body
+              ? opener
+              : document.querySelector<HTMLElement>("[data-sheet-home]");
+            target?.focus();
           }}
           className="biss-sheet fixed inset-x-0 bottom-0 z-[21] mx-auto max-h-[90%] w-full max-w-[420px] overflow-y-auto rounded-t-[24px] border-t bg-card px-5 pt-2.5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] text-foreground outline-none"
         >

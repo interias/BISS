@@ -202,6 +202,8 @@ export function Dock({
         <button
           type="button"
           onClick={onSearch}
+          // A closed sheet whose opener is gone hands the focus here (Sheet).
+          data-sheet-home
           className="flex h-[52px] min-w-0 flex-1 items-center gap-2.5 rounded-2xl border bg-surface-2 px-4 text-left font-medium text-muted-foreground"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" className="flex-none">
