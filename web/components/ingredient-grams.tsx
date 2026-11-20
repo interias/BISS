@@ -75,10 +75,11 @@ export function IngredientGrams({
           aria-label={name ? `${name} Gramm` : "Menge"}
           value={grams || ""}
           onChange={(event) => onChange(Number(event.target.value) || 0)}
-          // An ingredient keeps whole grams; a serving of 12.5 g in the amount sheet stays.
-          onBlur={() =>
-            onChange(large ? Math.min(max, Math.max(MIN_GRAMS, grams || MIN_GRAMS)) : clampGrams(grams, max))
-          }
+          // An ingredient keeps whole grams. The amount sheet leaves what was typed (a serving
+          // of 12.5 g stays) and locks Eintragen out of range instead: correcting 0 to 1 g on
+          // the way to the button saved what the sheet never showed.
+          onBlur={large ? undefined : () => onChange(clampGrams(grams, max))}
+          aria-invalid={grams < MIN_GRAMS || grams > max || undefined}
           // The big number is as wide as its digits, so "g" stays next to it.
           style={large ? { width: `${Math.max(1, String(grams || "").length)}ch` } : undefined}
           className={cn(

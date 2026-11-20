@@ -46,6 +46,9 @@ export const ORIGIN_LABELS: Record<Serving["origin"], string> = {
 export const fmt = (n: number, digits = 0) =>
   n.toLocaleString("de-DE", { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
+/** Grams with up to one decimal ("12,5", "120"): a serving of 12.5 g must not read as 13 g. */
+export const fmtGrams = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+
 /** "Banane, roh" → "Banane", as on the recent chips of the prototype. */
 export const shortName = (name: string) => name.split(",")[0];
 

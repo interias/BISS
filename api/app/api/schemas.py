@@ -372,7 +372,10 @@ class EntryCreate(BaseModel):
         description="a scanned code; a cached Open Food Facts product is stored as food first",
     )
     grams: float | None = Field(
-        default=None, gt=0, description="default: the food's standard serving, else 100 g"
+        default=None,
+        gt=0,
+        le=10_000,
+        description="default: the food's standard serving, else 100 g",
     )
     meal: Meal | None = Field(default=None, description="default: suggested by eaten_at")
     eaten_at: AwareDatetime | None = Field(default=None, description="default: now")
@@ -390,7 +393,9 @@ class EntryCreate(BaseModel):
 
 
 class EntryUpdate(BaseModel):
-    grams: float | None = Field(default=None, gt=0, description="new amount, new snapshot")
+    grams: float | None = Field(
+        default=None, gt=0, le=10_000, description="new amount, new snapshot"
+    )
     meal: Meal | None = None
 
 

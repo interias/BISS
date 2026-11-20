@@ -188,6 +188,20 @@ test("Einstellungen: protein and fat above the kcal warn and cannot be saved; Ve
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
+test("Einstellungen: typed goals survive a change of tab until saved or discarded", async () => {
+  fakeApi();
+  render(<Home />);
+  const nav = screen.getByRole("navigation");
+  fireEvent.click(await within(nav).findByRole("button", { name: "Einstellungen" }));
+  fireEvent.change(await screen.findByLabelText("Kalorien"), { target: { value: "2100" } });
+  fireEvent.click(within(nav).getByRole("button", { name: "Heute" }));
+  fireEvent.click(within(nav).getByRole("button", { name: "Einstellungen" }));
+  expect(await screen.findByLabelText("Kalorien")).toHaveValue("2100");
+  expect(screen.getByRole("button", { name: "Ab heute übernehmen" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Verwerfen" }));
+  expect(screen.getByLabelText("Kalorien")).toHaveValue("2400");
+});
+
 test("Einstellungen: a tolerance applies at once", async () => {
   const { calls } = fakeApi();
   render(<Home />);

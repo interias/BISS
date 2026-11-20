@@ -3,6 +3,9 @@ import type { Basis, Macros } from "@/lib/api";
 /** The smallest amount anywhere; the backend only rejects 0 g and less. */
 export const MIN_GRAMS = 1;
 
+/** The largest amount of one entry, as the backend takes it. */
+export const ENTRY_MAX_GRAMS = 10_000;
+
 /**
  * The − and + buttons walk one grid: 1 g steps below 20 g, 5 g steps up to 100 g, 10 g
  * steps above. + goes to the next grid value, − to the previous one, so both are inverse on

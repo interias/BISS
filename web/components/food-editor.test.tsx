@@ -136,7 +136,7 @@ test("a removed serving leaves the list and the first one takes over the star", 
   expect(rowOf(0).getByRole("button", { name: "Als Standard setzen" })).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Speichern sends the complete servings list; a blank new row is dropped", async () => {
+test("Speichern sends the complete servings list; a row without a name blocks it until removed", async () => {
   const calls = fakeBackend();
   const onSaved = vi.fn();
   inDialog(<EditorForm food={bananaDetail} onSaved={onSaved} onCancel={noop} />);
@@ -145,6 +145,10 @@ test("Speichern sends the complete servings list; a blank new row is dropped", a
   addServing();
   addServing();
   fireEvent.change(rowOf(1).getByLabelText("Bezeichnung"), { target: { value: "1 Handvoll" } });
+  // The blank row would be lost unseen: it blocks Speichern and says why.
+  expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  expect(screen.getByText("Jede Portion braucht eine Bezeichnung.")).toBeInTheDocument();
+  fireEvent.click(rowOf(2).getByRole("button", { name: "Portion entfernen" }));
   fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
   await waitFor(() => expect(onSaved).toHaveBeenCalledWith(bananaDetail));

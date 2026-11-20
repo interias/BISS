@@ -22,4 +22,13 @@ test("a goal field takes whole numbers above 0", () => {
   expect(wholeNumber(" 160 ")).toBe(160);
   expect(wholeNumber("0")).toBeNull();
   expect(wholeNumber("")).toBeNull();
+  // A comma starts the decimals: rounded, never more digits.
+  expect(wholeNumber("2800,5")).toBe(2801);
+  expect(wholeNumber("180,4")).toBe(180);
+  expect(wholeNumber("2.800,5")).toBe(2801);
+  expect(wholeNumber("12a")).toBeNull();
+  expect(wholeNumber("1,2,3")).toBeNull();
+  // Up to 10.000.
+  expect(wholeNumber("10.000")).toBe(10000);
+  expect(wholeNumber("99999")).toBeNull();
 });

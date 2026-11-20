@@ -33,7 +33,6 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-biss}:${POSTGRES_PASSWORD:-biss}@db:5432/${POSTGRES_DB:-biss}
       GOAL_KCAL: ${GOAL_KCAL:-2400}
       GOAL_PROTEIN: ${GOAL_PROTEIN:-160}
-      GOAL_CARBS: ${GOAL_CARBS:-260}
       GOAL_FAT: ${GOAL_FAT:-75}
       # Label extraction (ADR-0004): one of the two credentials, models per .env.
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}

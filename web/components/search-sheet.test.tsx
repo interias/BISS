@@ -27,7 +27,9 @@ test("with few local hits the hits of Open Food Facts follow with the source not
   const off = await screen.findByRole("group", { name: "Open Food Facts" });
   expect(screen.queryByText("Suche bei Open Food Facts …")).not.toBeInTheDocument();
   expect(within(off).getByText("Daten von Open Food Facts (ODbL)")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Neu anlegen" })).not.toBeInTheDocument();
+  // The food sought may be none of the hits: "Neu anlegen" stays at hand below them.
+  expect(screen.getByText("Nicht dabei?")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Neu anlegen" })).toBeInTheDocument();
   fireEvent.click(within(off).getByRole("button", { name: /^Zippelmo Beerenmüsli/ }));
   expect(onPick).toHaveBeenCalledWith(muesliHit);
   expect(calls.filter((c) => c.url.startsWith("/api/v1/foods/search/off"))).toHaveLength(1);

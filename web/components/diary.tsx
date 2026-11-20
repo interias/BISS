@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { kindColor, photoOf, type DayGroupRow, type DayRow, type Entry } from "@/lib/api";
-import { clockTime, fmt } from "@/lib/format";
+import { clockTime, fmt, fmtGrams } from "@/lib/format";
 import { addPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -29,7 +29,7 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       </span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(entry.macros.kcal)}</span>
       <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
-        {`${fmt(entry.grams)} g · ${clockTime(entry.eaten_at)}`}
+        {`${fmtGrams(entry.grams)} g · ${clockTime(entry.eaten_at)}`}
       </span>
       <MacroLine macros={entry.macros} className={ROW_MACROS} />
     </button>

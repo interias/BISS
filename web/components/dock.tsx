@@ -3,7 +3,7 @@
 import { useRef, type MouseEvent } from "react";
 import { kindColor, photoOf, type Chip, type Combo, type FoodSummary } from "@/lib/api";
 import { previewMacros } from "@/lib/amount";
-import { clip, fmt, shortName } from "@/lib/format";
+import { clip, fmt, fmtGrams, shortName } from "@/lib/format";
 import { iconPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ai-mark";
@@ -21,7 +21,7 @@ function ChipText({ name, grams, kcal, color }: { name: string; grams: number; k
     <span className="grid leading-tight">
       <span className={cn("text-[13px] font-semibold", color)}>{name}</span>
       <small className="text-[11px] font-medium text-muted-foreground tabular-nums">
-        {`${fmt(grams)} g · ${fmt(kcal)} kcal`}
+        {`${fmtGrams(grams)} g · ${fmt(kcal)} kcal`}
       </small>
     </span>
   );
@@ -175,7 +175,7 @@ export function Dock({
             <button
               key={`food-${food.id}`}
               type="button"
-              aria-label={`${name} ${fmt(grams)} g`}
+              aria-label={`${name} ${fmtGrams(grams)} g`}
               title={food.name}
               onClick={() => onRecent(food)}
               aria-busy={pending === `food-${food.id}` || undefined}

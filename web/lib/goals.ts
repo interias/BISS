@@ -25,9 +25,17 @@ export function goalShares(goal: GoalInput) {
   return { widths, labels: { protein, carbs: carbsKcal > 0 ? 100 - protein - fat : 0, fat } };
 }
 
-/** A whole number above 0 from a field ("2.400" counts as 2400), else null. */
+/**
+ * A whole number from 1 to 10.000 from a field, else null. The dot groups thousands
+ * ("2.400" is 2400), the comma starts the decimals and is rounded ("180,5" is 181), never
+ * read as more digits: "2800,5" once became 28.005 kcal.
+ */
 export function wholeNumber(text: string) {
-  const digits = text.replace(/\D/g, "");
-  const value = digits ? Number(digits) : 0;
-  return value > 0 ? value : null;
+  const parts = text.split(",");
+  if (parts.length > 2) return null;
+  const [whole, decimals = ""] = parts;
+  const digits = whole.replace(/[\s.]/g, "");
+  if (!/^\d+$/.test(digits) || !/^\d*$/.test(decimals.trim())) return null;
+  const value = Math.round(Number(`${digits}.${decimals.trim() || "0"}`));
+  return value > 0 && value <= 10_000 ? value : null;
 }

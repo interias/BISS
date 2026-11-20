@@ -59,7 +59,7 @@ import { DaySkeleton, RowsSkeleton, useDelayed } from "@/components/skeleton";
 import { SearchSheet } from "@/components/search-sheet";
 import { Settings } from "@/components/settings";
 import { Sheet } from "@/components/sheet";
-import { Statistics } from "@/components/stats/statistics";
+import { Statistics, type StatsAt } from "@/components/stats/statistics";
 import { Toast, useToast } from "@/components/toast";
 
 /** The day on view (null: today, as the backend resolves it) and the dock's chips. */
@@ -130,6 +130,8 @@ export function Home() {
   const [backfill, setBackfill] = useState(false);
   // The day on view came from "Öffnen" in the statistics: the back button returns there.
   const [fromStats, setFromStats] = useState(false);
+  // The period the statistics showed when a day was opened from it: back returns there.
+  const [statsAt, setStatsAt] = useState<StatsAt | null>(null);
   const backfillDay = view !== null && backfill ? view : null;
   // The dock's row: Schnellzugriffe and recent foods, the latest used first.
   const [chips, setChips] = useState<Chip[]>([]);
@@ -419,6 +421,8 @@ export function Home() {
   const recipeSaved = (back?: AmountState) => (recipe: Recipe, before?: Recipe) => {
     reload().catch(fail); // names and values in the diary may have changed
     show("Rezept gespeichert");
+    // The list under the sheet drops its "Nicht gespeichert" row now, not only when it closes.
+    setRecipesStamp((stamp) => stamp + 1);
     if (!back) return setSheet({ kind: "amount", foodId: recipe.food_id });
     const grams =
       back.initial && before
@@ -655,9 +659,11 @@ export function Home() {
         {tab === "stats" && today && (
           <Statistics
             today={today}
-            onOpen={(date) => {
+            start={statsAt}
+            onOpen={(date, at) => {
               showDay(date, today);
               setFromStats(true);
+              setStatsAt(at);
             }}
             onError={failRetry}
           />
@@ -703,6 +709,7 @@ export function Home() {
           if (next === "today" && tab === "today") showDay(null, today);
           else {
             setFromStats(false);
+            setStatsAt(null);
             setTab(next);
           }
         }}
