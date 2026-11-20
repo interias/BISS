@@ -24,14 +24,15 @@ function TabButton({
       aria-current={active ? "page" : undefined}
       onClick={() => onTab(tab)}
       className={cn(
-        "grid content-center justify-items-center gap-px text-[10.5px] font-medium whitespace-nowrap text-muted-foreground",
+        "grid min-w-0 content-center justify-items-center gap-px text-[10.5px] font-medium whitespace-nowrap text-muted-foreground max-[360px]:text-[10px] max-[360px]:tracking-[-.02em]",
         active && "font-bold text-foreground",
       )}
     >
       <span className={cn("grid h-[25px] w-11 place-items-center rounded-full", active && "bg-accent text-primary")}>
         {icon}
       </span>
-      {label}
+      {/* Narrow (zoom), a word that does not fit ends in "…"; it is still read out in full. */}
+      <span className="max-w-full overflow-hidden text-ellipsis">{label}</span>
     </button>
   );
 }

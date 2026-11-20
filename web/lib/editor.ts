@@ -1,4 +1,4 @@
-import type { LabelDraft, Per100, Serving } from "@/lib/api";
+import type { Basis, LabelDraft, Per100, Serving } from "@/lib/api";
 
 /** Number fields of the editor, in the order of the nutrition table. */
 export const NUTRIENTS = [
@@ -50,6 +50,20 @@ export function shownOrigin(original: ServingBase | undefined, label: string, gr
   if (!original) return "own";
   const edited = label !== original.label || grams !== original.grams;
   return original.origin !== "own" && edited ? "own" : original.origin;
+}
+
+/**
+ * What can be in no food, or `null`: more than 100 g of nutrients in 100 g (1 g left for the
+ * rounding of a label), more sugar than carbohydrates, more saturated fat than fat. Per 100 ml
+ * a liquid may weigh more than 100 g, so the sum is not checked there. Unlike the Atwater
+ * hint, which a real label can miss, this blocks saving.
+ */
+export function impossible(n: Per100, basis: Basis): string | null {
+  const mass = n.protein + n.carbs + n.fat + (n.fiber ?? 0) + (n.salt ?? 0);
+  if (basis === "g" && mass > 101) return "Zusammen mehr als 100 g Nährstoffe in 100 g. Bitte Werte prüfen.";
+  if (n.sugar !== null && n.sugar > n.carbs) return "Mehr Zucker als Kohlenhydrate. Bitte Werte prüfen.";
+  if (n.sat_fat !== null && n.sat_fat > n.fat) return "Mehr gesättigte Fettsäuren als Fett. Bitte Werte prüfen.";
+  return null;
 }
 
 /** True for text that is no number or negative; blank is fine (see `readNutrients`). */

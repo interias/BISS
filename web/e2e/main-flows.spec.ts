@@ -180,6 +180,40 @@ test("a failed save is said above the open sheet; Nochmal saves and the sheet st
   await expect(entry).toContainText("110 g");
 });
 
+test("with a keyboard the first Tab leads straight to the search", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Lebensmittel suchen" })).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Direkt zur Suche" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Suchen" })).toBeVisible();
+});
+
+test("on a narrow screen (zoom) names, bars, the date and the tabs keep their room", async ({ page }) => {
+  const seeded = await entries.create(bananaId, 120, "snack");
+  await page.setViewportSize({ width: 260, height: 700 });
+  await page.goto("/");
+  const name = page.locator(`[data-entry-id="${seeded.id}"]`).getByText("Banane roh");
+  await expect(name).toBeVisible();
+  // Not cut: the whole name fits its box.
+  expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+
+  const width = page.viewportSize()!.width;
+  for (const key of ["protein", "carbs", "fat"]) {
+    const box = (await page.getByTestId(`macro-${key}`).boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+  }
+  const title = (await page.getByRole("heading", { name: "BISS" }).boundingBox())!;
+  const date = (await page.getByRole("button", { name: /, Tag wählen$/ }).boundingBox())!;
+  expect(date.x + date.width).toBeLessThanOrEqual(width);
+  // Beside the title or under it, never on it.
+  expect(date.x >= title.x + title.width || date.y >= title.y + title.height).toBe(true);
+  for (const label of ["Heute", "Rezepte", "Statistik"]) {
+    const text = page.getByRole("navigation").getByText(label, { exact: true });
+    expect(await text.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
+});
+
 test("removing an entry takes it out of the diary; Rückgängig brings it back", async ({ page }) => {
   const seeded = await entries.create(bananaId, 120, "snack");
   await page.goto("/");

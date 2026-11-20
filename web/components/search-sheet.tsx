@@ -6,7 +6,7 @@ import { fmt, originLine, per100Unit } from "@/lib/format";
 import { addPill, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
-import { MacroLine } from "@/components/macro-line";
+import { MacroLine, ROW_MACROS } from "@/components/macro-line";
 import { SheetTitle } from "@/components/sheet";
 
 const DEBOUNCE_MS = 150;
@@ -40,7 +40,7 @@ function HitRow({ food, onPick }: { food: SearchHit; onPick: (food: SearchHit) =
         je {per100Unit(food.basis)}
       </span>
       {/* For the same 100 g as the kcal above. */}
-      <MacroLine macros={food.per_100} className="self-start" />
+      <MacroLine macros={food.per_100} className={ROW_MACROS} />
     </button>
   );
 }
@@ -62,7 +62,7 @@ function ComboRow({ combo, onPick }: { combo: Combo; onPick: (combo: Combo) => v
       <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground">
         Schnellzugriff · {fmt(grams)} g · trägt direkt ein
       </span>
-      <MacroLine macros={combo.totals} className="self-start" />
+      <MacroLine macros={combo.totals} className={ROW_MACROS} />
     </button>
   );
 }

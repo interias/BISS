@@ -6,7 +6,7 @@ import { fmt } from "@/lib/format";
 import { iconPill } from "@/lib/styles";
 import { AiMark } from "@/components/ai-mark";
 import { BookIcon, LinkIcon } from "@/components/icons";
-import { MacroLine } from "@/components/macro-line";
+import { MacroLine, ROW_MACROS } from "@/components/macro-line";
 import { FoodPic } from "@/components/food-pic";
 import { draftName } from "@/components/recipe/recipe-sheet";
 import { RowsSkeleton, useDelayed } from "@/components/skeleton";
@@ -97,7 +97,7 @@ export function RecipesPage({
                 {draftName(recipe.id) !== null && " · Entwurf offen"}
               </span>
               {/* Like the kcal above: of one portion. */}
-              <MacroLine macros={recipe.per_portion} className="self-start" />
+              <MacroLine macros={recipe.per_portion} className={ROW_MACROS} />
             </button>
           </li>
         ))}

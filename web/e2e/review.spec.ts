@@ -166,6 +166,21 @@ test("Statistik: a bar shows its day and Öffnen opens it on Heute", async ({ pa
   await expect(dateButton(page)).toHaveText(`Heute · ${shortDay(today)}`);
 });
 
+test("a failed statistics load offers Nochmal, which loads the period shown", async ({ page }) => {
+  await page.route("**/api/v1/stats?*", (route) => route.abort());
+  await page.goto("/");
+  await tab(page, "Statistik").click();
+  const alert = page.getByRole("alert").filter({ hasText: "Das hat nicht geklappt." });
+  await expect(alert).toBeVisible();
+  await page.unroute("**/api/v1/stats?*");
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/v1/stats"),
+    alert.getByRole("button", { name: "Nochmal" }).click(),
+  ]);
+  expect(response.ok()).toBe(true);
+  await expect(page.getByRole("heading", { name: "Statistik", exact: true })).toBeVisible();
+});
+
 test("the back button on a tab goes to Heute, not out of the app", async ({ page }) => {
   await page.goto("/");
   for (const name of ["Rezepte", "Statistik", "Einstellungen"]) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getStats, type DayTotals, type Stats } from "@/lib/api";
 import { daysFrom, period, type PeriodKind } from "@/lib/dates";
 import { dayLabel, dayOfMonth, daysDative, fmt, percent, periodTitle, weekdayShort, WEEKDAYS_FROM_MONDAY } from "@/lib/format";
@@ -53,8 +53,11 @@ export function Statistics({
 }: {
   today: string;
   onOpen: (date: string) => void;
-  onError: (failure: unknown) => void;
+  /** With `retry`, "Nochmal" asks again for the period shown. */
+  onError: (failure: unknown, retry: () => void) => void;
 }) {
+  const [attempt, setAttempt] = useState(0);
+  const fail = useCallback((failure: unknown) => onError(failure, () => setAttempt((n) => n + 1)), [onError]);
   const [kind, setKind] = useState<PeriodKind>("week");
   const [offset, setOffset] = useState(() => openingOffset("week", today));
   const [selected, setSelected] = useState<string | null>(null);
@@ -66,18 +69,18 @@ export function Statistics({
     const [from, to] = key.split("/");
     getStats(from, to).then(
       (stats) => live && setLoaded({ key, stats }),
-      (failure) => live && onError(failure),
+      (failure) => live && fail(failure),
     );
     return () => {
       live = false;
     };
-  }, [key, onError]);
+  }, [key, fail, attempt]);
   const stats = loaded?.key === key ? loaded.stats : null;
   // While the next period loads, the last one stays dimmed instead of an empty page.
   const stale = stats === null && loaded !== null;
   const showing = stats ?? loaded?.stats ?? null;
   const loadingShown = useDelayed(loaded === null);
-  const days = useDayTotals(shown.from, shown.to, today, onError);
+  const days = useDayTotals(shown.from, shown.to, today, fail, attempt);
   const title = periodTitle(shown);
 
   const step = (by: number) => {

@@ -316,8 +316,11 @@ test("the camera runs while live and stops on closing", async () => {
   expect(await screen.findByText("Barcodes werden sofort erkannt. Für Etikett oder Teller auslösen.")).toBeInTheDocument();
   await act(async () => {}); // let the effects of the live mode run
   expect(scanner.stop).toHaveBeenCalledTimes(0);
+  // Escape closes like the ✕.
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(onClose).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Schließen" }));
-  expect(onClose).toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(2);
   cleanup(); // the parent unmounts the overlay on close
   expect(scanner.stop).toHaveBeenCalledTimes(1);
 });

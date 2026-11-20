@@ -87,6 +87,17 @@ test("text that is no number asks for numbers and does not call the backend", as
   expect(calls).toHaveLength(before);
 });
 
+test("values no food can have block Speichern and say why", async () => {
+  fakeBackend();
+  inDialog(<EditorForm food={bananaDetail} onSaved={noop} onCancel={noop} />);
+  await waitFor(() => expect(screen.getByTestId("atwater")).toHaveTextContent("Plausibel"));
+  type("Kohlenhydrate (g)", "99");
+  expect(screen.getByTestId("atwater")).toHaveTextContent("Zusammen mehr als 100 g Nährstoffe in 100 g.");
+  expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  type("Kohlenhydrate (g)", "20");
+  expect(screen.getByRole("button", { name: "Speichern" })).toBeEnabled();
+});
+
 test("changing a portion shows eigene at once, the star alone does not", () => {
   fakeBackend();
   const food = {

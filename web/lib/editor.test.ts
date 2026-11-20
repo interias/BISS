@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { biscuitLabel } from "@/test/fixtures";
 import {
+  impossible,
   isInvalid,
   parseInput,
   per100OfLabel,
@@ -93,4 +94,15 @@ test("a label draft maps to the food's names and keeps its servings in the basis
   expect(skippedNote(skipped)).toBe("3 Portionen aus dem Etikett nicht übernommen (ml bei Basis g, ohne Menge).");
   expect(skippedNote(["ml bei Basis g"])).toBe("1 Portion aus dem Etikett nicht übernommen (ml bei Basis g).");
   expect(skippedNote([])).toBeNull();
+});
+
+test("values no food can have block saving; per 100 ml the sum may pass 100", () => {
+  const n = { kcal: 500, protein: 8, carbs: 90, fat: 15, fiber: null, sugar: null, sat_fat: null, salt: null };
+  expect(impossible(n, "g")).toMatch(/mehr als 100 g/);
+  expect(impossible(n, "ml")).toBeNull();
+  // Rounding on a label: 101 g still passes.
+  expect(impossible({ ...n, carbs: 78 }, "g")).toBeNull();
+  expect(impossible({ ...n, carbs: 10, sugar: 12 }, "g")).toMatch(/Zucker/);
+  expect(impossible({ ...n, carbs: 10, sat_fat: 16 }, "g")).toMatch(/Fett/);
+  expect(impossible({ ...n, carbs: 10, sugar: 10, sat_fat: 15 }, "g")).toBeNull();
 });
