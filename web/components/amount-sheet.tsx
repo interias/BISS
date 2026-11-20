@@ -40,20 +40,28 @@ export type AmountFood = Pick<
   | "recipe_id"
 > & { servings: Omit<Serving, "id">[]; gtin?: string | null };
 
-/** Amount sheet; loads the food for servings and density, then shows the form. */
+/**
+ * Amount sheet; loads the food for servings and density, then shows the form. Without an
+ * answer `onLoadError` closes it with a word: an empty sheet would look like nothing opened.
+ */
 export function AmountSheet({
   foodId,
   entry,
   initial,
+  onLoadError,
   ...actions
-}: Actions & { foodId: number; entry?: Entry; initial?: Initial }) {
+}: Actions & { foodId: number; entry?: Entry; initial?: Initial; onLoadError: (failure: unknown) => void }) {
   const [food, setFood] = useState<FoodDetail | null>(null);
   useEffect(() => {
     let live = true;
-    getFood(foodId).then((detail) => live && setFood(detail), console.error);
+    getFood(foodId).then(
+      (detail) => live && setFood(detail),
+      (failure) => live && onLoadError(failure),
+    );
     return () => {
       live = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loaded once per food
   }, [foodId]);
 
   if (!food) return <SheetTitle className="sr-only">Menge wählen</SheetTitle>;

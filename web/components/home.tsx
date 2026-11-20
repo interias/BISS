@@ -713,6 +713,11 @@ export function Home() {
               entry={sheet.entry}
               initial={sheet.initial}
               busy={busy}
+              onLoadError={(failure) => {
+                const again = sheet;
+                setSheet(null);
+                failWith(() => setSheet(again))(failure);
+              }}
               onSubmit={submit({ food_id: sheet.foodId, group_id: sheet.groupId }, sheet.entry, sheet.refresh)}
               onRemove={sheet.entry && remove(sheet.entry)}
               onEdit={(grams, recipeId) => {

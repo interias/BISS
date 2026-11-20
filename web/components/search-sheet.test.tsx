@@ -142,3 +142,15 @@ test("a hit shows protein, carbs and fat per 100 g beside the kcal, in this orde
   expect(within(hit).getByTestId("macros")).toHaveTextContent("E 1K 20F 0");
   expect(within(hit).getByTitle("Eiweiß")).toHaveStyle({ color: "var(--biss-prot)" });
 });
+
+test("without an answer the sheet says so, and Nochmal asks again", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  renderSearch({ foodsOnly: true });
+  type("banane");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Keine Verbindung.");
+  fakeApi();
+  fireEvent.click(screen.getByRole("button", { name: "Nochmal" }));
+  expect(await screen.findByRole("button", { name: /^Banane/ })).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});

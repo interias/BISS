@@ -34,9 +34,11 @@ export function timeShares(times: Stats["times_of_day"]) {
   return values.map((value) => value / sum);
 }
 
-/** Whether the period before can be shown: it reaches the first day of the diary. */
-export const canStepBack = (stats: Stats | null) =>
-  stats !== null && stats.first_day !== null && stats.previous.to >= stats.first_day;
+/**
+ * Whether the period before the one starting `from` can be shown: it reaches the first day of
+ * the diary. That day stays the same in every period, so the arrow works while the next loads.
+ */
+export const canStepBack = (firstDay: string | null | undefined, from: string) => !!firstDay && from > firstDay;
 
 /**
  * The period the tab opens on: this week or this month, but the one before on its first day,
