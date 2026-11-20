@@ -58,8 +58,17 @@ export function DayRing({
   );
 }
 
-/** The days from `from` to `to` by date, up to today at most; empty until they are loaded. */
-export function useDayTotals(from: string, to: string, today: string, onError: (failure: unknown) => void) {
+/**
+ * The days from `from` to `to` by date, up to today at most; empty until they are loaded.
+ * A new `attempt` asks again.
+ */
+export function useDayTotals(
+  from: string,
+  to: string,
+  today: string,
+  onError: (failure: unknown) => void,
+  attempt = 0,
+) {
   const [loaded, setLoaded] = useState<{ key: string; days: Map<string, DayTotals> } | null>(null);
   const last = to < today ? to : today;
   const key = `${from}/${last}`;
@@ -73,7 +82,7 @@ export function useDayTotals(from: string, to: string, today: string, onError: (
     return () => {
       live = false;
     };
-  }, [from, last, key, onError]);
+  }, [from, last, key, onError, attempt]);
   return loaded?.key === key ? loaded.days : EMPTY;
 }
 

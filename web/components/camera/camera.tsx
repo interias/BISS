@@ -147,10 +147,16 @@ export function Camera({
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const retry = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const handlers = useRef({ onFound, onLabel, onPlate });
+  const handlers = useRef({ onFound, onLabel, onPlate, onClose });
   useEffect(() => {
-    handlers.current = { onFound, onLabel, onPlate };
+    handlers.current = { onFound, onLabel, onPlate, onClose };
   });
+  // Escape closes like the ✕, as it closes every sheet.
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => event.key === "Escape" && handlers.current.onClose();
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, []);
 
   const lookUp = useRef(async (code: string) => {
     if (busy.current || code === last.current) return;

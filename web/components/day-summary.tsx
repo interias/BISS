@@ -37,7 +37,8 @@ export function DaySummary({ totals, targets }: { totals: Macros; targets: Macro
   return (
     <section
       aria-label="Tagesbilanz"
-      className="grid grid-cols-[132px_1fr] items-center gap-[18px] border-b pt-2.5 pb-[18px] max-[380px]:grid-cols-[112px_1fr] max-[380px]:gap-3.5"
+      // Very narrow (zoom): the ring stands above the bars, which then get the full width.
+      className="grid grid-cols-[132px_1fr] items-center gap-[18px] border-b pt-2.5 pb-[18px] max-[380px]:grid-cols-[112px_1fr] max-[380px]:gap-3.5 max-[300px]:grid-cols-1 max-[300px]:justify-items-center"
     >
       <div className="relative size-[132px] max-[380px]:size-[112px]">
         <svg viewBox="0 0 132 132" className="block size-full" aria-hidden="true">
@@ -80,12 +81,13 @@ export function DaySummary({ totals, targets }: { totals: Macros; targets: Macro
           </span>
         </div>
       </div>
-      <div className="grid min-w-0 gap-3">
+      <div className="grid w-full min-w-0 gap-3">
         {BARS.map(({ key, label, color }) => (
           <div key={key} data-testid={`macro-${key}`}>
-            <div className="mb-[5px] flex justify-between text-[13px] tabular-nums">
+            {/* Narrow, the grams go under the word instead of into it. */}
+            <div className="mb-[5px] flex flex-wrap justify-between gap-x-1.5 text-[13px] tabular-nums">
               <span className="font-semibold">{label}</span>
-              <span className="text-muted-foreground">
+              <span className="ml-auto whitespace-nowrap text-muted-foreground">
                 <b className="text-foreground">{fmt(totals[key])}</b> / {fmt(targets[key])} g
               </span>
             </div>

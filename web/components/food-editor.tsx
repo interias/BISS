@@ -19,6 +19,7 @@ import {
   type Serving,
 } from "@/lib/api";
 import {
+  impossible,
   isInvalid,
   NUTRIENTS,
   parseInput,
@@ -152,8 +153,9 @@ export function EditorForm({
     const grams = parseInput(r.grams);
     return grams !== null && Number.isFinite(grams) && grams > 0;
   });
-  const canSave = !busy && name.trim() !== "" && nutrients !== null && gramsOk;
   const basis = base?.basis ?? draft?.per_100.basis ?? "g";
+  const problem = nutrients && impossible(nutrients, basis);
+  const canSave = !busy && name.trim() !== "" && nutrients !== null && !problem && gramsOk;
   /** The label serving a row started from, while the food is not created yet. */
   const readOf = (key: number) => (base || key > 0 ? undefined : fromLabel.servings[-key - 1]);
   /** The serving a row started from: a saved one or one read from the label. */
@@ -381,7 +383,7 @@ export function EditorForm({
         ))}
       </div>
 
-      <AtwaterHint result={nutrients ? atwater : null} kcal={nutrients?.kcal ?? 0} invalid={!nutrients} />
+      <AtwaterHint result={nutrients ? atwater : null} kcal={nutrients?.kcal ?? 0} invalid={!nutrients} problem={problem} />
 
       <div className="mt-1 mb-1.5 flex items-baseline justify-between">
         <h3 className="text-[11px] font-bold tracking-[.12em] text-muted-foreground uppercase">Portionen</h3>
@@ -497,11 +499,25 @@ export function EditorForm({
   );
 }
 
-/** The Atwater hint of the backend: values within 10 % or 10 kcal of the stated kcal are plausible. */
-function AtwaterHint({ result, kcal, invalid }: { result: Atwater | null; kcal: number; invalid: boolean }) {
-  const bad = invalid || (result !== null && !result.ok);
+/**
+ * The Atwater hint of the backend: values within 10 % or 10 kcal of the stated kcal are
+ * plausible. Values no food can have (`problem`, saving is blocked) come first.
+ */
+function AtwaterHint({
+  result,
+  kcal,
+  invalid,
+  problem,
+}: {
+  result: Atwater | null;
+  kcal: number;
+  invalid: boolean;
+  problem: string | null;
+}) {
+  const bad = invalid || !!problem || (result !== null && !result.ok);
   let text = "Prüfe Werte …";
   if (invalid) text = "Bitte nur Zahlen ab 0 eingeben.";
+  else if (problem) text = problem;
   else if (result) {
     const deviation =
       result.deviation_pct === null ? "nicht berechenbar" : `${fmt(result.deviation_pct, 1)} % Abweichung`;

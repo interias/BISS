@@ -202,6 +202,7 @@ export function Home() {
     [showError],
   );
   const fail = useMemo(() => failWith(), [failWith]);
+  const failRetry = useCallback((failure: unknown, retry: () => void) => failWith(retry)(failure), [failWith]);
 
   /** Shows a day on Heute; today or later is today. Backfilling ends with the day. */
   const showDay = useCallback(
@@ -568,7 +569,18 @@ export function Home() {
     // On a phone the app is pinned to the screen: only the diary, the pages and the sheets
     // scroll, the page never does, so the dock with the search always stays at the bottom.
     <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden bg-card text-card-foreground max-sm:fixed max-sm:inset-0 sm:relative sm:my-4 sm:h-[calc(100dvh-32px)] sm:max-h-[880px] sm:rounded-[28px] sm:border sm:border-frame sm:shadow-[0_20px_50px_-20px_var(--biss-shadow)]">
-      <header className="flex min-h-[58px] items-center justify-between gap-1.5 pt-[18px] pr-3 pb-1.5 pl-5">
+      {/* With a keyboard the search lies behind the whole diary: the first Tab offers a way
+          straight there. Seen only while it has the focus, so a tap never meets it. */}
+      {dock && (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "search" })}
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:font-bold focus:text-primary-foreground"
+        >
+          Direkt zur Suche
+        </button>
+      )}
+      <header className="flex min-h-[58px] flex-wrap items-center justify-between gap-1.5 pt-[18px] pr-3 pb-1.5 pl-5">
         <div className="flex min-w-0 items-center gap-2">
           <Image src="/logo.svg" alt="" width={26} height={26} priority />
           <h1 className={cn("font-heading text-[22px] font-extrabold", tab === "today" && "tracking-[.06em]")}>
@@ -576,7 +588,7 @@ export function Home() {
           </h1>
         </div>
         {tab === "today" && day && today && (
-          <div className="flex items-center text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
+          <div className="ml-auto flex items-center text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
             <button
               type="button"
               aria-label="Einen Tag zurück"
@@ -647,7 +659,7 @@ export function Home() {
               showDay(date, today);
               setFromStats(true);
             }}
-            onError={fail}
+            onError={failRetry}
           />
         )}
         {tab === "settings" && today && (

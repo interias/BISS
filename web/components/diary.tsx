@@ -6,7 +6,7 @@ import { clockTime, fmt } from "@/lib/format";
 import { addPill } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
-import { MacroLine } from "@/components/macro-line";
+import { MacroLine, ROW_MACROS } from "@/components/macro-line";
 
 
 function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Entry) => void; nested?: boolean }) {
@@ -31,7 +31,7 @@ function EntryRow({ entry, onOpen, nested }: { entry: Entry; onOpen: (entry: Ent
       <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
         {`${fmt(entry.grams)} g · ${clockTime(entry.eaten_at)}`}
       </span>
-      <MacroLine macros={entry.macros} className="self-start" />
+      <MacroLine macros={entry.macros} className={ROW_MACROS} />
     </button>
   );
 }
