@@ -104,7 +104,7 @@ export function Statistics({
         <button
           type="button"
           aria-label="Zeitraum zurück"
-          disabled={!canStepBack(stats)}
+          disabled={!canStepBack(showing?.first_day, shown.from)}
           onClick={() => step(-1)}
           className="grid h-10 w-10 place-items-center text-muted-foreground disabled:opacity-30"
         >

@@ -124,41 +124,51 @@ export function SearchSheet({
   const [off, setOff] = useState<Off | null>(null);
   const [suggested, setSuggested] = useState<{ likely: Suggestion[]; recent: Suggestion[] } | null>(null);
   const q = query.trim();
+  // Without an answer the sheet says so instead of staying empty; "Nochmal" asks again.
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const failure = (live: () => boolean) => (reason: unknown) => {
+    console.error(reason);
+    if (live()) setFailed(true);
+  };
 
   useEffect(() => {
     let live = true;
     // Without `onCombo` the sheet picks a food: the Schnellzugriffe are left out.
     const usable = (items: Suggestion[]) => items.filter((item) => item.food || onCombo);
     getSuggestions().then(
-      (found) => live && setSuggested({ likely: usable(found.likely), recent: usable(found.recent) }),
-      console.error,
+      (found) => {
+        if (!live) return;
+        setSuggested({ likely: usable(found.likely), recent: usable(found.recent) });
+        setFailed(false);
+      },
+      failure(() => live),
     );
     return () => {
       live = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked once per opening
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked once per opening and "Nochmal"
+  }, [attempt]);
 
   useEffect(() => {
     if (!q) return;
     let live = true;
     const timer = setTimeout(() => {
-      searchFoods(q).then(
-        (found) =>
-          live &&
-          setResult({
-            query: q,
-            hits: foodsOnly ? found.hits.filter((hit) => hit.id !== null) : found.hits,
-            offMore: found.off_more && !foodsOnly,
-          }),
-        console.error,
-      );
+      searchFoods(q).then((found) => {
+        if (!live) return;
+        setResult({
+          query: q,
+          hits: foodsOnly ? found.hits.filter((hit) => hit.id !== null) : found.hits,
+          offMore: found.off_more && !foodsOnly,
+        });
+        setFailed(false);
+      }, failure(() => live));
     }, DEBOUNCE_MS);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [q, foodsOnly]);
+  }, [q, foodsOnly, attempt]);
 
   const offQuery = result?.offMore ? result.query : null;
   useEffect(() => {
@@ -203,6 +213,21 @@ export function SearchSheet({
         />
       </div>
       <div aria-label="Treffer">
+        {failed && (
+          <div role="alert" className="flex items-center justify-between gap-2 py-2 text-[13px] text-muted-foreground">
+            Keine Verbindung.
+            <button
+              type="button"
+              onClick={() => {
+                setFailed(false);
+                setAttempt(attempt + 1);
+              }}
+              className="py-1.5 pl-1.5 font-bold text-primary"
+            >
+              Nochmal
+            </button>
+          </div>
+        )}
         {!q && suggested && (
           <>
             {suggested.recent.length > suggested.likely.length && (

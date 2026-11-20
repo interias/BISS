@@ -1,9 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Dialog } from "radix-ui";
 import type { ReactNode } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { bananaDetail, bananaEntry, puddingDraft } from "@/test/fixtures";
-import { AmountForm } from "./amount-sheet";
+import { AmountForm, AmountSheet } from "./amount-sheet";
+
+afterEach(() => vi.unstubAllGlobals());
 
 // SheetTitle needs a dialog around it.
 const inDialog = (node: ReactNode) =>
@@ -212,4 +214,12 @@ test("the name stands in the colour of its kind; a recipe names itself and its p
 
   inDialog(<AmountForm food={{ ...bananaDetail, name: "Riegel", gtin: "04000000000013" }} onSubmit={() => {}} />);
   expect(screen.getByRole("heading", { name: "Riegel" })).toHaveClass("text-scan");
+});
+
+test("a food that does not load is reported, not left as an empty sheet", async () => {
+  const failure = new TypeError("Failed to fetch");
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(failure));
+  const onLoadError = vi.fn();
+  inDialog(<AmountSheet foodId={1} onSubmit={() => {}} onLoadError={onLoadError} />);
+  await waitFor(() => expect(onLoadError).toHaveBeenCalledWith(failure));
 });

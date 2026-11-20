@@ -25,14 +25,13 @@ test("the times of day are shares of the kcal", () => {
 });
 
 test("the period before can be shown while it reaches the first day of the diary", () => {
-  expect(canStepBack(null)).toBe(false);
-  const stats = (first_day: string | null) =>
-    ({ first_day, previous: { from: "2026-11-02", to: "2026-11-08", average_kcal: null } }) as never;
+  // Shown is the week from Mon 9 Nov; nothing loaded yet means no first day either.
+  expect(canStepBack(undefined, "2026-11-09")).toBe(false);
   // A week without entries in between does not stop paging back.
-  expect(canStepBack(stats("2026-08-01"))).toBe(true);
-  expect(canStepBack(stats("2026-11-08"))).toBe(true);
-  expect(canStepBack(stats("2026-11-09"))).toBe(false);
-  expect(canStepBack(stats(null))).toBe(false);
+  expect(canStepBack("2026-08-01", "2026-11-09")).toBe(true);
+  expect(canStepBack("2026-11-08", "2026-11-09")).toBe(true);
+  expect(canStepBack("2026-11-09", "2026-11-09")).toBe(false);
+  expect(canStepBack(null, "2026-11-09")).toBe(false);
 });
 
 test("days and periods are named in German", () => {
