@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import {
+  ApiError,
   createCombo,
   createEntry,
   createEntryGroup,
@@ -199,9 +200,17 @@ export function Home() {
   const failWith = useCallback(
     (retry?: () => void) => (failure: unknown) => {
       console.error(failure);
+      // Removed meanwhile on another device or tab: the connection is fine and a retry
+      // cannot help, so it says what happened and shows the day as it is now.
+      if (failure instanceof ApiError && failure.status === 404) {
+        showError("Das gibt es inzwischen nicht mehr.");
+        setSheet(null);
+        reload().catch(console.error);
+        return;
+      }
       showError("Das hat nicht geklappt. Verbindung prüfen.", retry);
     },
-    [showError],
+    [showError, reload],
   );
   const fail = useMemo(() => failWith(), [failWith]);
   const failRetry = useCallback((failure: unknown, retry: () => void) => failWith(retry)(failure), [failWith]);
@@ -592,33 +601,35 @@ export function Home() {
           </h1>
         </div>
         {tab === "today" && day && today && (
+          // The day chosen, not the one loaded: fast taps on a slow network each count, and
+          // the arrows keep their place, so a second tap does not land on the date.
           <div className="ml-auto flex items-center text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
             <button
               type="button"
               aria-label="Einen Tag zurück"
-              onClick={() => showDay(addDays(day.date, -1), today)}
+              onClick={() => showDay(addDays(viewRef.current ?? today, -1), today)}
               className={cn(hitArea, "grid h-9 w-8 place-items-center")}
             >
               <BackIcon />
             </button>
             <button
               type="button"
-              aria-label={`${dayLabel(day.date, today)}, Tag wählen`}
+              aria-label={`${dayLabel(view ?? today, today)}, Tag wählen`}
               onClick={() => setSheet({ kind: "calendar" })}
-              className={cn("px-1 py-2 tabular-nums", view !== null && "font-bold text-primary")}
+              className={cn("min-w-[9.5rem] px-1 py-2 text-center tabular-nums", view !== null && "font-bold text-primary")}
             >
-              {dayLabel(day.date, today)}
+              {dayLabel(view ?? today, today)}
             </button>
-            {view !== null && (
-              <button
-                type="button"
-                aria-label="Einen Tag vor"
-                onClick={() => showDay(addDays(day.date, 1), today)}
-                className={cn(hitArea, "grid h-9 w-8 place-items-center")}
-              >
-                <ForwardIcon />
-              </button>
-            )}
+            <button
+              type="button"
+              aria-label="Einen Tag vor"
+              hidden={view === null}
+              onClick={() => showDay(addDays(viewRef.current ?? today, 1), today)}
+              className={cn(hitArea, "grid h-9 w-8 place-items-center")}
+            >
+              <ForwardIcon />
+            </button>
+            {view === null && <span aria-hidden="true" className="w-8" />}
           </div>
         )}
       </header>

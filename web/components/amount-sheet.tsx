@@ -225,6 +225,12 @@ export function AmountForm({
         ))}
       </div>
 
+      {(grams < MIN_GRAMS || grams > ENTRY_MAX_GRAMS) && (
+        // Why the button is grey, in words: a screen reader hears nothing of grey.
+        <p role="status" className="-mt-2 mb-2.5 text-center text-[13px] font-semibold text-warn">
+          Eine Menge von 1 bis 10.000 g.
+        </p>
+      )}
       <div className="flex gap-2.5">
         {entry && onRemove && (
           <button

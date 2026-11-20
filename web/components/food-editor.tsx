@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   ApiError,
   createFood,
@@ -35,7 +35,7 @@ import { CATEGORY_LABELS, fmt, ORIGIN_LABELS, per100Unit } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { addPill, inputField } from "@/lib/styles";
 import { PhotoPicker } from "@/components/photo-picker";
-import { SheetTitle } from "@/components/sheet";
+import { SheetTitle, useSheetBack } from "@/components/sheet";
 
 const CHECK_DEBOUNCE_MS = 300;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // the API's limit, checked early for a clear message
@@ -115,6 +115,11 @@ export function EditorForm({
   onCancel,
 }: Actions & New & { food?: FoodDetail }) {
   const draft = food ? undefined : label?.draft;
+  // A label read costs a photo and a wait: a tap beside the sheet, Escape or the back button
+  // keep it and say how to leave; only "Verwerfen" throws it away.
+  const [held, setHeld] = useState(false);
+  const hold = useCallback(() => setHeld(true), []);
+  useSheetBack(draft ? hold : null);
   // The label servings as read; the row of the i-th has the key -(i + 1).
   const [fromLabel] = useState(() => (draft ? servingsOfLabel(draft) : { servings: [], skipped: [] }));
   // The last saved state: after a save whose photo upload failed, a retry must update.
@@ -482,12 +487,17 @@ export function EditorForm({
         )}
         {/* Why Speichern is grey, beside it: the hint in the form may lie behind this bar. */}
         {!error && blocked && <p className="mb-3 text-[13px] font-semibold text-warn">{blocked}</p>}
+        {!error && !blocked && held && (
+          <p role="status" className="mb-3 text-[13px] font-semibold text-muted-foreground">
+            Das Etikett bleibt, bis du „Verwerfen“ tippst.
+          </p>
+        )}
         <div className="flex gap-2.5">
           <button
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
+            className="min-h-[54px] rounded-2xl border px-[18px] font-semibold text-muted-foreground"
           >
             {draft ? "Verwerfen" : "Abbrechen"}
           </button>
@@ -495,7 +505,7 @@ export function EditorForm({
             type="button"
             disabled={!canSave}
             onClick={submit}
-            className="h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+            className="min-h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           >
             {food ? "Speichern" : "Speichern & eintragen"}
           </button>

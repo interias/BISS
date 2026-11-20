@@ -57,6 +57,7 @@ test("the grams can be typed, 0 g locks Eintragen instead of turning into 1 g", 
   fireEvent.blur(amount());
   expect(amount()).toHaveValue(null);
   expect(screen.getByRole("button", { name: /Eintragen/ })).toBeDisabled();
+  expect(screen.getByRole("status")).toHaveTextContent("Eine Menge von 1 bis 10.000 g.");
   fireEvent.click(screen.getByRole("button", { name: "weniger" }));
   expect(amount()).toHaveValue(1);
   fireEvent.click(screen.getByRole("button", { name: "mehr" }));

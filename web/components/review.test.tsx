@@ -213,3 +213,16 @@ test("Einstellungen: a tolerance applies at once", async () => {
   expect(calls.find((c) => c.method === "PUT" && c.url === "/api/v1/settings")?.body).toEqual({ tolerance: 0.15 });
   expect(within(tolerance).getByRole("button", { name: "±15 %" })).toHaveAttribute("aria-pressed", "true");
 });
+
+test("fast taps on the day arrow each count, before the day has loaded", async () => {
+  fakeApi();
+  render(<Home />);
+  await screen.findByText("Heute · Mi 28. Okt");
+  const back = screen.getByRole("button", { name: "Einen Tag zurück" });
+  fireEvent.click(back);
+  fireEvent.click(back);
+  fireEvent.click(back);
+  expect(await screen.findByText("So 25. Okt")).toBeInTheDocument();
+  // The arrow kept its place: the forward arrow was there before, only hidden.
+  expect(screen.getByRole("button", { name: "Einen Tag vor" })).toBeInTheDocument();
+});
