@@ -233,3 +233,25 @@ test("a failed save says so and keeps the sheet", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("Speichern fehlgeschlagen.");
   expect(onSaved).not.toHaveBeenCalled();
 });
+
+test("a recipe saved elsewhere meanwhile is not overwritten unseen; Trotzdem speichern does it", async () => {
+  const { calls } = fakeApi();
+  const fake = globalThis.fetch;
+  const { onSaved } = renderSheet(skyrRecipe.id);
+  expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue("Skyrbrötchen");
+
+  // Another tab saves 6 portions after this sheet opened.
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input).endsWith(`/recipes/${skyrRecipe.id}`) && (init?.method ?? "GET") === "GET"
+      ? Promise.resolve(new Response(JSON.stringify({ ...skyrRecipe, portions: 6 }), { status: 200 }))
+      : fake(input, init),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "weniger Portionen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Das Rezept wurde inzwischen woanders geändert.");
+  expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+
+  fireEvent.click(screen.getByRole("button", { name: "Trotzdem speichern" }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  expect(calls.find((c) => c.method === "PATCH")?.body).toMatchObject({ portions: 4 });
+});

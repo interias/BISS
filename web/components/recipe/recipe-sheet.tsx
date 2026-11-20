@@ -85,6 +85,16 @@ export function draftName(recipeId?: number): string | null {
   }
 }
 
+/** What a save writes, to see whether another tab or device saved the recipe meanwhile. */
+const stored = (recipe: Recipe) =>
+  JSON.stringify([
+    recipe.name,
+    recipe.description,
+    recipe.portions,
+    recipe.cooked_grams,
+    recipe.items.map((item) => [item.food.id, item.grams]),
+  ]);
+
 /** The draft without the row keys, to compare it with the saved recipe. */
 const content = (draft: Draft) =>
   JSON.stringify({
@@ -228,6 +238,8 @@ function RecipeForm({
   // A second tap before the button turns grey must not create the recipe twice.
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // The recipe was saved elsewhere since it was opened: "Trotzdem speichern" overwrites it.
+  const [conflict, setConflict] = useState(false);
 
   useEffect(() => {
     const now = { name, description, rows, portions, cooked, open };
@@ -333,19 +345,20 @@ function RecipeForm({
   };
   const ready = name.trim() !== "" && rows.length > 0 && !cookedWrong;
 
-  const save = async () => {
+  const save = async (force = false) => {
     if (saving.current) return;
     saving.current = true;
     try {
-      await store();
+      await store(force);
     } finally {
       saving.current = false;
     }
   };
 
-  const store = async () => {
+  const store = async (force: boolean) => {
     setBusy(true);
     setError(null);
+    setConflict(false);
     const body = {
       name: name.trim(),
       description: description.trim(),
@@ -355,6 +368,13 @@ function RecipeForm({
     };
     let saved: Recipe;
     try {
+      // A second tab or device may have saved this recipe since: never overwrite that unseen.
+      if (base && !force && stored(await getRecipe(base.id)) !== stored(base)) {
+        setError("Das Rezept wurde inzwischen woanders geändert.");
+        setConflict(true);
+        setBusy(false);
+        return;
+      }
       saved = base ? await updateRecipe(base.id, body) : await createRecipe(body);
     } catch (failure) {
       console.error(failure);
@@ -637,6 +657,16 @@ function RecipeForm({
       {error && (
         <p role="alert" className="mb-2.5 text-[13px] font-semibold text-destructive">
           {error}
+          {conflict && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => save(true).catch(console.error)}
+              className="ml-1.5 font-bold text-primary"
+            >
+              Trotzdem speichern
+            </button>
+          )}
         </p>
       )}
       <div className="flex gap-2.5">

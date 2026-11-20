@@ -147,7 +147,7 @@ export function Settings({
         <span className={kicker}>Tagesziele</span>
         {shown &&
           FIELDS.map(({ key, label, unit, color }) => (
-            <div key={key} className="grid grid-cols-[minmax(0,1fr)_132px] items-center gap-2.5">
+            <div key={key} className="grid grid-cols-[minmax(0,1fr)_8.25rem] items-center gap-2.5">
               <label htmlFor={`goal-${key}`} className="flex items-center text-[14.5px] font-semibold">
                 {color && <i aria-hidden="true" className="mr-2 inline-block size-2 rounded-full" style={{ background: color }} />}
                 {label}
@@ -169,7 +169,7 @@ export function Settings({
             </div>
           ))}
         {shown && (
-          <div data-testid="goal-carbs" className="grid grid-cols-[minmax(0,1fr)_132px] items-center gap-2.5 text-[14.5px]">
+          <div data-testid="goal-carbs" className="grid grid-cols-[minmax(0,1fr)_8.25rem] items-center gap-2.5 text-[14.5px]">
             <span className="flex items-center font-semibold">
               <i aria-hidden="true" className="mr-2 inline-block size-2 rounded-full bg-carb" />
               Kohlenhydrate

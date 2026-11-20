@@ -74,7 +74,7 @@ export function IngredientGrams({
           max={Number.isFinite(max) ? max : undefined}
           aria-label={name ? `${name} Gramm` : "Menge"}
           value={grams || ""}
-          onChange={(event) => onChange(Number(event.target.value) || 0)}
+          onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
           // An ingredient keeps whole grams. The amount sheet leaves what was typed (a serving
           // of 12.5 g stays) and locks Eintragen out of range instead: correcting 0 to 1 g on
           // the way to the button saved what the sheet never showed.

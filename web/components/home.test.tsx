@@ -774,3 +774,42 @@ test("without speech recognition in the browser there is no microphone", async (
   expect(await screen.findByRole("button", { name: /^Kamera/ })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Mahlzeit diktieren" })).not.toBeInTheDocument();
 });
+
+test("an entry removed on another device says so instead of blaming the connection", async () => {
+  fakeApi();
+  const fake = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation(async (url, init) =>
+    init?.method === "PATCH" && String(url).startsWith("/api/v1/entries/")
+      ? new Response(JSON.stringify({ detail: "not found" }), { status: 404 })
+      : fake(url, init),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<Home />);
+  fireEvent.click(await screen.findByRole("button", { name: /Banane roh\s*120 g/ }));
+  await screen.findByText("Banane roh eingetragen · 112 kcal");
+  fireEvent.click(within(screen.getByRole("region", { name: "Tagebuch" })).getByRole("button", { name: /Banane roh/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "mehr" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Speichern · / }));
+
+  expect(await screen.findByText("Das gibt es inzwischen nicht mehr.")).toBeInTheDocument();
+  expect(screen.queryByText("Das hat nicht geklappt. Verbindung prüfen.")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Nochmal" })).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("button", { name: /^Speichern · / })).not.toBeInTheDocument());
+});
+
+test("Escape or the back button keep a label read; only Verwerfen throws it away", async () => {
+  fakeApi();
+  render(<Home />);
+  await photographLabel();
+  expect(await screen.findByText("Neu · aus Etikett gelesen")).toBeInTheDocument();
+
+  fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+  act(() => {
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  expect(screen.getByLabelText("Name")).toHaveValue("Haferkeks Dinkel");
+  expect(screen.getByText("Das Etikett bleibt, bis du „Verwerfen“ tippst.")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Verwerfen" }));
+  await waitFor(() => expect(screen.queryByLabelText("Name")).not.toBeInTheDocument());
+});
