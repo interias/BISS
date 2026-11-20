@@ -148,14 +148,17 @@ export function EditorForm({
 
   const nutrients = readNutrients(texts);
   const starred = rows.some((r) => r.key === star) ? star : (rows[0]?.key ?? null);
-  const kept = rows.filter((r) => r.label.trim()); // a blank row is dropped on save
+  const kept = rows.filter((r) => r.label.trim());
   const gramsOk = kept.every((r) => {
     const grams = parseInput(r.grams);
     return grams !== null && Number.isFinite(grams) && grams > 0;
   });
   const basis = base?.basis ?? draft?.per_100.basis ?? "g";
   const problem = nutrients && impossible(nutrients, basis);
-  const canSave = !busy && name.trim() !== "" && nutrients !== null && !problem && gramsOk;
+  // A serving without a name is never dropped unseen: it blocks Speichern until named or ✕.
+  const unnamed = rows.some((r) => !r.label.trim());
+  const blocked = problem || (unnamed ? "Jede Portion braucht eine Bezeichnung." : null);
+  const canSave = !busy && name.trim() !== "" && nutrients !== null && !blocked && gramsOk;
   /** The label serving a row started from, while the food is not created yet. */
   const readOf = (key: number) => (base || key > 0 ? undefined : fromLabel.servings[-key - 1]);
   /** The serving a row started from: a saved one or one read from the label. */
@@ -419,9 +422,10 @@ export function EditorForm({
                 value={row.label}
                 placeholder="z. B. 1 Scheibe"
                 aria-label="Bezeichnung"
+                aria-invalid={!row.label.trim() || undefined}
                 autoFocus={row.key === added}
                 onChange={(e) => setRow(row.key, { label: e.target.value })}
-                className="h-9 w-full min-w-0 rounded-[9px] border bg-surface-2 px-[9px]"
+                className="h-9 w-full min-w-0 rounded-[9px] border bg-surface-2 px-[9px] aria-invalid:border-warn"
               />
               <input
                 value={row.grams}
@@ -476,6 +480,8 @@ export function EditorForm({
             {error}
           </p>
         )}
+        {/* Why Speichern is grey, beside it: the hint in the form may lie behind this bar. */}
+        {!error && blocked && <p className="mb-3 text-[13px] font-semibold text-warn">{blocked}</p>}
         <div className="flex gap-2.5">
           <button
             type="button"

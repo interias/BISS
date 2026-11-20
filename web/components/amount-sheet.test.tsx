@@ -46,7 +46,7 @@ test("± changes the grams and the preview follows live", () => {
   expect(amount()).toHaveValue(120);
 });
 
-test("the grams can be typed, at least 1 g, and Eintragen sends them", () => {
+test("the grams can be typed, 0 g locks Eintragen instead of turning into 1 g", () => {
   const onSubmit = vi.fn();
   inDialog(<AmountForm food={bananaDetail} onSubmit={onSubmit} />);
   fireEvent.change(amount(), { target: { value: "37" } });
@@ -55,7 +55,8 @@ test("the grams can be typed, at least 1 g, and Eintragen sends them", () => {
   expect(onSubmit).toHaveBeenCalledWith(37);
   fireEvent.change(amount(), { target: { value: "0" } });
   fireEvent.blur(amount());
-  expect(amount()).toHaveValue(1);
+  expect(amount()).toHaveValue(null);
+  expect(screen.getByRole("button", { name: /Eintragen/ })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "weniger" }));
   expect(amount()).toHaveValue(1);
   fireEvent.click(screen.getByRole("button", { name: "mehr" }));
@@ -222,4 +223,23 @@ test("a food that does not load is reported, not left as an empty sheet", async 
   const onLoadError = vi.fn();
   inDialog(<AmountSheet foodId={1} onSubmit={() => {}} onLoadError={onLoadError} />);
   await waitFor(() => expect(onLoadError).toHaveBeenCalledWith(failure));
+});
+
+test("grams that fit two servings mark one chip only, the standard one first", () => {
+  const yogurt = {
+    ...bananaDetail,
+    name: "Joghurt",
+    standard_serving: { label: "1 Becher", grams: 100, origin: "estimated" as const },
+    servings: [
+      { id: 1, label: "1 Löffel", grams: 50, origin: "estimated" as const, is_default: false },
+      { id: 2, label: "1 Becher", grams: 100, origin: "estimated" as const, is_default: true },
+    ],
+  };
+  inDialog(<AmountForm food={yogurt} onSubmit={() => {}} />);
+  expect(screen.getByRole("button", { name: /1 Becher/ })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: /^1 Löffel/ })).toHaveAttribute("aria-pressed", "false");
+  // The other chip starts over at one of its own.
+  fireEvent.click(screen.getByRole("button", { name: /^1 Löffel/ }));
+  expect(amount()).toHaveValue(50);
+  expect(screen.getByRole("button", { name: /1 Löffel/ })).toHaveAttribute("aria-pressed", "true");
 });

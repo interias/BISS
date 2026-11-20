@@ -46,20 +46,28 @@ function HBar({ label, share, value }: { label: string; share: number; value: st
  * day, nutrients, logged days, weekdays (month only), times of day and the most frequent foods.
  * A tap on a day opens it on Heute. All numbers are the backend's.
  */
+/** The period the statistics shows: week or month, steps back from the current one. */
+export type StatsAt = { kind: PeriodKind; offset: number };
+
 export function Statistics({
   today,
   onOpen,
+  start,
   onError,
 }: {
   today: string;
-  onOpen: (date: string) => void;
+  /** A day opens on Heute; `at` is the period shown, so the back button returns to it. */
+  onOpen: (date: string, at: StatsAt) => void;
+  /** The period to show first, else this week. */
+  start?: StatsAt | null;
   /** With `retry`, "Nochmal" asks again for the period shown. */
   onError: (failure: unknown, retry: () => void) => void;
 }) {
   const [attempt, setAttempt] = useState(0);
   const fail = useCallback((failure: unknown) => onError(failure, () => setAttempt((n) => n + 1)), [onError]);
-  const [kind, setKind] = useState<PeriodKind>("week");
-  const [offset, setOffset] = useState(() => openingOffset("week", today));
+  const [kind, setKind] = useState<PeriodKind>(start?.kind ?? "week");
+  const [offset, setOffset] = useState(() => start?.offset ?? openingOffset("week", today));
+  const open = (date: string) => onOpen(date, { kind, offset });
   const [selected, setSelected] = useState<string | null>(null);
   const shown = period(kind, offset, today);
   const key = `${shown.from}/${shown.to}`;
@@ -144,7 +152,7 @@ export function Statistics({
           days={days}
           selected={selected}
           onSelect={setSelected}
-          onOpen={onOpen}
+          onOpen={open}
         />
         </div>
       )}

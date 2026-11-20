@@ -95,6 +95,7 @@ def test_invalid_entries_are_rejected(client: TestClient, session: Session) -> N
     assert post(client, food_id=food.id + 1000).status_code == 404
     assert post(client, food_id=food.id, grams=0).status_code == 422
     assert post(client, food_id=food.id, grams=-5).status_code == 422
+    assert post(client, food_id=food.id, grams=10_001).status_code == 422
     assert post(client, food_id=food.id, meal="brunch").status_code == 422
     assert post(client, food_id=food.id, eaten_at="2026-10-28T12:00:00").status_code == 422
 
@@ -125,6 +126,7 @@ def test_patch_rejects_unknown_entries_and_bad_values(client: TestClient, sessio
     entry = post(client, food_id=food.id, grams=100).json()
     assert client.patch("/api/v1/entries/999999", json={"grams": 10}).status_code == 404
     assert client.patch(f"/api/v1/entries/{entry['id']}", json={"grams": 0}).status_code == 422
+    assert client.patch(f"/api/v1/entries/{entry['id']}", json={"grams": 10_001}).status_code == 422
     assert client.patch(f"/api/v1/entries/{entry['id']}", json={"meal": "x"}).status_code == 422
 
 

@@ -413,6 +413,14 @@ test("the back button in the ingredient search goes back to the recipe; an unsav
   // Still on the tab Rezepte: the page loads the draft again once the sheet is closed.
   fireEvent.click(await screen.findByRole("button", { name: /Nicht gespeichert\s*Linsensuppe/ }));
   expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue("Linsensuppe");
+
+  // Saved, the row "Nicht gespeichert" goes at once, not only when the amount sheet closes.
+  fireEvent.click(screen.getByRole("button", { name: "Zutat suchen" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Suchen" }), { target: { value: "banane" } });
+  fireEvent.click(await screen.findByRole("button", { name: /^Banane roh/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+  await screen.findByText("Rezept gespeichert");
+  await waitFor(() => expect(screen.queryByText("Nicht gespeichert")).not.toBeInTheDocument());
   window.localStorage.clear();
 });
 

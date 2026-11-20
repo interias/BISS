@@ -32,6 +32,12 @@ const textsOf = (goal: GoalInput): Texts => ({
 });
 
 /**
+ * Goals typed but not saved, kept while the app is open: switching the tab or the back
+ * button unmounts the page, and the typing was lost without a word.
+ */
+let keptDraft: Texts | null = null;
+
+/**
  * The tab Einstellungen (SPEC 3, ADR-0015): the goals from today, the tolerance of the
  * statistics and the goals so far. Kalorien, Eiweiß and Fett are typed, the carbs are the
  * remainder; the preview is local and display only, the backend computes when saving.
@@ -52,7 +58,10 @@ export function Settings({
   const [current, setCurrent] = useState<Goal | null>(null);
   const [history, setHistory] = useState<Goal[]>([]);
   const [tolerance, setTolerance] = useState<number | null>(null);
-  const [texts, setTexts] = useState<Texts | null>(null);
+  const [texts, setTexts] = useState<Texts | null>(() => keptDraft);
+  useEffect(() => {
+    keptDraft = texts;
+  }, [texts]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(

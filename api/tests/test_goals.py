@@ -13,22 +13,24 @@ DAY = date(2026, 10, 28)
 
 @pytest.fixture(autouse=True)
 def no_goal_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("GOAL_KCAL", "GOAL_PROTEIN", "GOAL_CARBS", "GOAL_FAT"):
+    for name in ("GOAL_KCAL", "GOAL_PROTEIN", "GOAL_FAT"):
         monkeypatch.delenv(name, raising=False)
 
 
 def test_defaults_without_configuration() -> None:
-    assert default_targets() == Targets(kcal=2400, protein=160, carbs=260, fat=75)
+    # The carbs are the remainder: (2400 - 4*160 - 9*75) / 4.
+    assert default_targets() == Targets(kcal=2400, protein=160, carbs=271.25, fat=75)
 
 
 def test_defaults_come_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOAL_KCAL", "2100")
     monkeypatch.setenv("GOAL_FAT", "70.5")
-    assert default_targets(get_settings()) == Targets(kcal=2100, protein=160, carbs=260, fat=70.5)
+    expected = Targets(kcal=2100, protein=160, carbs=206.375, fat=70.5)
+    assert default_targets(get_settings()) == expected
 
 
 def test_environment_defaults_apply_without_goal(session: Session) -> None:
-    assert targets_for(session, DAY) == Targets(kcal=2400, protein=160, carbs=260, fat=75)
+    assert targets_for(session, DAY) == Targets(kcal=2400, protein=160, carbs=271.25, fat=75)
 
 
 def test_stored_default_goal_replaces_environment(session: Session) -> None:

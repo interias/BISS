@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSuggestions, kindColor, photoOf, searchFoods, searchOff, type Combo, type SearchHit, type Suggestion } from "@/lib/api";
-import { fmt, originLine, per100Unit } from "@/lib/format";
+import { fmt, fmtGrams, originLine, per100Unit } from "@/lib/format";
 import { addPill, kicker } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -60,7 +60,7 @@ function ComboRow({ combo, onPick }: { combo: Combo; onPick: (combo: Combo) => v
       <span className="min-w-0 self-end truncate font-semibold">{combo.name}</span>
       <span className="self-end text-right font-bold tabular-nums">{fmt(combo.totals.kcal)}</span>
       <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground">
-        Schnellzugriff · {fmt(grams)} g · trägt direkt ein
+        Schnellzugriff · {fmtGrams(grams)} g · trägt direkt ein
       </span>
       <MacroLine macros={combo.totals} className={ROW_MACROS} />
     </button>
@@ -253,6 +253,16 @@ export function SearchSheet({
         )}
         {settled && offNow?.failed && (
           <div className="py-1 text-[12px] text-muted-foreground">Open Food Facts ist gerade nicht erreichbar.</div>
+        )}
+        {onCreate && settled && (hits?.length ?? 0) + offHits.length > 0 && (
+          // The food sought may be none of the hits: without this line only nonsense typed
+          // would reach "Neu anlegen", and a near hit would be logged instead.
+          <div className="flex items-center justify-between gap-2 py-2.5 text-[13px] text-muted-foreground">
+            Nicht dabei?
+            <button type="button" onClick={onCreate} className="py-1.5 pl-1.5 font-bold text-primary">
+              Neu anlegen
+            </button>
+          </div>
         )}
         {hits?.length === 0 && settled && offHits.length === 0 && (
           <div className="py-2 text-[13px] text-muted-foreground">

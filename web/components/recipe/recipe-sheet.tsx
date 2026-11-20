@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   ApiError,
   createRecipe,
@@ -225,6 +225,8 @@ function RecipeForm({
   const [reading, setReading] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  // A second tap before the button turns grey must not create the recipe twice.
+  const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -332,6 +334,16 @@ function RecipeForm({
   const ready = name.trim() !== "" && rows.length > 0 && !cookedWrong;
 
   const save = async () => {
+    if (saving.current) return;
+    saving.current = true;
+    try {
+      await store();
+    } finally {
+      saving.current = false;
+    }
+  };
+
+  const store = async () => {
     setBusy(true);
     setError(null);
     const body = {
@@ -537,7 +549,8 @@ function RecipeForm({
 
       <IngredientSearchField onClick={() => setSearching("new")} />
 
-      <div className="mb-1 grid grid-cols-2 gap-3">
+      {/* Narrow (zoom), −/+ need the whole width: the cooked weight goes below. */}
+      <div className="mb-1 grid grid-cols-2 gap-3 max-[340px]:grid-cols-1">
         <div className="grid gap-1">
           <span id="recipe-portions" className={label}>
             Portionen

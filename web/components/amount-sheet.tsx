@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getFood, imageUrl, kindColor, type Entry, type FoodDetail, type Serving } from "@/lib/api";
-import { previewMacros, servingCount, servingsGrams } from "@/lib/amount";
-import { brandLine, fmt, SOURCE_LABELS } from "@/lib/format";
+import { ENTRY_MAX_GRAMS, MIN_GRAMS, previewMacros, servingCount, servingsGrams } from "@/lib/amount";
+import { brandLine, fmt, fmtGrams, SOURCE_LABELS } from "@/lib/format";
 import { kicker, primaryOff } from "@/lib/styles";
 import { cn } from "@/lib/utils";
 import { FoodPic } from "@/components/food-pic";
@@ -104,6 +104,14 @@ export function AmountForm({
     (amount) => !food.servings.some((serving) => servingCount(amount, serving.grams)),
   );
   const preview = previewMacros(food.per_100, grams, food.basis, food.density);
+  // Grams that fit several servings (100 g = "1 Becher" and "2 × 50 g") mark one chip only:
+  // the standard serving if it fits, else the first that does.
+  const fits = food.servings.filter((serving) => servingCount(grams, serving.grams) > 0);
+  const chosen =
+    fits.find(
+      (serving) =>
+        serving.label === food.standard_serving.label && serving.grams === food.standard_serving.grams,
+    ) ?? fits[0];
 
   return (
     <>
@@ -114,7 +122,8 @@ export function AmountForm({
           {/* The name in the colour of its kind, as in the lists. */}
           <SheetTitle
             className={cn(
-              "font-heading text-[21px] leading-[1.15] font-bold text-balance",
+              // A long word breaks instead of running under "Bearbeiten".
+              "font-heading text-[21px] leading-[1.15] font-bold text-balance break-words",
               kindColor({ recipe: !!food.recipe_id, scanned: !!food.gtin }),
             )}
           >
@@ -122,7 +131,7 @@ export function AmountForm({
           </SheetTitle>
           <p className="mt-[3px] text-[13.5px] text-muted-foreground tabular-nums">
             {food.recipe_id
-              ? `${food.standard_serving.label} · ${fmt(food.standard_serving.grams)} g`
+              ? `${food.standard_serving.label} · ${fmtGrams(food.standard_serving.grams)} g`
               : brandLine(food.brand, food.source)}
           </p>
         </div>
@@ -147,12 +156,12 @@ export function AmountForm({
         <p className="-mt-1 mb-3 text-[12px] text-muted-foreground">Daten von Open Food Facts (ODbL)</p>
       )}
 
-      <IngredientGrams large grams={grams} max={Infinity} onChange={setGrams} />
+      <IngredientGrams large grams={grams} max={ENTRY_MAX_GRAMS} onChange={setGrams} />
 
       {food.servings.length + last.length > 0 && (
         <div className="mb-[18px] flex flex-wrap justify-center gap-2">
           {food.servings.map((serving) => {
-            const count = servingCount(grams, serving.grams);
+            const count = serving === chosen ? servingCount(grams, serving.grams) : 0;
             return (
               <span key={`${serving.label}-${serving.grams}`} className="inline-flex flex-none items-center gap-1">
                 {count > 1 && (
@@ -175,7 +184,7 @@ export function AmountForm({
                   {count > 0 && `${count} × `}
                   {serving.label}
                   <small className="font-medium text-muted-foreground tabular-nums">
-                    {fmt(servingsGrams(count || 1, serving.grams))} g
+                    {fmtGrams(servingsGrams(count || 1, serving.grams))} g
                   </small>
                 </button>
               </span>
@@ -186,12 +195,12 @@ export function AmountForm({
               key={amount}
               type="button"
               onClick={() => setGrams(amount)}
-              aria-label={`zuletzt ${fmt(amount)} g`}
+              aria-label={`zuletzt ${fmtGrams(amount)} g`}
               aria-pressed={amount === grams}
               className={cn(CHIP, amount === grams && "border-primary bg-accent")}
             >
               <small className="font-medium text-muted-foreground">zuletzt</small>
-              <span className="tabular-nums">{fmt(amount)} g</span>
+              <span className="tabular-nums">{fmtGrams(amount)} g</span>
             </button>
           ))}
         </div>
@@ -229,7 +238,8 @@ export function AmountForm({
         )}
         <button
           type="button"
-          disabled={busy}
+          // 0 g or more than an entry takes is never saved as something else.
+          disabled={busy || grams < MIN_GRAMS || grams > ENTRY_MAX_GRAMS}
           onClick={() => onSubmit(grams)}
           className={cn("h-[54px] flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground tabular-nums", primaryOff)}
         >

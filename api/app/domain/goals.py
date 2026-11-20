@@ -21,13 +21,18 @@ class Targets:
 
 
 def default_targets(settings: Settings | None = None) -> Targets:
-    """Default goals from the environment (2,400 / 160 / 260 / 75 unless configured)."""
+    """Default goals from the environment (2,400 kcal / 160 / 75 unless configured).
+
+    The carbs are the remainder, as for every stored goal (SPEC 4): a configured value of
+    their own once disagreed with the kcal.
+    """
     settings = settings or get_settings()
+    kcal, protein, fat = settings.goal_kcal, settings.goal_protein, settings.goal_fat
     return Targets(
-        kcal=settings.goal_kcal,
-        protein=settings.goal_protein,
-        carbs=settings.goal_carbs,
-        fat=settings.goal_fat,
+        kcal=kcal,
+        protein=protein,
+        carbs=max((kcal - 4 * protein - 9 * fat) / 4, 0),
+        fat=fat,
     )
 
 

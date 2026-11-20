@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getRecipes, imageUrl, type Recipe } from "@/lib/api";
-import { fmt } from "@/lib/format";
+import { fmt, fmtGrams } from "@/lib/format";
 import { iconPill } from "@/lib/styles";
 import { AiMark } from "@/components/ai-mark";
 import { BookIcon, LinkIcon } from "@/components/icons";
@@ -93,7 +93,7 @@ export function RecipesPage({
               <span className="min-w-0 self-end truncate font-semibold text-primary">{recipe.name}</span>
               <span className="self-end text-right font-bold tabular-nums">{fmt(recipe.per_portion.kcal)}</span>
               <span className="min-w-0 self-start truncate text-[12.5px] text-muted-foreground tabular-nums">
-                {`${recipe.portions} ${recipe.portions === 1 ? "Portion" : "Portionen"} · je ${fmt(recipe.portion_grams)} g`}
+                {`${recipe.portions} ${recipe.portions === 1 ? "Portion" : "Portionen"} · je ${fmtGrams(recipe.portion_grams)} g`}
                 {draftName(recipe.id) !== null && " · Entwurf offen"}
               </span>
               {/* Like the kcal above: of one portion. */}

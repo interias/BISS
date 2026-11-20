@@ -166,6 +166,40 @@ test("Statistik: a bar shows its day and Öffnen opens it on Heute", async ({ pa
   await expect(dateButton(page)).toHaveText(`Heute · ${shortDay(today)}`);
 });
 
+test("back from a day opened in the statistics shows the period it was opened from", async ({ page, request }) => {
+  // A day two weeks back: its week is called "KW nn", unlike this and last week.
+  const day = addDays(today, -14);
+  const response = await request.post("/api/v1/entries", {
+    data: { food_id: bananaId, grams: 150, eaten_at: backfillEatenAt(day) },
+  });
+  expect(response.status()).toBe(201);
+  entries.track((await response.json()).id);
+
+  await page.goto("/");
+  await tab(page, "Statistik").click();
+  const bar = page
+    .getByRole("group", { name: "Kalorien je Tag" })
+    .getByRole("button", { name: new RegExp(`^${escape(shortDay(day))}: [\\d.]+ kcal$`) });
+  await expect(page.getByText(/^(Diese|Letzte) Woche/)).toBeVisible();
+  // Back week by week until the day's bar shows (one step fewer on a Monday).
+  await expect(async () => {
+    if (!(await bar.isVisible())) await page.getByRole("button", { name: "Zeitraum zurück" }).click();
+    await expect(bar).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  // The title "KW nn" carries its date range in the same element, right after the digits.
+  const title = (await page.getByText(/^KW \d+/).textContent())!.match(/^KW \d+/)![0];
+  await bar.click();
+  await page.getByRole("button", { name: "Öffnen", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "BISS" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page.getByText(new RegExp(`^${title}(?!\\d)`))).toBeVisible();
+  // A tap on the tab opens this week again (on a Monday the one before).
+  await tab(page, "Heute").click();
+  await tab(page, "Statistik").click();
+  await expect(page.getByText(/^(Diese|Letzte) Woche/)).toBeVisible();
+});
+
 test("a failed statistics load offers Nochmal, which loads the period shown", async ({ page }) => {
   await page.route("**/api/v1/stats?*", (route) => route.abort());
   await page.goto("/");

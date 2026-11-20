@@ -15,7 +15,6 @@ class Settings:
     database_url: str
     goal_kcal: float
     goal_protein: float
-    goal_carbs: float
     goal_fat: float
     # Product images; the volume images is mounted here in the api container.
     images_dir: Path
@@ -40,7 +39,6 @@ def get_settings() -> Settings:
         ),
         goal_kcal=_float("GOAL_KCAL", 2400),
         goal_protein=_float("GOAL_PROTEIN", 160),
-        goal_carbs=_float("GOAL_CARBS", 260),
         goal_fat=_float("GOAL_FAT", 75),
         images_dir=Path(os.environ.get("IMAGES_DIR", "/images")),
         off_base_url=os.environ.get("OFF_BASE_URL", "https://world.openfoodfacts.org"),
